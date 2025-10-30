@@ -11,6 +11,7 @@ from typing import Dict, List, Optional, Tuple, Union
 
 import cv2
 import numpy as np
+from tqdm import tqdm
 
 from .analyzer import MotionIntensityAnalyzer
 
@@ -19,16 +20,22 @@ def load_video_frames(video_path: str, max_frames: Optional[int] = None, frame_s
     cap = cv2.VideoCapture(video_path)
     frames: List[np.ndarray] = []
     frame_count = 0
-    while True:
-        ret, frame = cap.read()
-        if not ret:
-            break
-        if frame_count % frame_skip == 0:
-            frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            frames.append(frame_rgb)
-            if max_frames and len(frames) >= max_frames:
+    total = int(cap.get(cv2.CAP_PROP_FRAME_COUNT)) or None
+    with tqdm(total=total, desc=f"Loading {os.path.basename(video_path)}", unit="f", leave=False) as pbar:
+        while True:
+            ret, frame = cap.read()
+            if not ret:
                 break
-        frame_count += 1
+            if frame_count % frame_skip == 0:
+                frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                frames.append(frame_rgb)
+                if max_frames and len(frames) >= max_frames:
+                    # advance bar to end if known
+                    if total is not None:
+                        pbar.update(max(0, total - pbar.n))
+                    break
+            frame_count += 1
+            pbar.update(1)
     cap.release()
     return frames
 
@@ -83,7 +90,7 @@ def batch_analyze_videos(analyzer: MotionIntensityAnalyzer,
     if output_dir:
         per_video_dir = os.path.join(output_dir, 'motion_intensity')
         os.makedirs(per_video_dir, exist_ok=True)
-    for vp in video_files:
+    for vp in tqdm(video_files, desc='Analyzing videos', unit='vid'):
         rec = analyze_single_video(
             analyzer,
             vp,
