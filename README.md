@@ -1,0 +1,2 @@
+# AIGC_Video_Reasonableness_Evaluation
+检测AIGC视频生成的全方位合理性
