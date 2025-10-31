@@ -1,0 +1,32 @@
+# 缓存目录 - 包含模型文件，不应提交到 Git
+.cache/
+
+# Python 缓存
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# 虚拟环境
+venv/
+env/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# 输出文件
+*.log
+*.tmp
+
+# 大型数据文件
+*.pth
+*.pt
+*.ckpt
+*.h5
+*.hdf5
+*.bin
+
