@@ -1,5 +1,5 @@
 """
-ÔË¶¯·ù¶È¼ÆËã¹¤¾ß
+è¿åŠ¨å¹…åº¦è®¡ç®—å·¥å…·
 """
 
 import torch
@@ -39,28 +39,28 @@ def calculate_motion_degree(keypoints, video_width, video_height):
 
 def is_mask_suitable_for_tracking(mask, video_width, video_height, grid_size, min_area_ratio=0.001):
     """
-    ÅĞ¶Ï·Ö¸îÑÚÂëÊÇ·ñÊÊºÏ½øĞĞµã¸ú×Ù¡£
+    åˆ¤æ–­åˆ†å‰²æ©ç æ˜¯å¦é€‚åˆè¿›è¡Œç‚¹è·Ÿè¸ªã€‚
     
     Parameters:
-    mask: torch.Tensor, ÑÚÂë
-    video_width: int, ÊÓÆµ¿í¶È
-    video_height: int, ÊÓÆµ¸ß¶È
-    grid_size: int, ¹æÔòÍø¸ñ´óĞ¡
-    min_area_ratio: float, ÑÚÂë¸²¸ÇµÄ×îĞ¡Ãæ»ıÕ¼±ÈãĞÖµ
+    mask: torch.Tensor, æ©ç 
+    video_width: int, è§†é¢‘å®½åº¦
+    video_height: int, è§†é¢‘é«˜åº¦
+    grid_size: int, è§„åˆ™ç½‘æ ¼å¤§å°
+    min_area_ratio: float, æ©ç è¦†ç›–çš„æœ€å°é¢ç§¯å æ¯”é˜ˆå€¼
     
     Returns:
-    bool: ÊÇ·ñÊÊºÏ½øĞĞ¸ú×Ù
+    bool: æ˜¯å¦é€‚åˆè¿›è¡Œè·Ÿè¸ª
     """
     mask_area = torch.sum(mask > 0).item()
     total_area = video_width * video_height
     area_ratio = mask_area / total_area
     
-    # ÑÚÂëÃæ»ı¹ıĞ¡Ôò²»ÊÊºÏ
+    # æ©ç é¢ç§¯è¿‡å°åˆ™ä¸é€‚åˆ
     if area_ratio < min_area_ratio:
         return False
     
-    # ÑÚÂëÏñËØÊıÁ¿Ğè´ïµ½Ò»¶¨¹æÄ££¬±ÜÃâÏ¡Êèµ¼ÖÂÎŞ·¨ÎÈ¶¨¸ú×Ù
-    # ÖÁÉÙĞèÒªÔ¼ (grid_size/2)^2 ¸öÏñËØ
+    # æ©ç åƒç´ æ•°é‡éœ€è¾¾åˆ°ä¸€å®šè§„æ¨¡ï¼Œé¿å…ç¨€ç–å¯¼è‡´æ— æ³•ç¨³å®šè·Ÿè¸ª
+    # è‡³å°‘éœ€è¦çº¦ (grid_size/2)^2 ä¸ªåƒç´ 
     min_pixels_needed = (grid_size // 2) ** 2
     if mask_area < min_pixels_needed:
         return False

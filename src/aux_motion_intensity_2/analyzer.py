@@ -1,5 +1,5 @@
 """
-Ö÷·ÖÎöÆ÷ - ¼¯³ÉGrounded-SAMºÍCo-Tracker½øĞĞ¿É¸ĞÖª·ù¶ÈÆÀ·Ö
+ä¸»åˆ†æå™¨ - é›†æˆGrounded-SAMå’ŒCo-Trackerè¿›è¡Œå¯æ„ŸçŸ¥å¹…åº¦è¯„åˆ†
 """
 
 import os
@@ -13,17 +13,17 @@ import torch
 from PIL import Image
 import cv2
 
-# Ìí¼ÓµÚÈı·½¿âÂ·¾¶
+# æ·»åŠ ç¬¬ä¸‰æ–¹åº“è·¯å¾„
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
 gsa_path = os.path.join(project_root, "third_party", "Grounded-Segment-Anything")
 gdn_path = os.path.join(gsa_path, "GroundingDINO")
-sys.path.insert(0, gsa_path)  # ĞèÒªGrounded-Segment-AnythingÔÚÂ·¾¶ÖĞ
-sys.path.insert(0, gdn_path)  # GroundingDINOĞèÒªÓÅÏÈ
+sys.path.insert(0, gsa_path)  # éœ€è¦Grounded-Segment-Anythingåœ¨è·¯å¾„ä¸­
+sys.path.insert(0, gdn_path)  # GroundingDINOéœ€è¦ä¼˜å…ˆ
 sys.path.insert(0, os.path.join(gsa_path, "segment_anything"))
 sys.path.insert(0, os.path.join(project_root, "third_party", "co-tracker"))
 
-# Grounding DINO - Ê¹ÓÃÍêÕûÄ£¿éÂ·¾¶
-# type: ignore ×¢ÊÍÓÃÓÚºöÂÔlinter¾¯¸æ£¨ÕâĞ©Ä£¿éÔÚÔËĞĞÊ±¿ÉÓÃ£©
+# Grounding DINO - ä½¿ç”¨å®Œæ•´æ¨¡å—è·¯å¾„
+# type: ignore æ³¨é‡Šç”¨äºå¿½ç•¥linterè­¦å‘Šï¼ˆè¿™äº›æ¨¡å—åœ¨è¿è¡Œæ—¶å¯ç”¨ï¼‰
 import groundingdino.datasets.transforms as T  # type: ignore
 from groundingdino.models import build_model  # type: ignore
 from groundingdino.util.slconfig import SLConfig  # type: ignore
@@ -45,7 +45,7 @@ from .scene_classifier import SceneClassifier
 
 
 def load_video(video_path):
-    """¼ÓÔØÊÓÆµ²¢·µ»ØµÚÒ»Ö¡ºÍËùÓĞÖ¡"""
+    """åŠ è½½è§†é¢‘å¹¶è¿”å›ç¬¬ä¸€å¸§å’Œæ‰€æœ‰å¸§"""
     cap = cv2.VideoCapture(video_path)
     if not cap.isOpened():
         print("Error opening video file")
@@ -81,7 +81,7 @@ def load_video(video_path):
 
 
 def get_grounding_output(model, image, caption, box_threshold, text_threshold, with_logits=True, device="cpu"):
-    """Ê¹ÓÃGrounding DINO½øĞĞÄ¿±ê¼ì²â"""
+    """ä½¿ç”¨Grounding DINOè¿›è¡Œç›®æ ‡æ£€æµ‹"""
     caption = caption.lower()
     caption = caption.strip()
     if not caption.endswith("."):
@@ -116,34 +116,34 @@ def get_grounding_output(model, image, caption, box_threshold, text_threshold, w
 
 
 class PASAnalyzer:
-    """¿É¸ĞÖª·ù¶È·ÖÎöÆ÷"""
+    """å¯æ„ŸçŸ¥å¹…åº¦åˆ†æå™¨"""
     
     def __init__(self,
                  device: str = "cuda",
                  grid_size: int = 30,
                  enable_scene_classification: bool = False,
                  scene_classifier_params: Optional[Dict] = None,
-                 # Ä£ĞÍÂ·¾¶
+                 # æ¨¡å‹è·¯å¾„
                  grounded_checkpoint: Optional[str] = None,
                  sam_checkpoint: Optional[str] = None,
                  cotracker_checkpoint: Optional[str] = None):
         """
-        ³õÊ¼»¯·ÖÎöÆ÷
+        åˆå§‹åŒ–åˆ†æå™¨
         
         Args:
-            device: Éè±¸ ('cuda' or 'cpu')
-            grid_size: Co-TrackerÍø¸ñ´óĞ¡
-            enable_scene_classification: ÊÇ·ñÆôÓÃ³¡¾°·ÖÀà
-            scene_classifier_params: ³¡¾°·ÖÀàÆ÷²ÎÊı×Öµä
-            grounded_checkpoint: GroundingDINOÄ£ĞÍÂ·¾¶
-            sam_checkpoint: SAMÄ£ĞÍÂ·¾¶
-            cotracker_checkpoint: Co-TrackerÄ£ĞÍÂ·¾¶
+            device: è®¾å¤‡ ('cuda' or 'cpu')
+            grid_size: Co-Trackerç½‘æ ¼å¤§å°
+            enable_scene_classification: æ˜¯å¦å¯ç”¨åœºæ™¯åˆ†ç±»
+            scene_classifier_params: åœºæ™¯åˆ†ç±»å™¨å‚æ•°å­—å…¸
+            grounded_checkpoint: GroundingDINOæ¨¡å‹è·¯å¾„
+            sam_checkpoint: SAMæ¨¡å‹è·¯å¾„
+            cotracker_checkpoint: Co-Trackeræ¨¡å‹è·¯å¾„
         """
         self.device = device
         self.grid_size = grid_size
         self.enable_scene_classification = enable_scene_classification
         
-        # ÉèÖÃÄ£ĞÍÂ·¾¶
+        # è®¾ç½®æ¨¡å‹è·¯å¾„
         project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
         gsa_path = os.path.join(project_root, "third_party", "Grounded-Segment-Anything")
         
@@ -160,7 +160,7 @@ class PASAnalyzer:
         self.sam_checkpoint = sam_checkpoint or os.path.join(project_root, ".cache", "sam_vit_h_4b8939.pth")
         self.cotracker_checkpoint = cotracker_checkpoint or os.path.join(project_root, ".cache", "scaled_offline.pth")
         
-        # ³õÊ¼»¯³¡¾°·ÖÀàÆ÷
+        # åˆå§‹åŒ–åœºæ™¯åˆ†ç±»å™¨
         if self.enable_scene_classification:
             self.scene_classifier = SceneClassifier(**{**{
                 'static_threshold': 0.1,
@@ -172,14 +172,14 @@ class PASAnalyzer:
         else:
             self.scene_classifier = None
         
-        # Ä£ĞÍ¼ÓÔØ±êÖ¾
+        # æ¨¡å‹åŠ è½½æ ‡å¿—
         self._models_loaded = False
         self.grounding_model = None
         self.sam_predictor = None
         self.cotracker_model = None
     
     def _load_models(self):
-        """ÑÓ³Ù¼ÓÔØÄ£ĞÍ"""
+        """å»¶è¿ŸåŠ è½½æ¨¡å‹"""
         if self._models_loaded:
             return
         
@@ -215,23 +215,23 @@ class PASAnalyzer:
                      text_threshold: float = 0.25,
                      normalize_by_subject_diag: bool = True) -> Dict:
         """
-        ·ÖÎöÊÓÆµ²¢¼ÆËã¿É¸ĞÖª·ù¶È·ÖÊı
+        åˆ†æè§†é¢‘å¹¶è®¡ç®—å¯æ„ŸçŸ¥å¹…åº¦åˆ†æ•°
         
         Args:
-            video_path: ÊÓÆµÂ·¾¶
-            subject_noun: Ö÷ÌåÃû´Ê£¨Èç "person", "dog"£©
-            box_threshold: ¼ì²â¿òãĞÖµ
-            text_threshold: ÎÄ±¾ãĞÖµ
-            normalize_by_subject_diag: ÊÇ·ñ°´Ö÷Ìå¶Ô½ÇÏß¹éÒ»»¯
+            video_path: è§†é¢‘è·¯å¾„
+            subject_noun: ä¸»ä½“åè¯ï¼ˆå¦‚ "person", "dog"ï¼‰
+            box_threshold: æ£€æµ‹æ¡†é˜ˆå€¼
+            text_threshold: æ–‡æœ¬é˜ˆå€¼
+            normalize_by_subject_diag: æ˜¯å¦æŒ‰ä¸»ä½“å¯¹è§’çº¿å½’ä¸€åŒ–
             
         Returns:
-            °üº¬ÔË¶¯·ÖÊıºÍ³¡¾°·ÖÀàµÄ½á¹û×Öµä
+            åŒ…å«è¿åŠ¨åˆ†æ•°å’Œåœºæ™¯åˆ†ç±»çš„ç»“æœå­—å…¸
         """
-        # ÑÓ³Ù¼ÓÔØÄ£ĞÍ
+        # å»¶è¿ŸåŠ è½½æ¨¡å‹
         if not self._models_loaded:
             self._load_models()
         
-        # ¼ÓÔØÊÓÆµ
+        # åŠ è½½è§†é¢‘
         image_pil, image, image_array, video = load_video(video_path)
         if video is None:
             return {
@@ -239,15 +239,15 @@ class PASAnalyzer:
                 'error_reason': 'failed_to_load_video'
             }
         
-        # ×¼±¸ÎÄ±¾ÌáÊ¾
+        # å‡†å¤‡æ–‡æœ¬æç¤º
         text_prompt = subject_noun + '.'
         
-        # ÔËĞĞ Grounding DINO
+        # è¿è¡Œ Grounding DINO
         boxes_filt, pred_phrases = get_grounding_output(
             self.grounding_model, image, text_prompt, box_threshold, text_threshold, device=self.device
         )
         
-        # ¼ì²âÊ§°Ü
+        # æ£€æµ‹å¤±è´¥
         if boxes_filt.shape[0] == 0:
             print(f"Cannot detect {text_prompt} in video")
             background_motion = self._calculate_background_motion(video)
@@ -257,10 +257,10 @@ class PASAnalyzer:
                 'background_motion': background_motion
             }
         
-        # ÔËĞĞ SAM ·Ö¸î
+        # è¿è¡Œ SAM åˆ†å‰²
         self.sam_predictor.set_image(image_array)
         
-        # ×ª»»¿ò¸ñÊ½
+        # è½¬æ¢æ¡†æ ¼å¼
         size = image_pil.size
         H, W = size[1], size[0]
         for i in range(boxes_filt.size(0)):
@@ -271,7 +271,7 @@ class PASAnalyzer:
         boxes_filt = boxes_filt.cpu()
         transformed_boxes = self.sam_predictor.transform.apply_boxes_torch(boxes_filt, image.shape[:2]).to(self.device)
         
-        # ÔËĞĞ SAM Ä£ĞÍ
+        # è¿è¡Œ SAM æ¨¡å‹
         masks, _, _ = self.sam_predictor.predict_torch(
             point_coords=None,
             point_labels=None,
@@ -279,12 +279,12 @@ class PASAnalyzer:
             multimask_output=False,
         )
         
-        # ×¼±¸ÊÓÆµÊı¾İ
+        # å‡†å¤‡è§†é¢‘æ•°æ®
         video_tensor = torch.from_numpy(video).permute(0, 3, 1, 2)[None].float()
         video_width, video_height = video_tensor.shape[-1], video_tensor.shape[-2]
         video_tensor = video_tensor.to(self.device)
         
-        # ¼ÆËã±³¾°ÔË¶¯
+        # è®¡ç®—èƒŒæ™¯è¿åŠ¨
         if boxes_filt.shape[0] != 0 and masks is not None:
             background_mask = torch.any(~masks, dim=0).to(torch.uint8) * 255
         else:
@@ -305,7 +305,7 @@ class PASAnalyzer:
         else:
             background_motion = calculate_motion_degree(pred_tracks, video_width, video_height).item()
         
-        # ¼ÆËãÖ÷ÌåÔË¶¯
+        # è®¡ç®—ä¸»ä½“è¿åŠ¨
         if boxes_filt.shape[0] != 0 and masks is not None:
             subject_mask = torch.any(masks, dim=0).to(torch.uint8) * 255
             subject_mask = subject_mask.unsqueeze(0)
@@ -351,7 +351,7 @@ class PASAnalyzer:
                 else:
                     subject_motion = calculate_motion_degree(pred_tracks, video_width, video_height).item()
                     
-                    # °´Ö÷Ìå¶Ô½ÇÏß¹éÒ»»¯
+                    # æŒ‰ä¸»ä½“å¯¹è§’çº¿å½’ä¸€åŒ–
                     if normalize_by_subject_diag:
                         try:
                             mask2d = subject_mask.squeeze()
@@ -369,7 +369,7 @@ class PASAnalyzer:
                         except Exception as e:
                             print(f"Warning: Failed to normalize by subject diagonal: {e}")
                     
-                    # ¼ÆËãÏêÏ¸ÔË¶¯·ÖÊı
+                    # è®¡ç®—è¯¦ç»†è¿åŠ¨åˆ†æ•°
                     pure_subject = max(0, subject_motion - background_motion)
                     total_motion = background_motion + subject_motion
                     motion_ratio = pure_subject / (background_motion + 1e-8)
@@ -388,7 +388,7 @@ class PASAnalyzer:
                         }
                     }
                     
-                    # ³¡¾°·ÖÀà
+                    # åœºæ™¯åˆ†ç±»
                     if self.scene_classifier:
                         scene_info = self.scene_classifier.classify_scene(
                             background_motion, subject_motion, pure_subject, motion_ratio
@@ -404,7 +404,7 @@ class PASAnalyzer:
             }
     
     def _calculate_background_motion(self, video: np.ndarray) -> float:
-        """¼ÆËã±³¾°ÔË¶¯£¨ÎŞÖ÷Ìå¼ì²âÊ±Ê¹ÓÃ£©"""
+        """è®¡ç®—èƒŒæ™¯è¿åŠ¨ï¼ˆæ— ä¸»ä½“æ£€æµ‹æ—¶ä½¿ç”¨ï¼‰"""
         video_tensor = torch.from_numpy(video).permute(0, 3, 1, 2)[None].float()
         video_width, video_height = video_tensor.shape[-1], video_tensor.shape[-2]
         video_tensor = video_tensor.to(self.device)

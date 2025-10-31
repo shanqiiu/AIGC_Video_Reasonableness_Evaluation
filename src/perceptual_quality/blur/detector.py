@@ -116,10 +116,10 @@ class BlurDetector:
     def _map_severity(raw: str) -> str:
         # Map legacy CN labels to EN labels used across modules
         mapping = {
-            "ÑÏÖØÄ£ºı": "severe",
-            "ÖĞµÈÄ£ºı": "moderate",
-            "ÇáÎ¢Ä£ºı": "mild",
-            "ÎŞÄ£ºı": "none",
+            "ä¸¥é‡æ¨¡ç³Š": "severe",
+            "ä¸­ç­‰æ¨¡ç³Š": "moderate",
+            "è½»å¾®æ¨¡ç³Š": "mild",
+            "æ— æ¨¡ç³Š": "none",
         }
         return mapping.get(str(raw), str(raw))
 

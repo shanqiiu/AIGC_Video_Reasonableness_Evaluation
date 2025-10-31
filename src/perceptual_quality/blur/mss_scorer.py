@@ -19,8 +19,8 @@ class MSSScorer:
         if self._initialized:
             return
         # Local import to avoid global side-effects
-        from .blur_detection_pipeline import QAlignVideoScorer, load_video_sliding_window  # type: ignore
-        self._QAlignVideoScorer = QAlignVideoScorer
+        from q_align import QAlignVideoScorer  # type: ignore
+        from motion_smoothness_score import load_video_sliding_window  # type: ignore
         self._load_video_sliding_window = load_video_sliding_window
         self._scorer = QAlignVideoScorer(pretrained=self.model_paths.get("q_align_model", ""), device=self.device)
         self._initialized = True

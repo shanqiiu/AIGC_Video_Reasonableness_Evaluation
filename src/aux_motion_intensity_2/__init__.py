@@ -1,6 +1,6 @@
 """
-¸¨ÖúÄ£¿é2£º¿É¸ĞÖª·ù¶ÈÆÀ·Ö£¨Perceptible Amplitude Score£©
-Ê¹ÓÃGrounded-SAMºÍCo-Tracker¼ÆËãÖ÷Ìå/±³¾°ÔË¶¯·ù¶È£¬Êä³ö¿É¸ĞÖªÔË¶¯·ù¶È·ÖÊı¡£
+è¾…åŠ©æ¨¡å—2ï¼šå¯æ„ŸçŸ¥å¹…åº¦è¯„åˆ†ï¼ˆPerceptible Amplitude Scoreï¼‰
+ä½¿ç”¨Grounded-SAMå’ŒCo-Trackerè®¡ç®—ä¸»ä½“/èƒŒæ™¯è¿åŠ¨å¹…åº¦ï¼Œè¾“å‡ºå¯æ„ŸçŸ¥è¿åŠ¨å¹…åº¦åˆ†æ•°ã€‚
 """
 
 from .analyzer import PASAnalyzer

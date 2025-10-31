@@ -5,7 +5,7 @@ import os
 import sys
 from typing import Dict, Optional
 
-# Ìí¼ÓÏîÄ¿¸ùÄ¿Â¼µ½Â·¾¶ÒÔ±ãµ¼Èë aux_motion_intensity_2
+# å¨£è¯²å§žæ¤¤åœ­æ´°éåœ­æ´°è¤°æ›žåŸŒç’ºîˆšç·žæµ ãƒ¤ç©¶ç€µç…Žå† aux_motion_intensity_2
 current_dir = os.path.dirname(os.path.abspath(__file__))
 project_root = os.path.abspath(os.path.join(current_dir, '..', '..', '..'))
 if project_root not in sys.path:
@@ -27,7 +27,7 @@ class PASScorer:
         if self._initialized:
             return
         
-        # ´Ó model_paths ÖÐÌáÈ¡Ä£ÐÍÂ·¾¶£¬Èç¹û²»´æÔÚÔòÊ¹ÓÃÄ¬ÈÏÂ·¾¶
+        # ï¿½? model_paths ä¸­æå–æ¨¡åž‹è·¯å¾„ï¼Œå¦‚æžœä¸å­˜åœ¨åˆ™ä½¿ç”¨é»˜è®¤è·¯å¾„
         project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
         
         grounded_checkpoint = self.model_paths.get(
@@ -43,11 +43,11 @@ class PASScorer:
             os.path.join(project_root, '.cache', 'scaled_offline.pth')
         )
         
-        # ³õÊ¼»¯ PASAnalyzer
-        # ²»ÆôÓÃ³¡¾°·ÖÀàÒÔ±£³Ö½Ó¿Ú¼ò½à£¬ÈçÐèÒª¿ÉÒÔÔÚºóÐø°æ±¾Ìí¼Ó
+        # åˆå§‹ï¿½? PASAnalyzer
+        # ä¸å¯ç”¨åœºæ™¯åˆ†ç±»ä»¥ä¿æŒæŽ¥å£ç®€æ´ï¼Œå¦‚éœ€è¦å¯ä»¥åœ¨åŽç»­ç‰ˆæœ¬æ·»åŠ 
         self._analyzer = PASAnalyzer(
             device=self.device,
-            grid_size=30,  # Ä¬ÈÏÍø¸ñ´óÐ¡
+            grid_size=30,  # é»˜è®¤ç½‘æ ¼å¤§å°
             enable_scene_classification=False,
             grounded_checkpoint=grounded_checkpoint,
             sam_checkpoint=sam_checkpoint,
@@ -58,21 +58,21 @@ class PASScorer:
 
     def score(self, video_path: str, subject_noun: str = "person") -> Dict:
         """
-        ¼ÆËãPAS·ÖÊý
+        è®¡ç®—PASåˆ†æ•°
         
         Args:
-            video_path: ÊÓÆµÎÄ¼þÂ·¾¶
-            subject_noun: Ö÷Ìå¶ÔÏóÃû³Æ£¨Èç "person", "dog" µÈ£©
+            video_path: è§†é¢‘æ–‡ä»¶è·¯å¾„
+            subject_noun: ä¸»ä½“å¯¹è±¡åç§°ï¼ˆå¦‚ "person", "dog" ç­‰ï¼‰
             
         Returns:
-            °üº¬PAS·ÖÊýµÄ×Öµä£¬¸ñÊ½£º
+            åŒ…å«PASåˆ†æ•°çš„å­—å…¸ï¼Œæ ¼å¼ï¿½?
             {
-                'pas_score': float,  # PAS·ÖÊý£¨Ê¹ÓÃpure_subject_motion£©
-                'subject_detected': bool,  # ÊÇ·ñ¼ì²âµ½Ö÷Ìå
-                'motion_degree': float,  # ÔË¶¯·ù¶È£¨subject_motion£©
-                'background_motion': float,  # ±³¾°ÔË¶¯·ù¶È
-                'pure_subject_motion': float,  # ´¿Ö÷ÌåÔË¶¯·ù¶È
-                'error': str (¿ÉÑ¡)  # ´íÎóÐÅÏ¢
+                'pas_score': float,  # PASåˆ†æ•°ï¼ˆä½¿ç”¨pure_subject_motionï¿½?
+                'subject_detected': bool,  # æ˜¯å¦æ£€æµ‹åˆ°ä¸»ä½“
+                'motion_degree': float,  # è¿åŠ¨å¹…åº¦ï¼ˆsubject_motionï¿½?
+                'background_motion': float,  # èƒŒæ™¯è¿åŠ¨å¹…åº¦
+                'pure_subject_motion': float,  # çº¯ä¸»ä½“è¿åŠ¨å¹…ï¿½?
+                'error': str (å¯ï¿½?)  # é”™è¯¯ä¿¡æ¯
             }
         """
         self._ensure_init()
@@ -86,7 +86,7 @@ class PASScorer:
             }
         
         try:
-            # µ÷ÓÃ PASAnalyzer ½øÐÐ·ÖÎö
+            # è°ƒç”¨ PASAnalyzer è¿›è¡Œåˆ†æž
             result = self._analyzer.analyze_video(
                 video_path=video_path,
                 subject_noun=subject_noun,
@@ -95,9 +95,9 @@ class PASScorer:
                 normalize_by_subject_diag=True
             )
             
-            # ×ª»»·µ»Ø¸ñÊ½ÒÔÆ¥Åä blur_detection_pipeline µÄÆÚÍû
+            # è½¬æ¢è¿”å›žæ ¼å¼ä»¥åŒ¹ï¿½? blur_detection_pipeline çš„æœŸï¿½?
             if result.get('status') == 'success':
-                # Ê¹ÓÃ pure_subject_motion ×÷Îª PAS ·ÖÊý£¨ÕâÊÇÖ÷ÌåÔË¶¯¼õÈ¥±³¾°ÔË¶¯ºóµÄ´¿Ö÷ÌåÔË¶¯£©
+                # ä½¿ç”¨ pure_subject_motion ä½œä¸º PAS åˆ†æ•°ï¼ˆè¿™æ˜¯ä¸»ä½“è¿åŠ¨å‡åŽ»èƒŒæ™¯è¿åŠ¨åŽçš„çº¯ä¸»ä½“è¿åŠ¨ï¿½?
                 pas_score = result.get('pure_subject_motion', 0.0)
                 subject_motion = result.get('subject_motion', 0.0)
                 background_motion = result.get('background_motion', 0.0)
@@ -112,7 +112,7 @@ class PASScorer:
                     'motion_ratio': float(result.get('motion_ratio', 0.0))
                 }
             else:
-                # ¼ì²âÊ§°Ü»ò³ö´í
+                # æ£€æµ‹å¤±è´¥æˆ–å‡ºé”™
                 error_reason = result.get('error_reason', 'unknown_error')
                 background_motion = result.get('background_motion', 0.0)
                 
@@ -126,7 +126,7 @@ class PASScorer:
                 }
                 
         except Exception as e:
-            # ²¶»ñËùÓÐÒì³£²¢·µ»Ø´íÎóÐÅÏ¢
+            # æ•èŽ·æ‰€æœ‰å¼‚å¸¸å¹¶è¿”å›žé”™è¯¯ä¿¡æ¯
             return {
                 "pas_score": 0.0,
                 "subject_detected": False,
@@ -135,5 +135,15 @@ class PASScorer:
                 "pure_subject_motion": 0.0,
                 "error": str(e)
             }
+
+    def preload_models(self) -> None:
+        """Ensure analyzer and its heavy models are loaded once upfront."""
+        self._ensure_init()
+        if self._analyzer is not None:
+            try:
+                self._analyzer._load_models()
+            except Exception:
+                # Defer error handling to first score() call to surface within pipeline flow
+                pass
 
 

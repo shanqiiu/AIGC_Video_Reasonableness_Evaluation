@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
-基于VMBench的视频模糊检测系统
-主要使用MSS (运动平滑度评分) 和 PAS (可感知幅度评分) 进行模糊检测
+基于VMBench的视频模糊检测系�??
+主要使用MSS (运动平滑度评�??) �?? PAS (可感知幅度评�??) 进行模糊检�??
 """
 
 import os
@@ -19,9 +19,9 @@ import warnings
 warnings.filterwarnings("ignore")
 
 # 添加VMBench路径
-# 获取当前文件的目录
+# 获取当前文件的目�??
 current_dir = os.path.dirname(os.path.abspath(__file__))
-# AIGC_Video_Reasonableness_Evaluation 项目根目录
+# AIGC_Video_Reasonableness_Evaluation 项目根目�??
 project_root = os.path.abspath(os.path.join(current_dir, '..', '..', '..'))
 third_party_dir = os.path.join(project_root, 'third_party')
 workspace_root = os.path.abspath(os.path.join(project_root, '..'))
@@ -34,12 +34,16 @@ try:
     # 临时切换到项目根目录以便导入
     os.chdir(project_root)
     
-    # 添加模块搜索路径（按新工程结构与外部VMBench目录）
+    # 添加模块搜索路径（按新工程结构与外部VMBench目录�??
     if project_root not in sys.path:
         sys.path.insert(0, project_root)
     if third_party_dir not in sys.path:
         sys.path.insert(0, third_party_dir)
-    # Grounded-Segment-Anything 子模块
+    # Ensure Q-Align package directory is importable
+    qalign_third_party_dir = os.path.join(third_party_dir, 'Q-Align')
+    if os.path.isdir(qalign_third_party_dir) and qalign_third_party_dir not in sys.path:
+        sys.path.insert(0, qalign_third_party_dir)
+    # Grounded-Segment-Anything 子模�??
     gsa_dir = os.path.join(third_party_dir, "Grounded-Segment-Anything")
     for p in [
         gsa_dir,
@@ -52,9 +56,13 @@ try:
     cot_dir = os.path.join(third_party_dir, "co-tracker")
     if cot_dir not in sys.path:
         sys.path.append(cot_dir)
-    # VMBench_diy 根目录（提供 motion_smoothness_score / perceptible_amplitude_score）
+    # VMBench_diy 根目录（提供 motion_smoothness_score / perceptible_amplitude_score�??
     if os.path.isdir(vmb_root) and vmb_root not in sys.path:
         sys.path.insert(0, vmb_root)
+    # Also add VMBench_diy's Q-Align package if present
+    qalign_vmb_dir = os.path.join(vmb_root, 'Q-Align')
+    if os.path.isdir(qalign_vmb_dir) and qalign_vmb_dir not in sys.path:
+        sys.path.insert(0, qalign_vmb_dir)
     
     # 导入本地 MSS/PAS 封装（移除对外部 VMBench 实现的直接依赖）
     from .mss_scorer import MSSScorer
@@ -66,11 +74,11 @@ finally:
 
 
 class BlurDetectionPipeline:
-    """基于VMBench的视频模糊检测管道"""
+    """基于VMBench的视频模糊检测管�??"""
     
     def __init__(self, device="cuda:0", model_paths=None):
         """
-        初始化模糊检测管道
+        初始化模糊检测管�??
         
         Args:
             device: 计算设备
@@ -79,19 +87,19 @@ class BlurDetectionPipeline:
         self.device = device
         self.model_paths = model_paths or self._get_default_model_paths()
         
-        # 初始化模型
+        # 初始化模�??
         self._init_models()
         
-        # 检测参数
+        # 检测参�??
         self.blur_thresholds = {
-            'mss_threshold': 0.025,  # MSS检测阈值
-            'pas_threshold': 0.1,   # PAS检测阈值
-            'confidence_threshold': 0.7  # 综合置信度阈值
+            'mss_threshold': 0.025,  # MSS检测阈�??
+            'pas_threshold': 0.1,   # PAS检测阈�??
+            'confidence_threshold': 0.7  # 综合置信度阈�??
         }
         
     def _get_default_model_paths(self):
         """获取默认模型路径"""
-        # 获取项目根目录
+        # 获取项目根目�??
         current_dir = os.path.dirname(os.path.abspath(__file__))
         project_root = os.path.dirname(current_dir)
         
@@ -106,53 +114,59 @@ class BlurDetectionPipeline:
     
     def _init_models(self):
         """初始化所有需要的模型"""
-        print("正在初始化模糊检测模型...")
+        print("正在初始化模糊检测模�??...")
         
         try:
-            # 初始化 MSS 评分器
-            print("  初始化MSS评分器...")
+            # 初始�?? MSS 评分�??
+            print("  初始化MSS评分�??...")
             self.mss_scorer = MSSScorer(
                 device=self.device,
                 model_paths=self.model_paths,
             )
             
-            # 初始化 PAS 评分器（本地薄封装）
-            print("  初始化PAS评分器...")
+            # 初始�?? PAS 评分器（本地薄封装）
+            print("  初始化PAS评分�??...")
             self.pas_scorer = PASScorer(
                 device=self.device,
                 model_paths=self.model_paths,
             )
+            # Preload heavy PAS models once during pipeline initialization
+            try:
+                self.pas_scorer.preload_models()
+            except Exception:
+                # Non-fatal: will retry lazily on first PAS score
+                pass
             
-            print("所有模型初始化完成！")
+            print("所有模型初始化完成�??")
             
         except Exception as e:
-            print(f"模型初始化失败: {e}")
+            print(f"模型初始化失�??: {e}")
             raise
     
     def detect_blur_in_video(self, video_path: str, subject_noun: str = "person") -> Dict:
         """
-        检测视频中的模糊异常
+        检测视频中的模糊异�??
         
         Args:
             video_path: 视频文件路径
             subject_noun: 主体对象名称
             
         Returns:
-            检测结果字典
+            检测结果字�??
         """
-        print(f"开始检测视频模糊: {video_path}")
+        print(f"开始检测视频模�??: {video_path}")
         
         try:
-            # 1. 使用MSS评分器检测模糊
+            # 1. 使用MSS评分器检测模�??
             mss_results = self._detect_blur_with_mss(video_path)
             
-            # 2. 使用PAS评分器辅助验证
+            # 2. 使用PAS评分器辅助验�??
             pas_results = self._detect_blur_with_pas(video_path, subject_noun)
             
-            # 3. 综合判断模糊检测结果
+            # 3. 综合判断模糊检测结�??
             blur_results = self._combine_blur_detection(mss_results, pas_results)
             
-            # 4. 生成检测报告
+            # 4. 生成检测报�??
             detection_report = self._generate_blur_report(video_path, blur_results)
             
             return detection_report
@@ -169,7 +183,7 @@ class BlurDetectionPipeline:
             }
     
     def _detect_blur_with_mss(self, video_path: str) -> Dict:
-        """使用MSS评分器检测模糊"""
+        """使用MSS评分器检测模�??"""
         try:
             # 计算质量分数
             mss_output = self.mss_scorer.score(video_path)
@@ -178,7 +192,7 @@ class BlurDetectionPipeline:
             # 计算相机运动幅度（用于调整阈值）
             camera_movement = self._estimate_camera_movement(video_path)
             
-            # 设置自适应阈值
+            # 设置自适应阈�?
             threshold = self._set_threshold(camera_movement)
             
             # 检测模糊帧
@@ -187,7 +201,7 @@ class BlurDetectionPipeline:
             # 计算MSS分数
             mss_score = 1 - len(blur_frames) / len(quality_scores)
             
-            # 转换blur_frames为列表（如果是NumPy数组）
+            # 转换blur_frames为列表（如果是NumPy数组�??
             if hasattr(blur_frames, 'tolist'):
                 blur_frames_list = blur_frames.tolist()
             else:
@@ -202,7 +216,7 @@ class BlurDetectionPipeline:
             }
             
         except Exception as e:
-            print(f"MSS检测失败: {e}")
+            print(f"MSS检测失�??: {e}")
             return {
                 'mss_score': 0.0,
                 'blur_frames': [],
@@ -213,9 +227,9 @@ class BlurDetectionPipeline:
             }
     
     def _detect_blur_with_pas(self, video_path: str, subject_noun: str) -> Dict:
-        """使用PAS评分器辅助检测模糊"""
+        """使用PAS评分器辅助检测模�??"""
         try:
-            # 委托给本地 PAS 评分器（可后续替换为完整实现）
+            # 委托给本�?? PAS 评分器（可后续替换为完整实现�??
             out = self.pas_scorer.score(video_path, subject_noun=subject_noun)
             return {
                 'pas_score': float(out.get('pas_score', 0.0)),
@@ -225,7 +239,7 @@ class BlurDetectionPipeline:
             }
             
         except Exception as e:
-            print(f"PAS检测失败: {e}")
+            print(f"PAS检测失�??: {e}")
             return {
                 'pas_score': 0.0,
                 'subject_detected': False,
@@ -239,9 +253,9 @@ class BlurDetectionPipeline:
             cap = cv2.VideoCapture(video_path)
             frames = []
             
-            # 读取关键帧
+            # 读取关键�??
             frame_count = 0
-            while frame_count < 10:  # 只取前10帧估算
+            while frame_count < 10:  # 只取�??10帧估�??
                 ret, frame = cap.read()
                 if not ret:
                     break
@@ -259,7 +273,7 @@ class BlurDetectionPipeline:
                 diff = cv2.absdiff(frames[i], frames[i-1])
                 total_diff += np.mean(diff)
             
-            # 归一化运动幅度
+            # 归一化运动幅�??
             movement = total_diff / (len(frames) - 1) / 255.0
             return min(1.0, movement)
             
@@ -273,7 +287,7 @@ class BlurDetectionPipeline:
         pas_score = pas_results.get('pas_score', 0.0)
         blur_frames = mss_results.get('blur_frames', [])
         
-        # 计算综合置信度
+        # 计算综合置信�??
         # MSS权重0.8，PAS权重0.2
         confidence = mss_score * 0.8 + pas_score * 0.2
         
@@ -293,20 +307,20 @@ class BlurDetectionPipeline:
         }
 
     def _set_threshold(self, camera_movement: float) -> float:
-        """根据相机运动幅度设定阈值（简单自适应）。"""
+        """根据相机运动幅度设定阈值（简单自适应）�?"""
         base = self.blur_thresholds.get('mss_threshold', 0.025)
-        # 相机运动越大，阈值略放宽，避免将正常运动误判为模糊
-        # 限制在 [base*0.8, base*1.5]
+        # 相机运动越大，阈值略放宽，避免将正常运动误判为模�??
+        # 限制�?? [base*0.8, base*1.5]
         adjusted = base * (1.0 + 0.5 * min(max(camera_movement, 0.0), 1.0))
         return max(base * 0.8, min(adjusted, base * 1.5))
 
     def _get_artifacts_frames(self, quality_scores: List[float], threshold: float) -> List[int]:
-        """根据质量分数与阈值提取模糊帧索引。"""
+        """根据质量分数与阈值提取模糊帧索引�??"""
         return [i for i, s in enumerate(quality_scores) if s < threshold]
     
     def _calculate_blur_severity(self, blur_frames: List[int], confidence: float) -> str:
         """计算模糊严重程度"""
-        blur_ratio = len(blur_frames) / 100  # 假设总帧数100
+        blur_ratio = len(blur_frames) / 100  # 假设总帧�??100
         
         if blur_ratio > 0.3 or confidence < 0.3:
             return "严重模糊"
@@ -315,10 +329,10 @@ class BlurDetectionPipeline:
         elif blur_ratio > 0.05 or confidence < 0.7:
             return "轻微模糊"
         else:
-            return "无模糊"
+            return "无模�??"
     
     def _generate_blur_report(self, video_path: str, blur_results: Dict) -> Dict:
-        """生成模糊检测报告"""
+        """生成模糊检测报�??"""
         report = {
             'video_path': video_path,
             'video_name': os.path.basename(video_path),
@@ -330,7 +344,7 @@ class BlurDetectionPipeline:
             'pas_score': blur_results['pas_score'],
             'blur_frames': blur_results['blur_frames'],
             'total_blur_frames': len(blur_results['blur_frames']),
-            'blur_ratio': len(blur_results['blur_frames']) / 100.0,  # 假设总帧数100
+            'blur_ratio': len(blur_results['blur_frames']) / 100.0,  # 假设总帧�??100
             'recommendations': self._generate_recommendations(blur_results)
         }
         
@@ -342,10 +356,10 @@ class BlurDetectionPipeline:
         
         if blur_results['blur_detected']:
             if blur_results['blur_severity'] == "严重模糊":
-                recommendations.append("建议重新录制视频，确保相机稳定")
-                recommendations.append("检查相机对焦设置")
+                recommendations.append("建议重新录制视频，确保相机稳�??")
+                recommendations.append("检查相机对焦设�??")
             elif blur_results['blur_severity'] == "中等模糊":
-                recommendations.append("建议使用三脚架或稳定器")
+                recommendations.append("建议使用三脚架或稳定�??")
                 recommendations.append("提高录制帧率")
             else:
                 recommendations.append("轻微模糊，可考虑后期处理")
@@ -355,25 +369,25 @@ class BlurDetectionPipeline:
         return recommendations
     
     def batch_detect_blur(self, video_dir: str, output_dir: str = "./blur_detection_results") -> Dict:
-        """批量检测视频模糊"""
+        """批量检测视频模�??"""
         os.makedirs(output_dir, exist_ok=True)
         
-        # 获取所有视频文件
+        # 获取所有视频文�??
         video_files = []
         for ext in ['.mp4', '.avi', '.mov', '.mkv']:
             video_files.extend(Path(video_dir).glob(f'*{ext}'))
         
         results = []
         
-        print(f"开始批量检测 {len(video_files)} 个视频...")
+        print(f"开始批量检�?? {len(video_files)} 个视�??...")
         
-        for video_file in tqdm(video_files, desc="模糊检测进度"):
+        for video_file in tqdm(video_files, desc="模糊检测进�??"):
             try:
                 result = self.detect_blur_in_video(str(video_file))
                 results.append(result)
                 
             except Exception as e:
-                print(f"处理视频 {video_file.name} 时出错: {e}")
+                print(f"处理视频 {video_file.name} 时出�??: {e}")
                 results.append({
                     'video_path': str(video_file),
                     'blur_detected': False,
@@ -411,7 +425,7 @@ class BlurDetectionPipeline:
             return obj
     
     def _save_batch_results(self, results: List[Dict], output_dir: str):
-        """保存批量检测结果"""
+        """保存批量检测结�??"""
         # 保存JSON结果
         json_path = os.path.join(output_dir, 'blur_detection_results.json')
         # 转换数据为JSON可序列化格式
@@ -440,7 +454,7 @@ class BlurDetectionPipeline:
         # 生成统计报告
         self._generate_statistics_report(results, output_dir)
         
-        print(f"批量检测结果已保存到: {output_dir}")
+        print(f"批量检测结果已保存�??: {output_dir}")
     
     def _generate_statistics_report(self, results: List[Dict], output_dir: str):
         """生成统计报告"""
@@ -450,15 +464,15 @@ class BlurDetectionPipeline:
         confidence_scores = [r.get('confidence', 0.0) for r in results if 'error' not in r]
         
         report = f"""
-# 视频模糊检测统计报告
+# 视频模糊检测统计报�??
 
 ## 基本统计
-- 总视频数量: {total_videos}
-- 检测到模糊的视频: {blur_detected_count}
+- 总视频数�??: {total_videos}
+- 检测到模糊的视�??: {blur_detected_count}
 - 模糊检测率: {blur_detected_count/total_videos*100:.1f}%
 
-## 置信度统计
-- 平均置信度: {np.mean(confidence_scores):.3f}
+## 置信度统�??
+- 平均置信�??: {np.mean(confidence_scores):.3f}
 - 最低置信度: {np.min(confidence_scores):.3f}
 - 最高置信度: {np.max(confidence_scores):.3f}
 - 置信度标准差: {np.std(confidence_scores):.3f}

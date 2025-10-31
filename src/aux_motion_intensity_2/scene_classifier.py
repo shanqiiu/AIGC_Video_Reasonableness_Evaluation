@@ -1,5 +1,5 @@
 """
-³¡¾°·ÖÀàÆ÷ - ×Ô¶¯ÅÐ¶ÏÊÓÆµ³¡¾°ÀàÐÍ£¨¾²Ì¬/¶¯Ì¬£©£¬²¢Ìá¹©ÖÃÐÅ¶È¡£
+åœºæ™¯åˆ†ç±»å™¨ - è‡ªåŠ¨åˆ¤æ–­è§†é¢‘åœºæ™¯ç±»åž‹ï¼ˆé™æ€/åŠ¨æ€ï¼‰ï¼Œå¹¶æä¾›ç½®ä¿¡åº¦ã€‚
 """
 
 import numpy as np
@@ -7,7 +7,7 @@ import numpy as np
 
 class SceneClassifier:
     """
-    ³¡¾°·ÖÀàÆ÷ - ×Ô¶¯ÅÐ¶ÏÊÓÆµ³¡¾°ÀàÐÍ£¨¾²Ì¬/¶¯Ì¬£©£¬²¢Ìá¹©ÖÃÐÅ¶È¡£
+    åœºæ™¯åˆ†ç±»å™¨ - è‡ªåŠ¨åˆ¤æ–­è§†é¢‘åœºæ™¯ç±»åž‹ï¼ˆé™æ€/åŠ¨æ€ï¼‰ï¼Œå¹¶æä¾›ç½®ä¿¡åº¦ã€‚
     """
     
     def __init__(self,
@@ -17,14 +17,14 @@ class SceneClassifier:
                  high_dynamic_threshold: float = 1.0,
                  motion_ratio_threshold: float = 1.5):
         """
-        ³õÊ¼»¯³¡¾°·ÖÀàÆ÷
+        åˆå§‹åŒ–åœºæ™¯åˆ†ç±»å™¨
         
         Args:
-            static_threshold: ¾²Ì¬³¡¾°ãÐÖµ£¨Ö÷Ìå¶¯Ì¬¶È£©
-            low_dynamic_threshold: µÍ¶¯Ì¬³¡¾°ãÐÖµ
-            medium_dynamic_threshold: ÖÐµÈ¶¯Ì¬³¡¾°ãÐÖµ
-            high_dynamic_threshold: ¸ß¶¯Ì¬³¡¾°ãÐÖµ
-            motion_ratio_threshold: ÔË¶¯±ÈÂÊãÐÖµ£¨Ö÷Ìå/±³¾°£©£¬ÓÃÓÚÇø·ÖÏà»úÔË¶¯ÓëÎïÌåÔË¶¯
+            static_threshold: é™æ€åœºæ™¯é˜ˆå€¼ï¼ˆä¸»ä½“åŠ¨æ€åº¦ï¼‰
+            low_dynamic_threshold: ä½ŽåŠ¨æ€åœºæ™¯é˜ˆå€¼
+            medium_dynamic_threshold: ä¸­ç­‰åŠ¨æ€åœºæ™¯é˜ˆå€¼
+            high_dynamic_threshold: é«˜åŠ¨æ€åœºæ™¯é˜ˆå€¼
+            motion_ratio_threshold: è¿åŠ¨æ¯”çŽ‡é˜ˆå€¼ï¼ˆä¸»ä½“/èƒŒæ™¯ï¼‰ï¼Œç”¨äºŽåŒºåˆ†ç›¸æœºè¿åŠ¨ä¸Žç‰©ä½“è¿åŠ¨
         """
         self.static_threshold = static_threshold
         self.low_dynamic_threshold = low_dynamic_threshold
@@ -38,26 +38,26 @@ class SceneClassifier:
                      pure_subject_motion: float,
                      motion_ratio: float) -> dict:
         """
-        ·ÖÀà³¡¾°ÀàÐÍ
+        åˆ†ç±»åœºæ™¯ç±»åž‹
         
         Args:
-            background_motion: ±³¾°¶¯Ì¬¶È
-            subject_motion: Ö÷Ìå¶¯Ì¬¶È
-            pure_subject_motion: ´¿Ö÷Ìå¶¯Ì¬¶È£¨Ö÷Ìå¼õÈ¥±³¾°£©
-            motion_ratio: ÔË¶¯±ÈÂÊ£¨Ö÷Ìå/±³¾°£©
+            background_motion: èƒŒæ™¯åŠ¨æ€åº¦
+            subject_motion: ä¸»ä½“åŠ¨æ€åº¦
+            pure_subject_motion: çº¯ä¸»ä½“åŠ¨æ€åº¦ï¼ˆä¸»ä½“å‡åŽ»èƒŒæ™¯ï¼‰
+            motion_ratio: è¿åŠ¨æ¯”çŽ‡ï¼ˆä¸»ä½“/èƒŒæ™¯ï¼‰
             
         Returns:
-            °üº¬³¡¾°ÀàÐÍ¡¢Ç¿¶ÈµÈ¼¶ÓëÖÃÐÅ¶ÈµÄ½á¹û×Öµä
+            åŒ…å«åœºæ™¯ç±»åž‹ã€å¼ºåº¦ç­‰çº§ä¸Žç½®ä¿¡åº¦çš„ç»“æžœå­—å…¸
         """
-        # 1) ÅÐ¶ÏÏà»úÔË¶¯Ö÷µ¼»¹ÊÇÎïÌåÔË¶¯Ö÷µ¼
+        # 1) åˆ¤æ–­ç›¸æœºè¿åŠ¨ä¸»å¯¼è¿˜æ˜¯ç‰©ä½“è¿åŠ¨ä¸»å¯¼
         motion_dominant_type = self._determine_motion_dominant(
             background_motion, subject_motion, motion_ratio
         )
         
-        # 2) »ùÓÚ´¿Ö÷Ìå¶¯Ì¬¶ÈÅÐ¶ÏÇ¿¶ÈµÈ¼¶
+        # 2) åŸºäºŽçº¯ä¸»ä½“åŠ¨æ€åº¦åˆ¤æ–­å¼ºåº¦ç­‰çº§
         intensity_level = self._determine_intensity_level(pure_subject_motion)
         
-        # 3) ×ÛºÏÅÐ¶ÏµÃµ½³¡¾°ÀàÐÍÓëÃèÊö
+        # 3) ç»¼åˆåˆ¤æ–­å¾—åˆ°åœºæ™¯ç±»åž‹ä¸Žæè¿°
         scene_type, scene_description = self._determine_scene_type(
             motion_dominant_type, intensity_level, 
             background_motion, subject_motion, motion_ratio
@@ -81,19 +81,19 @@ class SceneClassifier:
                                    background_motion: float,
                                    subject_motion: float,
                                    motion_ratio: float) -> str:
-        """ÅÐ¶ÏÔË¶¯Ö÷µ¼ÀàÐÍ"""
+        """åˆ¤æ–­è¿åŠ¨ä¸»å¯¼ç±»åž‹"""
         
-        # Èç¹ûÔË¶¯±ÈÂÊÐ¡ÓÚãÐÖµ£¬ËµÃ÷Ö÷Ìå²¢²»Ã÷ÏÔÇ¿ÓÚ±³¾°
+        # å¦‚æžœè¿åŠ¨æ¯”çŽ‡å°äºŽé˜ˆå€¼ï¼Œè¯´æ˜Žä¸»ä½“å¹¶ä¸æ˜Žæ˜¾å¼ºäºŽèƒŒæ™¯
         if motion_ratio < self.motion_ratio_threshold:
-            return 'camera_motion'  # Ïà»úÔË¶¯Ö÷µ¼
-        # Èç¹ûÖ÷ÌåÔË¶¯Ã÷ÏÔ´óÓÚ±³¾°ÔË¶¯
+            return 'camera_motion'  # ç›¸æœºè¿åŠ¨ä¸»å¯¼
+        # å¦‚æžœä¸»ä½“è¿åŠ¨æ˜Žæ˜¾å¤§äºŽèƒŒæ™¯è¿åŠ¨
         elif motion_ratio >= self.motion_ratio_threshold:
-            return 'object_motion'  # ÎïÌåÔË¶¯Ö÷µ¼
+            return 'object_motion'  # ç‰©ä½“è¿åŠ¨ä¸»å¯¼
         else:
-            return 'mixed_motion'  # »ìºÏÔË¶¯
+            return 'mixed_motion'  # æ··åˆè¿åŠ¨
     
     def _determine_intensity_level(self, pure_subject_motion: float) -> str:
-        """ÅÐ¶ÏÔË¶¯Ç¿¶ÈµÈ¼¶"""
+        """åˆ¤æ–­è¿åŠ¨å¼ºåº¦ç­‰çº§"""
         
         if pure_subject_motion < self.static_threshold:
             return 'static'
@@ -112,59 +112,59 @@ class SceneClassifier:
                               background_motion: float,
                               subject_motion: float,
                               motion_ratio: float) -> tuple:
-        """×ÛºÏÅÐ¶Ï³¡¾°ÀàÐÍ²¢¸ø³öÖÐÎÄÃèÊö"""
+        """ç»¼åˆåˆ¤æ–­åœºæ™¯ç±»åž‹å¹¶ç»™å‡ºä¸­æ–‡æè¿°"""
         
-        # Ïà»úÔË¶¯Ö÷µ¼µÄ³¡¾°
+        # ç›¸æœºè¿åŠ¨ä¸»å¯¼çš„åœºæ™¯
         if motion_dominant == 'camera_motion':
             if intensity_level == 'static':
-                return 'static_camera', '¾²Ì¬Ïà»úÔË¶¯³¡¾°£¨Ïà»úÆ½ÒÆ¡¢Ëõ·ÅµÈ£©'
+                return 'static_camera', 'é™æ€ç›¸æœºè¿åŠ¨åœºæ™¯ï¼ˆç›¸æœºå¹³ç§»ã€ç¼©æ”¾ç­‰ï¼‰'
             elif intensity_level == 'low_dynamic':
-                return 'low_dynamic_camera', 'µÍ¶¯Ì¬Ïà»úÔË¶¯³¡¾°'
+                return 'low_dynamic_camera', 'ä½ŽåŠ¨æ€ç›¸æœºè¿åŠ¨åœºæ™¯'
             else:
-                return 'dynamic_camera', f'{intensity_level}¼¶¶¯Ì¬Ïà»úÔË¶¯³¡¾°'
+                return 'dynamic_camera', f'{intensity_level}çº§åŠ¨æ€ç›¸æœºè¿åŠ¨åœºæ™¯'
         
-        # ÎïÌåÔË¶¯Ö÷µ¼µÄ³¡¾°
+        # ç‰©ä½“è¿åŠ¨ä¸»å¯¼çš„åœºæ™¯
         elif motion_dominant == 'object_motion':
             if intensity_level == 'static':
-                return 'static_object', '¾²Ì¬ÎïÌå³¡¾°£¨ÎïÌå»ù±¾¾²Ö¹£©'
+                return 'static_object', 'é™æ€ç‰©ä½“åœºæ™¯ï¼ˆç‰©ä½“åŸºæœ¬é™æ­¢ï¼‰'
             elif intensity_level == 'low_dynamic':
-                return 'low_dynamic_object', 'µÍ¶¯Ì¬ÎïÌåÔË¶¯³¡¾°'
+                return 'low_dynamic_object', 'ä½ŽåŠ¨æ€ç‰©ä½“è¿åŠ¨åœºæ™¯'
             elif intensity_level == 'medium_dynamic':
-                return 'medium_dynamic_object', 'ÖÐµÈ¶¯Ì¬ÎïÌåÔË¶¯³¡¾°'
+                return 'medium_dynamic_object', 'ä¸­ç­‰åŠ¨æ€ç‰©ä½“è¿åŠ¨åœºæ™¯'
             elif intensity_level == 'high_dynamic':
-                return 'high_dynamic_object', '¸ß¶¯Ì¬ÎïÌåÔË¶¯³¡¾°'
+                return 'high_dynamic_object', 'é«˜åŠ¨æ€ç‰©ä½“è¿åŠ¨åœºæ™¯'
             else:
-                return 'extreme_dynamic_object', '¼«¸ß¶¯Ì¬ÎïÌåÔË¶¯³¡¾°'
+                return 'extreme_dynamic_object', 'æžé«˜åŠ¨æ€ç‰©ä½“è¿åŠ¨åœºæ™¯'
         
-        # »ìºÏÔË¶¯³¡¾°
+        # æ··åˆè¿åŠ¨åœºæ™¯
         else:
-            return 'mixed_scene', f'»ìºÏÔË¶¯³¡¾°£¨Ïà»úÔË¶¯£º{background_motion:.4f}£¬ÎïÌåÔË¶¯£º{subject_motion:.4f}£©'
+            return 'mixed_scene', f'æ··åˆè¿åŠ¨åœºæ™¯ï¼ˆç›¸æœºè¿åŠ¨ï¼š{background_motion:.4f}ï¼Œç‰©ä½“è¿åŠ¨ï¼š{subject_motion:.4f}ï¼‰'
     
     def _calculate_confidence(self,
                              background_motion: float,
                              subject_motion: float,
                              motion_ratio: float) -> float:
-        """¼ÆËã·ÖÀà½á¹ûµÄÖÃÐÅ¶È£¨0~1£©"""
+        """è®¡ç®—åˆ†ç±»ç»“æžœçš„ç½®ä¿¡åº¦ï¼ˆ0~1ï¼‰"""
         
-        # »ùÓÚÔË¶¯±ÈÂÊµÄÃ÷È·³Ì¶È¼ÆËãÖÃÐÅ¶È
+        # åŸºäºŽè¿åŠ¨æ¯”çŽ‡çš„æ˜Žç¡®ç¨‹åº¦è®¡ç®—ç½®ä¿¡åº¦
         if motion_ratio < 0.5 or motion_ratio > 2.0:
-            # ÔË¶¯±ÈÂÊ¼«¶Ë£¨Ã÷ÏÔÆ«ÏòÒ»·½£©£¬ÖÃÐÅ¶È¸ß
+            # è¿åŠ¨æ¯”çŽ‡æžç«¯ï¼ˆæ˜Žæ˜¾åå‘ä¸€æ–¹ï¼‰ï¼Œç½®ä¿¡åº¦é«˜
             ratio_confidence = 0.9
         elif 0.8 < motion_ratio < 1.2:
-            # ÔË¶¯±ÈÂÊ½Ó½ü1£¨ÄÑÒÔÇø·Ö£©£¬ÖÃÐÅ¶ÈµÍ
+            # è¿åŠ¨æ¯”çŽ‡æŽ¥è¿‘1ï¼ˆéš¾ä»¥åŒºåˆ†ï¼‰ï¼Œç½®ä¿¡åº¦ä½Ž
             ratio_confidence = 0.3
         else:
-            # ÔË¶¯±ÈÂÊÓÐÒ»¶¨²îÒì£¬ÖÃÐÅ¶ÈÖÐµÈ
+            # è¿åŠ¨æ¯”çŽ‡æœ‰ä¸€å®šå·®å¼‚ï¼Œç½®ä¿¡åº¦ä¸­ç­‰
             ratio_confidence = 0.6
         
-        # »ùÓÚÔË¶¯Ç¿¶È¼ÆËãÖÃÐÅ¶È
+        # åŸºäºŽè¿åŠ¨å¼ºåº¦è®¡ç®—ç½®ä¿¡åº¦
         total_motion = background_motion + subject_motion
         if 0.01 < total_motion < 5.0:
-            intensity_confidence = 0.8  # ´¦ÓÚºÏÀíµÄÔË¶¯·¶Î§
+            intensity_confidence = 0.8  # å¤„äºŽåˆç†çš„è¿åŠ¨èŒƒå›´
         else:
-            intensity_confidence = 0.4  # ÔË¶¯¹ýÐ¡»ò¹ý´ó
+            intensity_confidence = 0.4  # è¿åŠ¨è¿‡å°æˆ–è¿‡å¤§
         
-        # ×ÛºÏÖÃÐÅ¶È
+        # ç»¼åˆç½®ä¿¡åº¦
         confidence = (ratio_confidence + intensity_confidence) / 2
         
         return float(np.clip(confidence, 0.0, 1.0))
