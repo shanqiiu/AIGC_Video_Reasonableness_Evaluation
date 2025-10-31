@@ -26,8 +26,6 @@ class PASScorer:
     def _ensure_init(self) -> None:
         if self._initialized:
             return
-        
-        # �? model_paths 中提取模型路径，如果不存在则使用默认路径
         project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
         
         grounded_checkpoint = self.model_paths.get(
