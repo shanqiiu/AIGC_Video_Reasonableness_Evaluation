@@ -3,6 +3,7 @@
 
 import os
 import sys
+from pathlib import Path
 import argparse
 import json
 
@@ -58,9 +59,9 @@ def main():
     # Build config
     config = BlurDetectionConfig()
     if args.output_dir:
-        # Point config output dir to user-provided location
-        config.output_dir = os.path.abspath(args.output_dir)
-        os.makedirs(config.output_dir, exist_ok=True)
+        # Point config output dir to user-provided location (keep as Path)
+        config.output_dir = Path(args.output_dir).resolve()
+        config.output_dir.mkdir(parents=True, exist_ok=True)
 
     # Device
     config.update_device_config("device", args.device)
