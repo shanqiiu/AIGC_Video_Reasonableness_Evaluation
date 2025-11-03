@@ -5,7 +5,7 @@ import os
 import sys
 from typing import Dict, Optional
 
-# 娣诲姞椤圭洰鏍圭洰褰曞埌璺緞浠ヤ究瀵煎叆 aux_motion_intensity_2
+# 娣诲姞椤圭洰鏍圭洰褰曞埌璺緞浠ヤ究瀵煎�? aux_motion_intensity_2
 current_dir = os.path.dirname(os.path.abspath(__file__))
 project_root = os.path.abspath(os.path.join(current_dir, '..', '..', '..'))
 if project_root not in sys.path:
@@ -41,7 +41,7 @@ class PASScorer:
             os.path.join(project_root, '.cache', 'scaled_offline.pth')
         )
         
-        # 初始�? PASAnalyzer
+        # 初始�?? PASAnalyzer
         # 不启用场景分类以保持接口简洁，如需要可以在后续版本添加
         self._analyzer = PASAnalyzer(
             device=self.device,
@@ -63,13 +63,13 @@ class PASScorer:
             subject_noun: 主体对象名称（如 "person", "dog" 等）
             
         Returns:
-            包含PAS分数的字典，格式�?
+            包含PAS分数的字典，格式�??
             {
-                'pas_score': float,  # PAS分数（使用pure_subject_motion�?
+                'pas_score': float,  # PAS分数（使用pure_subject_motion�??
                 'subject_detected': bool,  # 是否检测到主体
-                'motion_degree': float,  # 运动幅度（subject_motion�?
+                'motion_degree': float,  # 运动幅度（subject_motion�??
                 'background_motion': float,  # 背景运动幅度
-                'pure_subject_motion': float,  # 纯主体运动幅�?
+                'pure_subject_motion': float,  # 纯主体运动幅�??
                 'error': str (可�?)  # 错误信息
             }
         """
@@ -93,10 +93,12 @@ class PASScorer:
                 normalize_by_subject_diag=True
             )
             
-            # 转换返回格式以匹�? blur_detection_pipeline 的期�?
+            # 转换返回格式以匹�?? blur_detection_pipeline 的期�??
             if result.get('status') == 'success':
-                # 使用 pure_subject_motion 作为 PAS 分数（这是主体运动减去背景运动后的纯主体运动�?
-                pas_score = result.get('pure_subject_motion', 0.0)
+                # 使用 pure_subject_motion 作为 PAS 分数（这是主体运动减去背景运动后的纯主体运动�??
+                # �� pure_subject_motion ���й�һ����������VMBench����һ��
+                pure_subject_motion = result.get('pure_subject_motion', 0.0)
+                pas_score = min(1.0, pure_subject_motion * 10)  # ��һ����0-1
                 subject_motion = result.get('subject_motion', 0.0)
                 background_motion = result.get('background_motion', 0.0)
                 
@@ -105,7 +107,7 @@ class PASScorer:
                     'subject_detected': True,
                     'motion_degree': float(subject_motion),
                     'background_motion': float(background_motion),
-                    'pure_subject_motion': float(pas_score),
+                    'pure_subject_motion': float(pure_subject_motion),
                     'total_motion': float(result.get('total_motion', 0.0)),
                     'motion_ratio': float(result.get('motion_ratio', 0.0))
                 }
