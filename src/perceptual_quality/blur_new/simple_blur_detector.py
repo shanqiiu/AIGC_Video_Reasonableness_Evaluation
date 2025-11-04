@@ -23,6 +23,7 @@ warnings.filterwarnings("ignore")
 from motion_smoothness_score import (
     QAlignVideoScorer,
     load_video_with_sliding_window,
+    load_video_with_sliding_window_generator,
     calculate_adaptive_threshold,
     detect_artifact_frames
 )
@@ -41,16 +42,23 @@ class BlurDetector:
     # 模糊比例阈值
     BLUR_RATIO_THRESHOLD = 0.05
     
-    def __init__(self, device: str = "cuda:0", model_path: str = ".cache/q-future/one-align"):
+    def __init__(
+        self,
+        device: str = "cuda:0",
+        model_path: str = ".cache/q-future/one-align",
+        batch_size: int = 32
+    ):
         """
         初始化模糊检测器
         
         Args:
             device: 计算设备 (cuda:0, cpu 等)
             model_path: Q-Align 模型路径
+            batch_size: 批处理大小，用于控制内存使用。默认 32
         """
         self.device = device
         self.model_path = model_path
+        self.batch_size = batch_size
         
         # 初始化 Q-Align 模型
         print("正在初始化 Q-Align 模型...")
@@ -64,7 +72,8 @@ class BlurDetector:
     def detect_blur(
         self,
         video_path: str,
-        window_size: int = 3
+        window_size: int = 3,
+        batch_size: Optional[int] = None
     ) -> Dict:
         """
         检测视频模糊
@@ -72,6 +81,7 @@ class BlurDetector:
         Args:
             video_path: 视频文件路径
             window_size: 滑动窗口大小（帧数）
+            batch_size: 批处理大小，用于控制内存使用。默认 32，可根据 GPU 内存调整
             
         Returns:
             模糊检测结果字典，包含：
@@ -89,9 +99,17 @@ class BlurDetector:
             # 1. 加载视频帧
             video_frames = load_video_with_sliding_window(video_path, window_size)
             
-            # 2. 计算质量分数
-            _, _, quality_scores = self.scorer(video_frames)
+            # 2. 计算质量分数（使用批处理）
+            # 如果没有指定 batch_size，使用实例的默认 batch_size
+            effective_batch_size = batch_size if batch_size is not None else self.batch_size
+            total_frames = len(video_frames)
+            print(f"使用批处理大小: {effective_batch_size}，处理 {total_frames} 个帧组...")
+            
+            _, _, quality_scores = self.scorer(video_frames, batch_size=effective_batch_size)
             quality_scores = quality_scores.tolist()
+            
+            # 释放视频帧内存
+            del video_frames
             
             # 3. 估算相机运动幅度
             camera_movement = self._estimate_camera_movement(video_path)

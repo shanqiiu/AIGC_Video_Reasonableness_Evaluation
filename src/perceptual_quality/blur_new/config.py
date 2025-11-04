@@ -47,6 +47,7 @@ class BlurDetectionConfig:
         # 检测参数配置
         self.detection_params: Dict[str, Any] = {
             'window_size': 3,  # 滑动窗口大小（帧数）
+            'batch_size': 32,  # 批处理大小（用于控制内存使用）
             'blur_thresholds': {
                 'mild': 0.015,      # 轻微模糊阈值
                 'moderate': 0.025,   # 中等模糊阈值

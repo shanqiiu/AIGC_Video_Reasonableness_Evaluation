@@ -7,7 +7,7 @@
 import os
 import sys
 import json
-from typing import List, Tuple
+from typing import List, Tuple, Iterator, Optional
 
 import numpy as np
 import torch
@@ -95,18 +95,64 @@ class QAlignVideoScorer(nn.Module):
         
         return result
     
-    def forward(self, video_frames: List[List[Image.Image]]) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    def forward(
+        self,
+        video_frames: List[List[Image.Image]],
+        batch_size: Optional[int] = 32
+    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """
-        对视频帧进行质量评分
+        对视频帧进行质量评分（支持批处理，防止 OOM）
         
         Args:
             video_frames: 视频帧列表，每个元素是一个帧组列表
+            batch_size: 批处理大小，默认 32。None 表示一次性处理所有帧
             
         Returns:
             (logits, probabilities, weighted_scores)
             - logits: 原始 logits
             - probabilities: 质量等级概率分布
             - weighted_scores: 加权质量分数
+        """
+        # 如果没有指定批处理大小，或批处理大小大于等于总帧数，一次性处理
+        if batch_size is None or batch_size >= len(video_frames):
+            return self._forward_batch(video_frames)
+        
+        # 分批处理
+        all_logits = []
+        all_probabilities = []
+        all_weighted_scores = []
+        
+        total_batches = (len(video_frames) + batch_size - 1) // batch_size
+        
+        for i in range(0, len(video_frames), batch_size):
+            batch_frames = video_frames[i:i + batch_size]
+            logits, probabilities, weighted_scores = self._forward_batch(batch_frames)
+            
+            all_logits.append(logits.cpu())  # 移到 CPU 释放 GPU 内存
+            all_probabilities.append(probabilities.cpu())
+            all_weighted_scores.append(weighted_scores.cpu())
+            
+            # 释放 GPU 内存
+            del logits, probabilities, weighted_scores
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+        
+        # 合并所有批次的结果（在 CPU 上合并）
+        all_logits = torch.cat(all_logits, dim=0).to(self.model.device)
+        all_probabilities = torch.cat(all_probabilities, dim=0).to(self.model.device)
+        all_weighted_scores = torch.cat(all_weighted_scores, dim=0).to(self.model.device)
+        
+        return all_logits, all_probabilities, all_weighted_scores
+    
+    def _forward_batch(self, video_frames: List[List[Image.Image]]) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        """
+        对单个批次的视频帧进行质量评分
+        
+        Args:
+            video_frames: 视频帧批次列表
+            
+        Returns:
+            (logits, probabilities, weighted_scores)
         """
         # 将图像扩展为正方形
         background_color = tuple(
@@ -148,7 +194,7 @@ class QAlignVideoScorer(nn.Module):
 
 def load_video_with_sliding_window(video_path: str, window_size: int = 5) -> List[List[Image.Image]]:
     """
-    使用滑动窗口方式加载视频帧
+    使用滑动窗口方式加载视频帧（一次性加载所有帧）
     
     Args:
         video_path: 视频文件路径
@@ -191,6 +237,59 @@ def load_video_with_sliding_window(video_path: str, window_size: int = 5) -> Lis
             frame_groups.append([Image.fromarray(frame) for frame in frames_array])
     
     return frame_groups
+
+
+def load_video_with_sliding_window_generator(
+    video_path: str,
+    window_size: int = 5
+) -> Iterator[List[Image.Image]]:
+    """
+    使用滑动窗口方式加载视频帧（生成器版本，节省内存）
+    
+    Args:
+        video_path: 视频文件路径
+        window_size: 滑动窗口大小（帧数）
+        
+    Yields:
+        视频帧组，每个帧组包含 window_size 帧
+    """
+    video_reader = VideoReader(video_path)
+    total_frames = len(video_reader)
+    
+    # 计算窗口左右扩展帧数
+    left_extend = (window_size - 1) // 2
+    right_extend = window_size - 1 - left_extend
+    
+    for current_frame_idx in range(total_frames):
+        # 计算窗口的起始和结束帧索引
+        start_frame_idx = max(0, current_frame_idx - left_extend)
+        end_frame_idx = min(total_frames, current_frame_idx + right_extend + 1)
+        
+        frame_indices = list(range(start_frame_idx, end_frame_idx))
+        
+        # 如果帧数不足，进行填充
+        while len(frame_indices) < window_size:
+            if start_frame_idx == 0:
+                # 如果窗口在开头，向后填充
+                frame_indices.append(frame_indices[-1])
+            else:
+                # 否则向前填充
+                frame_indices.insert(0, frame_indices[0])
+        
+        # 读取帧数据
+        frames_array = video_reader.get_batch(frame_indices).asnumpy()
+        
+        # 处理开头帧，确保一致性
+        if current_frame_idx < left_extend:
+            frame_group = [Image.fromarray(frames_array[0])] * window_size
+        else:
+            frame_group = [Image.fromarray(frame) for frame in frames_array]
+        
+        # 生成当前帧组
+        yield frame_group
+        
+        # 自动释放内存
+        del frames_array, frame_group
 
 
 def calculate_adaptive_threshold(camera_movement: float = None) -> float:

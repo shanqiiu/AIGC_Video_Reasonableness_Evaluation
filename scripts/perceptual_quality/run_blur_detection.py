@@ -56,9 +56,11 @@ class BlurDetectionRunner:
         
         if use_simple:
             # 使用模糊检测器
+            batch_size = self.config.get_detection_param('batch_size') or 32
             self.detector = BlurDetector(
                 device=self.config.get_device_config('device'),
-                model_path=self.config.get_model_path('q_align_model')
+                model_path=self.config.get_model_path('q_align_model'),
+                batch_size=batch_size
             )
         
         # 初始化可视化工具
@@ -236,12 +238,19 @@ def main():
         default="cuda:0",
         help="计算设备"
     )
+    parser.add_argument(
+        "--batch_size",
+        type=int,
+        default=32,
+        help="批处理大小，用于控制内存使用。默认 32，可根据 GPU 内存调整（建议 16-64）"
+    )
     
     args = parser.parse_args()
     
     # 创建配置
     config = get_preset_config(args.config_preset)
     config.update_device_config('device', args.device)
+    config.update_detection_param('batch_size', args.batch_size)
     
     # 创建输出目录：在 output_dir 下创建时间戳文件夹
     output_base_dir = Path(args.output_dir)
@@ -253,6 +262,7 @@ def main():
     config.output_dir = output_timestamp_dir
     
     print(f"输出目录: {output_timestamp_dir}")
+    print(f"批处理大小: {args.batch_size}")
     
     # 验证配置
     if not config.validate_config():
