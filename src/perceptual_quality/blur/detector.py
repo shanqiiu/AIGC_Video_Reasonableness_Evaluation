@@ -35,15 +35,15 @@ class BlurDetector:
 
         unified = self._to_unified_result(video_path, raw, processing_time=time.time() - start_time)
         
-        # Ìí¼ÓÖĞÎÄseverityÓÃÓÚÏÔÊ¾£¨±£³ÖÔ­Ê¼ÖĞÎÄseverity£©
+        # ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½severityï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ê¾ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ô­Ê¼ï¿½ï¿½ï¿½ï¿½severityï¿½ï¿½
         severity_en = unified.get('result', {}).get('blur_severity', '')
-        # Èç¹ûÔ­Ê¼severityÊÇÖĞÎÄ£¬±£³Ö£»·ñÔò×ª»»ÎªÖĞÎÄ
-        if severity_en in ["ÑÏÖØÄ£ºı", "ÖĞµÈÄ£ºı", "ÇáÎ¢Ä£ºı", "ÎŞÄ£ºı"]:
+        # ï¿½ï¿½ï¿½Ô­Ê¼severityï¿½ï¿½ï¿½ï¿½ï¿½Ä£ï¿½ï¿½ï¿½ï¿½Ö£ï¿½ï¿½ï¿½ï¿½ï¿½×ªï¿½ï¿½Îªï¿½ï¿½ï¿½ï¿½
+        if severity_en in ["ï¿½ï¿½ï¿½ï¿½Ä£ï¿½ï¿½", "ï¿½Ğµï¿½Ä£ï¿½ï¿½", "ï¿½ï¿½Î¢Ä£ï¿½ï¿½", "ï¿½ï¿½Ä£ï¿½ï¿½"]:
             unified['result']['blur_severity_cn'] = severity_en
         else:
             unified['result']['blur_severity_cn'] = self._get_severity_cn(severity_en)
         
-        # ±£´æÔ­Ê¼½á¹û¹©¿ÉÊÓ»¯Ê¹ÓÃ£¨±ÜÃâÖØ¸´¼ì²â£©
+        # ï¿½ï¿½ï¿½ï¿½Ô­Ê¼ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ó»ï¿½Ê¹ï¿½Ã£ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ø¸ï¿½ï¿½ï¿½â£©
         unified['_raw_result'] = raw
         
         if self.config.get_output_param("save_json_results"):
@@ -59,9 +59,9 @@ class BlurDetector:
         for item in batch_raw.get("results", []):
             vp = item.get("video_path", "")
             unified_item = self._to_unified_result(vp, item)
-            # Ìí¼ÓÖĞÎÄseverityÓÃÓÚÏÔÊ¾
+            # ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½severityï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ê¾
             severity_en = unified_item.get('result', {}).get('blur_severity', '')
-            if severity_en in ["ÑÏÖØÄ£ºı", "ÖĞµÈÄ£ºı", "ÇáÎ¢Ä£ºı", "ÎŞÄ£ºı"]:
+            if severity_en in ["ï¿½ï¿½ï¿½ï¿½Ä£ï¿½ï¿½", "ï¿½Ğµï¿½Ä£ï¿½ï¿½", "ï¿½ï¿½Î¢Ä£ï¿½ï¿½", "ï¿½ï¿½Ä£ï¿½ï¿½"]:
                 unified_item['result']['blur_severity_cn'] = severity_en
             else:
                 unified_item['result']['blur_severity_cn'] = self._get_severity_cn(severity_en)
@@ -138,18 +138,18 @@ class BlurDetector:
             "ä¸¥é‡æ¨¡ç³Š": "severe",
             "ä¸­ç­‰æ¨¡ç³Š": "moderate",
             "è½»å¾®æ¨¡ç³Š": "mild",
-            "æ— æ¨¡ç³?": "none",
+            "æ— æ¨¡ï¿½?": "none",
         }
         return mapping.get(str(raw), str(raw))
     
     @staticmethod
     def _get_severity_cn(severity: str) -> str:
-        """½«Ó¢ÎÄseverity×ª»»ÎªÖĞÎÄÓÃÓÚÏÔÊ¾"""
+        """ï¿½ï¿½Ó¢ï¿½ï¿½severity×ªï¿½ï¿½Îªï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ê¾"""
         mapping = {
-            "severe": "ÑÏÖØÄ£ºı",
-            "moderate": "ÖĞµÈÄ£ºı",
-            "mild": "ÇáÎ¢Ä£ºı",
-            "none": "ÎŞÄ£ºı",
+            "severe": "ï¿½ï¿½ï¿½ï¿½Ä£ï¿½ï¿½",
+            "moderate": "ï¿½Ğµï¿½Ä£ï¿½ï¿½",
+            "mild": "ï¿½ï¿½Î¢Ä£ï¿½ï¿½",
+            "none": "ï¿½ï¿½Ä£ï¿½ï¿½",
         }
         return mapping.get(str(severity), str(severity))
 
