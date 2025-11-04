@@ -1,1 +1,0 @@
-python batch_blur_detection.py --video_dir D:\\my_git_projects\\AIGC_Video_Reasonableness_Evaluation\\data\\videos --output_dir "D:\my_git_projects\AIGC_Video_Reasonableness_Evaluation\outputs\perceptual_quality\blur"
