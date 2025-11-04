@@ -34,6 +34,18 @@ class BlurDetector:
         raw = self._pipeline.detect_blur_in_video(video_path, subject_noun=subject_noun)
 
         unified = self._to_unified_result(video_path, raw, processing_time=time.time() - start_time)
+        
+        # Ìí¼ÓÖĞÎÄseverityÓÃÓÚÏÔÊ¾£¨±£³ÖÔ­Ê¼ÖĞÎÄseverity£©
+        severity_en = unified.get('result', {}).get('blur_severity', '')
+        # Èç¹ûÔ­Ê¼severityÊÇÖĞÎÄ£¬±£³Ö£»·ñÔò×ª»»ÎªÖĞÎÄ
+        if severity_en in ["ÑÏÖØÄ£ºı", "ÖĞµÈÄ£ºı", "ÇáÎ¢Ä£ºı", "ÎŞÄ£ºı"]:
+            unified['result']['blur_severity_cn'] = severity_en
+        else:
+            unified['result']['blur_severity_cn'] = self._get_severity_cn(severity_en)
+        
+        # ±£´æÔ­Ê¼½á¹û¹©¿ÉÊÓ»¯Ê¹ÓÃ£¨±ÜÃâÖØ¸´¼ì²â£©
+        unified['_raw_result'] = raw
+        
         if self.config.get_output_param("save_json_results"):
             self._save_single_json(unified)
         return unified
@@ -46,7 +58,14 @@ class BlurDetector:
         results: List[Dict] = []
         for item in batch_raw.get("results", []):
             vp = item.get("video_path", "")
-            results.append(self._to_unified_result(vp, item))
+            unified_item = self._to_unified_result(vp, item)
+            # Ìí¼ÓÖĞÎÄseverityÓÃÓÚÏÔÊ¾
+            severity_en = unified_item.get('result', {}).get('blur_severity', '')
+            if severity_en in ["ÑÏÖØÄ£ºı", "ÖĞµÈÄ£ºı", "ÇáÎ¢Ä£ºı", "ÎŞÄ£ºı"]:
+                unified_item['result']['blur_severity_cn'] = severity_en
+            else:
+                unified_item['result']['blur_severity_cn'] = self._get_severity_cn(severity_en)
+            results.append(unified_item)
 
         summary = {
             "module": "perceptual_quality.blur",
@@ -119,8 +138,19 @@ class BlurDetector:
             "ä¸¥é‡æ¨¡ç³Š": "severe",
             "ä¸­ç­‰æ¨¡ç³Š": "moderate",
             "è½»å¾®æ¨¡ç³Š": "mild",
-            "æ— æ¨¡ç³Š": "none",
+            "æ— æ¨¡ç³?": "none",
         }
         return mapping.get(str(raw), str(raw))
+    
+    @staticmethod
+    def _get_severity_cn(severity: str) -> str:
+        """½«Ó¢ÎÄseverity×ª»»ÎªÖĞÎÄÓÃÓÚÏÔÊ¾"""
+        mapping = {
+            "severe": "ÑÏÖØÄ£ºı",
+            "moderate": "ÖĞµÈÄ£ºı",
+            "mild": "ÇáÎ¢Ä£ºı",
+            "none": "ÎŞÄ£ºı",
+        }
+        return mapping.get(str(severity), str(severity))
 
 

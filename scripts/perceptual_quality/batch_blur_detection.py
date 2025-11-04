@@ -111,42 +111,66 @@ def main():
     _ = config.validate_config()
 
     # Run detection
+    print("=== 批量视频模糊检测 ===")
+    print("正在初始化检测器...")
+    
     detector = BlurDetector(config)
+    
+    print("检测器初始化完成！")
+    print(f"开始批量检测视频目录: {args.video_dir}")
+    
+    import time as time_module
+    start_time = time_module.time()
     summary = detector.batch_detect(args.video_dir)
+    detection_time = time_module.time() - start_time
 
-    print("Batch detection completed.")
-    print(json.dumps(summary.get("result", {}), ensure_ascii=False))
+    print(f"批量检测完成，耗时: {detection_time:.2f}秒")
+    
+    # 输出统计信息
+    result_info = summary.get("result", {})
+    total_videos = result_info.get("total_videos", 0)
+    processed_videos = result_info.get("processed_videos", 0)
+    blur_detected_count = result_info.get("blur_detected_count", 0)
+    
+    print(f"总视频数: {total_videos}")
+    print(f"处理成功: {processed_videos}")
+    print(f"检测到模糊: {blur_detected_count}")
 
     # Optional visualization based on raw pipeline results
     if args.visualize:
+        print("生成批量可视化结果...")
         # Raw results saved by pipeline
         raw_results_path = os.path.join(config.output_dir, "blur_detection_results.json")
         if not os.path.exists(raw_results_path):
-            print(f"Warning: raw results not found at {raw_results_path}; skipping visualization")
-            return
+            print(f"警告: 原始结果未找到 {raw_results_path}; 跳过可视化")
+        else:
+            try:
+                with open(raw_results_path, "r", encoding="utf-8") as f:
+                    raw_results = json.load(f)
 
-        with open(raw_results_path, "r", encoding="utf-8") as f:
-            raw_results = json.load(f)
+                viz_dir = args.viz_output_dir or os.path.join(config.output_dir, "visualizations")
+                os.makedirs(viz_dir, exist_ok=True)
+                visualizer = BlurVisualization(output_dir=viz_dir)
 
-        viz_dir = args.viz_output_dir or os.path.join(config.output_dir, "visualizations")
-        os.makedirs(viz_dir, exist_ok=True)
-        visualizer = BlurVisualization(output_dir=viz_dir)
-
-        # Batch visualization
-        try:
-            batch_plot = visualizer.visualize_batch_results(raw_results)
-            print(f"Batch visualization saved to: {batch_plot}")
-        except Exception as e:
-            print(f"Visualization failed: {e}")
-
-        # Per-video detailed reports (optional)
-        if args.save_detailed_reports and isinstance(raw_results, list):
-            for item in raw_results:
+                # Batch visualization
                 try:
-                    report_path = visualizer.create_detection_report(item)
-                    print(f"Report saved: {report_path}")
+                    batch_plot = visualizer.visualize_batch_results(raw_results)
+                    print(f"批量结果可视化已保存到: {batch_plot}")
                 except Exception as e:
-                    print(f"Failed to create report for {item.get('video_path', '')}: {e}")
+                    print(f"批量可视化生成失败: {e}")
+
+                # Per-video detailed reports (optional)
+                if args.save_detailed_reports and isinstance(raw_results, list):
+                    for item in raw_results:
+                        try:
+                            report_path = visualizer.create_detection_report(item)
+                            print(f"详细报告已保存到: {report_path}")
+                        except Exception as e:
+                            print(f"为 {item.get('video_path', '')} 创建报告失败: {e}")
+            except Exception as e:
+                print(f"读取结果文件失败: {e}")
+    
+    print("批量检测完成！")
 
 
 if __name__ == "__main__":
