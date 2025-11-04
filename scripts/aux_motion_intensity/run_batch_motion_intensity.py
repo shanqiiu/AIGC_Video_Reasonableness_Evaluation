@@ -1,5 +1,12 @@
 import argparse
 import os
+import sys
+from pathlib import Path
+
+# Add project root to Python path
+project_root = Path(__file__).resolve().parent.parent.parent
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
 
 from src.aux_motion_intensity.analyzer import MotionIntensityAnalyzer
 from src.aux_motion_intensity.batch import batch_analyze_videos
@@ -9,9 +16,9 @@ def main():
     parser = argparse.ArgumentParser(description='Batch motion intensity analysis')
     parser.add_argument('--input', '-i', required=True, help='Input videos directory')
     parser.add_argument('--output', '-o', default='reports', help='Output directory for reports')
-    parser.add_argument('--device', default='cpu', help='cuda or cpu')
-    parser.add_argument('--method', default='farneback', choices=['farneback', 'tvl1', 'raft'], help='Optical flow method')
-    parser.add_argument('--raft_model', default=None, help='RAFT model path (optional)')
+    parser.add_argument('--device', default='cuda', help='cuda or cpu')
+    parser.add_argument('--method', default='raft', choices=['farneback', 'tvl1', 'raft'], help='Optical flow method')
+    parser.add_argument('--raft_model', default="D:\mycode\AIGC_Video_Reasonableness_Evaluation\.cache\\raft-things.pth", help='RAFT model path (optional)')
     parser.add_argument('--no-camera-comp', action='store_true', help='Disable camera compensation')
     parser.add_argument('--normalize', action='store_true', help='Normalize flow by resolution')
     parser.add_argument('--flow-threshold-ratio', type=float, default=0.002, help='Static threshold ratio when normalized')

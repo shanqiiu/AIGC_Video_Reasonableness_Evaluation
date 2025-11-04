@@ -16,7 +16,13 @@ from collections import OrderedDict
 from functools import partial
 from pathlib import Path
 
-import deepspeed
+try:
+    import deepspeed
+    HAS_DEEPSPEED = True
+except ImportError:
+    deepspeed = None
+    HAS_DEEPSPEED = False
+
 import numpy as np
 import torch
 import torch.backends.cudnn as cudnn
@@ -395,6 +401,11 @@ def get_args():
     known_args, _ = parser.parse_known_args()
 
     if known_args.enable_deepspeed:
+        if not HAS_DEEPSPEED:
+            raise ImportError(
+                "deepspeed is required when --enable_deepspeed is set, "
+                "but deepspeed is not installed. Please install it or remove the flag."
+            )
         parser = deepspeed.add_config_arguments(parser)
         ds_init = deepspeed.initialize
     else:

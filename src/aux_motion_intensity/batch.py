@@ -47,13 +47,15 @@ def analyze_single_video(analyzer: MotionIntensityAnalyzer,
                          max_frames: Optional[int] = None,
                          frame_skip: int = 1) -> Dict:
     video_name = os.path.splitext(os.path.basename(video_path))[0]
+    print(f"Loading video: {video_name}...")
     frames = load_video_frames(video_path, max_frames=max_frames, frame_skip=frame_skip)
+    print(f"Loaded {len(frames)} frames")
     if len(frames) < 2:
         return {
             'video_name': video_name,
             'video_path': video_path,
             'status': 'failed',
-            'error': 'ÊÓÆµÖ¡²»×ã'
+            'error': 'è§†é¢‘å¸§ä¸ï¿½?'
         }
     camera_matrix = analyzer.estimate_camera_matrix(frames[0].shape, camera_fov)
     result = analyzer.analyze_frames(frames, camera_matrix)
@@ -91,15 +93,26 @@ def batch_analyze_videos(analyzer: MotionIntensityAnalyzer,
         per_video_dir = os.path.join(output_dir, 'motion_intensity')
         os.makedirs(per_video_dir, exist_ok=True)
     for vp in tqdm(video_files, desc='Analyzing videos', unit='vid'):
-        rec = analyze_single_video(
-            analyzer,
-            vp,
-            output_dir=per_video_dir,
-            camera_fov=camera_fov,
-            max_frames=max_frames,
-            frame_skip=frame_skip,
-        )
-        results.append(rec)
+        try:
+            rec = analyze_single_video(
+                analyzer,
+                vp,
+                output_dir=per_video_dir,
+                camera_fov=camera_fov,
+                max_frames=max_frames,
+                frame_skip=frame_skip,
+            )
+            results.append(rec)
+        except Exception as e:
+            print(f"\nError processing {vp}: {e}")
+            import traceback
+            traceback.print_exc()
+            results.append({
+                'video_name': os.path.splitext(os.path.basename(vp))[0],
+                'video_path': vp,
+                'status': 'failed',
+                'error': str(e)
+            })
     if output_dir:
         summary = _build_summary(results)
         with open(os.path.join(output_dir, 'motion_intensity_summary.json'), 'w', encoding='utf-8') as f:

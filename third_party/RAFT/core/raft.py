@@ -9,11 +9,16 @@ from corr import CorrBlock, AlternateCorrBlock
 from utils.utils import bilinear_sampler, coords_grid, upflow8
 
 try:
-    autocast = torch.cuda.amp.autocast
+    # Use new torch.amp.autocast API if available (PyTorch >= 2.0)
+    if hasattr(torch.amp, 'autocast'):
+        def autocast(enabled=True):
+            return torch.amp.autocast('cuda', enabled=enabled)
+    else:
+        autocast = torch.cuda.amp.autocast
 except:
     # dummy autocast for PyTorch < 1.6
     class autocast:
-        def __init__(self, enabled):
+        def __init__(self, enabled=True):
             pass
         def __enter__(self):
             pass

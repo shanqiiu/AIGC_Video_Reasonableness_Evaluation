@@ -1,6 +1,6 @@
 av
 decord
-deepspeed
+# deepspeed  # Not easily installable on Windows, only needed for training (--enable_deepspeed flag)
 einops
 matplotlib
 numpy
@@ -14,4 +14,4 @@ timm==0.4.12
 torch==2.5.1
 torchaudio
 torchvision==0.20.1
-triton==3.1.0
+# triton==3.1.0  # Not available on Windows, comment out if not needed

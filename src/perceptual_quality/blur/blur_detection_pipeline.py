@@ -188,14 +188,31 @@ class BlurDetectionPipeline:
             }
     
     def _detect_blur_with_pas(self, video_path: str, subject_noun: str) -> Dict:
-        """使用 PAS 评分器辅助检测模糊。"""
+        """使用 PAS 评分器辅助检测模糊（严格按照参考版本逻辑）。"""
         try:
             out = self.pas_scorer.score(video_path, subject_noun=subject_noun)
+            motion_degree = float(out.get('motion_degree', 0.0)) if isinstance(out.get('motion_degree', 0.0), (int, float)) else 0.0
+            subject_detected = bool(out.get('subject_detected', False))
+            error = out.get('error')
+            
+            # 如果检测失败或出错，返回错误结果
+            if not subject_detected or error:
+                return {
+                    'pas_score': 0.0,
+                    'subject_detected': subject_detected,
+                    'motion_degree': motion_degree,
+                    'error': error
+                }
+            
+            # 按照参考版本逻辑：模糊会导致运动跟踪不准确，运动幅度异常低
+            # pas_score = min(1.0, motion_degree * 10)  # 归一化到0-1
+            pas_score = min(1.0, motion_degree * 10)
+            
             return {
-                'pas_score': float(out.get('pas_score', 0.0)),
-                'subject_detected': bool(out.get('subject_detected', False)),
-                'motion_degree': float(out.get('motion_degree', 0.0)) if isinstance(out.get('motion_degree', 0.0), (int, float)) else 0.0,
-                'error': out.get('error')
+                'pas_score': float(pas_score),
+                'subject_detected': subject_detected,
+                'motion_degree': motion_degree,
+                'error': None
             }
             
         except Exception as e:
@@ -264,14 +281,30 @@ class BlurDetectionPipeline:
         }
 
     def _set_threshold(self, camera_movement: float) -> float:
-        """根据相机运动设定阈值（简单自适应）。"""
-        base = self.blur_thresholds.get('mss_threshold', 0.025)
-        adjusted = base * (1.0 + 0.5 * min(max(camera_movement, 0.0), 1.0))
-        return max(base * 0.8, min(adjusted, base * 1.5))
+        """根据相机运动设定阈值（严格按照参考版本逻辑）。"""
+        if camera_movement is None:
+            return 0.01
+        if camera_movement < 0.1:
+            return 0.01
+        elif 0.1 <= camera_movement < 0.3:
+            return 0.015
+        elif 0.3 <= camera_movement < 0.5:
+            return 0.025
+        else:  # camera_movement >= 0.5
+            return 0.03
 
     def _get_artifacts_frames(self, quality_scores: List[float], threshold: float) -> List[int]:
-        """根据质量分数与阈值提取模糊帧索引。"""
-        return [i for i, s in enumerate(quality_scores) if s < threshold]
+        """根据质量分数与阈值提取模糊帧索引（严格按照参考版本逻辑）。"""
+        # 计算相邻帧的分数差异
+        score_diffs = np.abs(np.diff(quality_scores))
+        
+        # 找出分数差异超过阈值的帧
+        artifact_indices = np.where(score_diffs > threshold)[0]
+        
+        # 返回包含当前帧和下一帧的索引（因为显著分数差异可能由任一帧引起）
+        artifacts_frames = np.unique(np.concatenate([artifact_indices, artifact_indices + 1]))
+        
+        return artifacts_frames.tolist()
     
     def _calculate_blur_severity(self, blur_frames: List[int], confidence: float) -> str:
         """计算模糊严重程度。"""
@@ -411,7 +444,7 @@ class BlurDetectionPipeline:
 # 视频模糊检测统计报告
 
 ## 基本统计
-- 总视频数: {total_videos}
+- 总视频数量: {total_videos}
 - 检测到模糊的视频: {blur_detected_count}
 - 模糊检测率: {blur_detected_count/total_videos*100:.1f}%
 

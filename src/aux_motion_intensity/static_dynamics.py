@@ -159,7 +159,7 @@ class StaticObjectDynamicsCalculator:
 
     def calculate_temporal_dynamics(self, flows: List[np.ndarray], images: List[np.ndarray], camera_matrix: Optional[np.ndarray] = None) -> Dict:
         if len(flows) != len(images) - 1:
-            raise ValueError('光流数量应该比图像数量少1')
+            raise ValueError('鍏夋祦鏁伴噺搴旇姣斿浘鍍忔暟閲忓皯1')
         frame_results = []
         for i, flow in enumerate(flows):
             result = self.calculate_frame_dynamics(flow, images[i], images[i + 1], camera_matrix)
