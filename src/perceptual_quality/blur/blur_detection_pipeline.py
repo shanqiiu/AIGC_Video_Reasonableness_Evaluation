@@ -347,6 +347,28 @@ class BlurDetectionPipeline:
         
         return artifacts_frames.tolist()
     
+    def _determine_blur_severity(self, blur_ratio: float, max_quality_drop: float, threshold: float, total_frames: int) -> str:
+        """确定模糊严重程度（与simple_blur_detector一致）"""
+        if blur_ratio > 0.3 or max_quality_drop > threshold * 2:
+            return "严重模糊"
+        elif blur_ratio > 0.1 or max_quality_drop > threshold * 1.5:
+            return "中等模糊"
+        elif blur_ratio > 0.05 or max_quality_drop > threshold:
+            return "轻微模糊"
+        else:
+            return "无模糊"
+    
+    def _calculate_confidence(self, blur_ratio: float, max_quality_drop: float, avg_quality: float) -> float:
+        """计算模糊检测置信度（与simple_blur_detector一致）"""
+        # 基于模糊比例和质量下降计算置信度
+        blur_confidence = min(1.0, blur_ratio * 2)  # 模糊比例权重
+        quality_confidence = min(1.0, max_quality_drop * 10)  # 质量下降权重
+        avg_quality_confidence = max(0.0, 1.0 - avg_quality)  # 平均质量权重
+        
+        # 综合置信度
+        confidence = (blur_confidence * 0.4 + quality_confidence * 0.4 + avg_quality_confidence * 0.2)
+        return min(1.0, confidence)
+    
     def _calculate_blur_severity(self, blur_frames: List[int], confidence: float) -> str:
         """璁＄畻妯＄硦涓ラ噸绋嬪害銆?"""
         blur_ratio = len(blur_frames) / 100  # 鍋囪鎬诲抚鏁? 100
@@ -360,7 +382,10 @@ class BlurDetectionPipeline:
             return "鏃犳ā绯?"
     
     def _generate_blur_report(self, video_path: str, blur_results: Dict) -> Dict:
-        """鐢熸垚妯＄硦妫�娴嬫姤鍛娿�?"""
+        """生成模糊检测报告（与simple_blur_detector一致）"""
+        # 从blur_metrics中获取完整信息
+        blur_metrics = blur_results.get('blur_metrics', {})
+        
         report = {
             'video_path': video_path,
             'video_name': os.path.basename(video_path),
@@ -371,8 +396,13 @@ class BlurDetectionPipeline:
             'mss_score': blur_results['mss_score'],
             'pas_score': blur_results['pas_score'],
             'blur_frames': blur_results['blur_frames'],
-            'total_blur_frames': len(blur_results['blur_frames']),
-            'blur_ratio': len(blur_results['blur_frames']) / 100.0,  # 鍋囪鎬诲抚鏁? 100
+            'total_frames': blur_metrics.get('total_frames', 0),
+            'blur_frame_count': blur_metrics.get('blur_frame_count', 0),
+            'blur_ratio': blur_metrics.get('blur_ratio', 0.0),
+            'avg_quality': blur_metrics.get('avg_quality', 0.0),
+            'quality_std': blur_metrics.get('quality_std', 0.0),
+            'max_quality_drop': blur_metrics.get('max_quality_drop', 0.0),
+            'threshold': blur_metrics.get('threshold', 0.025),  # 鍋囪鎬诲抚鏁? 100
             'recommendations': self._generate_recommendations(blur_results)
         }
         return report
