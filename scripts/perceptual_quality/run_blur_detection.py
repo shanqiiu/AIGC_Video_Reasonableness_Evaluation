@@ -241,8 +241,18 @@ def main():
     
     # 创建配置
     config = get_preset_config(args.config_preset)
-    config.output_dir = Path(args.output_dir)
     config.update_device_config('device', args.device)
+    
+    # 创建输出目录：在 output_dir 下创建时间戳文件夹
+    output_base_dir = Path(args.output_dir)
+    timestamp = time.strftime("%Y%m%d_%H%M%S")
+    output_timestamp_dir = output_base_dir / timestamp
+    output_timestamp_dir.mkdir(parents=True, exist_ok=True)
+    
+    # 设置配置的输出目录为时间戳文件夹
+    config.output_dir = output_timestamp_dir
+    
+    print(f"输出目录: {output_timestamp_dir}")
     
     # 验证配置
     if not config.validate_config():
