@@ -16,7 +16,7 @@ import numpy as np
 # 添加当前目录到路径
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from simple_blur_detector import SimpleBlurDetector
+from simple_blur_detector import BlurDetector
 from blur_visualization import BlurVisualization
 from config import BlurDetectionConfig, get_preset_config
 
@@ -35,8 +35,8 @@ class BlurDetectionRunner:
         print("正在初始化检测器...")
         
         if use_simple:
-            # 使用简化版检测器
-            self.detector = SimpleBlurDetector(
+            # 使用模糊检测器
+            self.detector = BlurDetector(
                 device=self.config.get_device_config('device'),
                 model_path=self.config.get_model_path('q_align_model')
             )
@@ -83,12 +83,7 @@ class BlurDetectionRunner:
         start_time = time.time()
         
         # 执行检测
-        if hasattr(self.detector, 'detect_blur'):
-            # 简化版检测器
-            result = self.detector.detect_blur(video_path)
-        else:
-            # 完整版检测器
-            result = self.detector.detect_blur_in_video(video_path)
+        result = self.detector.detect_blur(video_path)
         
         detection_time = time.time() - start_time
         result['detection_time'] = detection_time
@@ -137,12 +132,7 @@ class BlurDetectionRunner:
         start_time = time.time()
         
         # 执行批量检测
-        if hasattr(self.detector, 'batch_detect'):
-            # 简化版检测器
-            results = self.detector.batch_detect(video_dir, str(self.config.output_dir))
-        else:
-            # 完整版检测器
-            results = self.detector.batch_detect_blur(video_dir, str(self.config.output_dir))
+        results = self.detector.batch_detect(video_dir, str(self.config.output_dir))
         
         detection_time = time.time() - start_time
         
