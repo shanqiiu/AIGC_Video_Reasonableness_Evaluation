@@ -17,22 +17,32 @@ class SimpleRAFT:
     """Unified optical-flow predictor supporting Farneback, TV-L1, RAFT."""
 
     def __init__(self, device: str = 'cpu', method: str = 'farneback', model_path: Optional[str] = None) -> None:
+        print(f"Initializing SimpleRAFT with method={method}, device={device}")
         self.device = device if torch.cuda.is_available() and device.startswith('cuda') else 'cpu'
+        if self.device != device:
+            print(f"Device changed from {device} to {self.device} (CUDA not available)")
         self.method = method
         # If RAFT is requested but no model path provided, try default under project third_party
         if method == 'raft' and not model_path:
             model_path = self._default_raft_model_path()
+            if model_path:
+                print(f"Using default RAFT model path: {model_path}")
+            else:
+                print("No default RAFT model found, will fall back to farneback")
         self.model_path = model_path
         self.raft_model = None
 
         if method == 'tvl1':
             self._init_tvl1()
         elif method == 'raft':
+            print("Starting RAFT initialization...")
             self._init_raft()
+            print(f"RAFT initialization complete, method={self.method}")
         elif method == 'farneback':
-            pass
+            print("Using Farneback optical flow method")
         else:
             self.method = 'farneback'
+            print(f"Unknown method, falling back to farneback")
 
     def _init_tvl1(self) -> None:
         try:
@@ -51,6 +61,7 @@ class SimpleRAFT:
             self.method = 'farneback'
             return
         try:
+            print(f"Initializing RAFT model from {self.model_path}...")
             # Try to locate third_party/RAFT/core relative to project
             raft_core_path = None
             for candidate in [
@@ -75,16 +86,40 @@ class SimpleRAFT:
             args.corr_radius = 4
 
             self.raft_model = RAFT(args)
-            state_dict = torch.load(self.model_path, map_location=self.device)
+            state_dict = torch.load(self.model_path, map_location=self.device, weights_only=False)
             if 'state_dict' in state_dict:
                 state_dict = state_dict['state_dict']
             elif 'model' in state_dict:
                 state_dict = state_dict['model']
             new_state_dict = {k.replace('module.', ''): v for k, v in state_dict.items()}
             self.raft_model.load_state_dict(new_state_dict, strict=False)
+            print(f"Moving RAFT model to {self.device}...")
             self.raft_model.to(self.device)
             self.raft_model.eval()
-        except Exception:
+            
+            # Test inference with a dummy input to catch CUDA compatibility issues early
+            if self.device.startswith('cuda'):
+                try:
+                    test_input = torch.zeros(1, 3, 64, 64, device=self.device)
+                    with torch.no_grad():
+                        _ = self.raft_model(test_input, test_input, iters=1, test_mode=True)
+                    print("RAFT model initialized successfully and CUDA test passed.")
+                except RuntimeError as e:
+                    if 'CUDA' in str(e) or 'kernel' in str(e).lower():
+                        print(f"CUDA compatibility test failed: {e}")
+                        print("Trying CPU fallback for RAFT model...")
+                        self.device = 'cpu'
+                        self.raft_model.to(self.device)
+                        self.raft_model.eval()
+                        print("RAFT model moved to CPU successfully.")
+                    else:
+                        raise
+                except Exception as e:
+                    print(f"RAFT test inference failed: {e}, but continuing...")
+            else:
+                print("RAFT model initialized successfully.")
+        except Exception as e:
+            print(f"Failed to initialize RAFT: {e}, falling back to farneback method")
             self.method = 'farneback'
 
     def _default_raft_model_path(self) -> Optional[str]:
@@ -101,9 +136,31 @@ class SimpleRAFT:
         with torch.no_grad():
             img1 = self._preprocess_image_raft(image1)
             img2 = self._preprocess_image_raft(image2)
-            _, flow_up = self.raft_model(img1, img2, iters=20, test_mode=True)
-            flow = flow_up[0].cpu().numpy()
-            return flow  # (2, H, W)
+            try:
+                # First prediction may be slow due to CUDA warmup
+                _, flow_up = self.raft_model(img1, img2, iters=20, test_mode=True)
+                flow = flow_up[0].cpu().numpy()
+                return flow  # (2, H, W)
+            except RuntimeError as e:
+                if 'CUDA' in str(e) or 'kernel' in str(e).lower():
+                    print(f"CUDA error during RAFT inference: {e}")
+                    print("Attempting CPU fallback for this prediction...")
+                    # Try CPU fallback
+                    try:
+                        img1_cpu = img1.cpu()
+                        img2_cpu = img2.cpu()
+                        _, flow_up = self.raft_model(img1_cpu, img2_cpu, iters=20, test_mode=True)
+                        flow = flow_up[0].cpu().numpy()
+                        print("CPU fallback successful.")
+                        return flow
+                    except Exception as e2:
+                        print(f"CPU fallback also failed: {e2}")
+                        print("Falling back to OpenCV farneback method...")
+                        self.method = 'farneback'
+                        return self._predict_flow_opencv(image1, image2)
+                else:
+                    # Re-raise non-CUDA runtime errors
+                    raise
 
     def _preprocess_image_raft(self, img: np.ndarray) -> torch.Tensor:
         img_tensor = torch.from_numpy(img).permute(2, 0, 1).float().unsqueeze(0)

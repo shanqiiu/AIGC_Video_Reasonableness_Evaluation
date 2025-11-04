@@ -36,11 +36,13 @@ class MotionIntensityAnalyzer:
 
     def analyze_frames(self, frames: List[np.ndarray], camera_matrix: Optional[np.ndarray] = None) -> Dict:
         if len(frames) < 2:
-            raise ValueError('ÖÁÉÙÐèÒª2Ö¡Í¼Ïñ')
+            raise ValueError('è‡³å°‘éœ€ï¿½?2å¸§å›¾ï¿½?')
         if camera_matrix is None:
             camera_matrix = self.estimate_camera_matrix(frames[0].shape)
         flows: List[np.ndarray] = []
-        for i in range(len(frames) - 1):
+        from tqdm import tqdm
+        print(f"Processing {len(frames)} frames, computing {len(frames) - 1} flow pairs...")
+        for i in tqdm(range(len(frames) - 1), desc='Computing optical flow', leave=False, unit='pair'):
             flow = self.predictor.predict_flow(frames[i], frames[i + 1])
             if flow.shape[0] == 2:
                 flow = flow.transpose(1, 2, 0)

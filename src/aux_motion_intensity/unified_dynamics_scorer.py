@@ -160,29 +160,29 @@ class UnifiedDynamicsScorer:
 
     def _generate_interpretation(self, unified_score: float, scene_type: str, component_scores: Dict) -> str:
         if unified_score < 0.2:
-            level = '¼«µÍ¶¯Ì¬£¨´¿¾²Ì¬£©'
+            level = 'æžä½ŽåŠ¨æ€ï¼ˆçº¯é™æ€ï¼‰'
         elif unified_score < 0.4:
-            level = 'µÍ¶¯Ì¬'
+            level = 'ä½ŽåŠ¨æ€'
         elif unified_score < 0.6:
-            level = 'ÖÐµÈ¶¯Ì¬'
+            level = 'ä¸­ç­‰åŠ¨æ€'
         elif unified_score < 0.8:
-            level = '¸ß¶¯Ì¬'
+            level = 'é«˜åŠ¨æ€'
         else:
-            level = '¼«¸ß¶¯Ì¬'
-        scene_desc = '¾²Ì¬³¡¾°£¨Ïà»úÔË¶¯£©' if scene_type == 'static' else '¶¯Ì¬³¡¾°£¨ÎïÌåÔË¶¯£©'
+            level = 'æžé«˜åŠ¨æ€'
+        scene_desc = 'é™æ€åœºæ™¯ï¼ˆç›¸æœºè¿åŠ¨ï¼‰' if scene_type == 'static' else 'åŠ¨æ€åœºæ™¯ï¼ˆç‰©ä½“è¿åŠ¨ï¼‰'
         max_component = max(component_scores, key=component_scores.get)
         component_names = {
-            'flow_magnitude': '¹âÁ÷·ù¶È',
-            'spatial_coverage': 'ÔË¶¯¸²¸Ç',
-            'temporal_variation': 'Ê±Ðò±ä»¯',
-            'spatial_consistency': '¿Õ¼äÒ»ÖÂÐÔ',
-            'camera_factor': 'Ïà»úÒò×Ó',
+            'flow_magnitude': 'å…‰æµå¹…åº¦',
+            'spatial_coverage': 'è¿åŠ¨è¦†ç›–',
+            'temporal_variation': 'æ—¶åºå˜åŒ–',
+            'spatial_consistency': 'ç©ºé—´ä¸€è‡´æ€§',
+            'camera_factor': 'ç›¸æœºå› å­',
         }
         main_factor = component_names.get(max_component, max_component)
         interpretation = (
-            f"¶¯Ì¬¶È: {unified_score:.3f} ({level})\n"
-            f"³¡¾°ÀàÐÍ: {scene_desc}\n"
-            f"Ö÷Òª¹±Ï×: {main_factor} ({component_scores[max_component]:.3f})\n"
+            f"åŠ¨æ€åº¦: {unified_score:.3f} ({level})\n"
+            f"åœºæ™¯ç±»åž‹: {scene_desc}\n"
+            f"ä¸»è¦è´¡çŒ®: {main_factor} ({component_scores[max_component]:.3f})\n"
         )
         return interpretation.strip()
 
@@ -199,14 +199,14 @@ class DynamicsClassifier:
 
     def classify(self, unified_score: float) -> Dict:
         if unified_score < self.thresholds['pure_static']:
-            return {'category': 'pure_static', 'category_id': 0, 'description': '´¿¾²Ì¬ÎïÌå', 'typical_examples': ['½¨ÖþÎï', 'µñËÜ', '¾²Ö¹µÄ·ç¾°']}
+            return {'category': 'pure_static', 'category_id': 0, 'description': 'çº¯é™æ€ç‰©ä½“', 'typical_examples': ['å»ºç­‘ç‰©', 'é›•å¡‘', 'é™æ­¢çš„é£Žæ™¯']}
         if unified_score < self.thresholds['low_dynamic']:
-            return {'category': 'low_dynamic', 'category_id': 1, 'description': 'µÍ¶¯Ì¬³¡¾°', 'typical_examples': ['Æ®¶¯µÄÆìÖÄ', '»ºÂýÒÆ¶¯µÄÔÆ', 'Î¢·çÖÐµÄÊ÷Ò¶']}
+            return {'category': 'low_dynamic', 'category_id': 1, 'description': 'ä½ŽåŠ¨æ€åœºæ™¯', 'typical_examples': ['é£˜åŠ¨çš„æ——å¸œ', 'ç¼“æ…¢ç§»åŠ¨çš„äº‘', 'å¾®é£Žä¸­çš„æ ‘å¶']}
         if unified_score < self.thresholds['medium_dynamic']:
-            return {'category': 'medium_dynamic', 'category_id': 2, 'description': 'ÖÐµÈ¶¯Ì¬³¡¾°', 'typical_examples': ['ÐÐ×ßµÄÈË', 'ÂýÅÜ', 'ÈÕ³£»î¶¯']}
+            return {'category': 'medium_dynamic', 'category_id': 2, 'description': 'ä¸­ç­‰åŠ¨æ€åœºæ™¯', 'typical_examples': ['è¡Œèµ°çš„äºº', 'æ…¢è·‘', 'æ—¥å¸¸æ´»åŠ¨']}
         if unified_score < self.thresholds['high_dynamic']:
-            return {'category': 'high_dynamic', 'category_id': 3, 'description': '¸ß¶¯Ì¬³¡¾°', 'typical_examples': ['ÅÜ²½', 'ÌøÎè', 'ÌåÓýÔË¶¯']}
-        return {'category': 'extreme_dynamic', 'category_id': 4, 'description': '¼«¸ß¶¯Ì¬³¡¾°', 'typical_examples': ['¿ìËÙÎèµ¸', '¼¤ÁÒÔË¶¯', '´ò¶·³¡Ãæ']}
+            return {'category': 'high_dynamic', 'category_id': 3, 'description': 'é«˜åŠ¨æ€åœºæ™¯', 'typical_examples': ['è·‘æ­¥', 'è·³èˆž', 'ä½“è‚²è¿åŠ¨']}
+        return {'category': 'extreme_dynamic', 'category_id': 4, 'description': 'æžé«˜åŠ¨æ€åœºæ™¯', 'typical_examples': ['å¿«é€Ÿèˆžè¹ˆ', 'æ¿€çƒˆè¿åŠ¨', 'æ‰“æ–—åœºé¢']}
 
     def get_binary_label(self, unified_score: float, threshold: float = 0.5) -> int:
         return 1 if unified_score >= threshold else 0
