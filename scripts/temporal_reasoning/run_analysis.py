@@ -1,0 +1,301 @@
+# -*- coding: utf-8 -*-
+"""
+时序合理性分析执行脚本
+支持参数化配置
+"""
+
+import os
+import sys
+import argparse
+import json
+from pathlib import Path
+from typing import Optional, List
+
+# 添加项目根目录到路径
+current_file = os.path.abspath(__file__)
+project_root = os.path.abspath(os.path.join(os.path.dirname(current_file), '..', '..'))
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
+
+from src.temporal_reasoning.core.temporal_analyzer import TemporalReasoningAnalyzer
+from src.temporal_reasoning.core.config import (
+    TemporalReasoningConfig,
+    load_config_from_yaml,
+    get_default_config
+)
+from src.temporal_reasoning.utils.video_utils import load_video_frames, get_video_info
+
+
+class TemporalReasoningRunner:
+    """时序合理性分析运行器"""
+    
+    def __init__(self, config: Optional[TemporalReasoningConfig] = None):
+        """
+        初始化运行器
+        
+        Args:
+            config: 配置对象，如果为None则使用默认配置
+        """
+        self.config = config or get_default_config()
+        self.analyzer = None
+    
+    def initialize(self):
+        """初始化分析器"""
+        self.analyzer = TemporalReasoningAnalyzer(self.config)
+        self.analyzer.initialize()
+    
+    def run(
+        self,
+        video_path: str,
+        text_prompts: Optional[List[str]] = None,
+        output_path: Optional[str] = None
+    ) -> dict:
+        """
+        运行分析
+        
+        Args:
+            video_path: 视频文件路径
+            text_prompts: 可选文本提示列表
+            output_path: 输出结果文件路径
+        
+        Returns:
+            分析结果字典
+        """
+        if self.analyzer is None:
+            self.initialize()
+        
+        # 加载视频
+        print(f"正在加载视频: {video_path}")
+        video_info = get_video_info(video_path)
+        print(f"视频信息: {video_info['width']}x{video_info['height']}, "
+              f"{video_info['frame_count']}帧, {video_info['fps']:.2f}fps")
+        
+        # 加载视频帧
+        video_frames = load_video_frames(video_path)
+        print(f"已加载 {len(video_frames)} 帧")
+        
+        # 执行分析
+        result = self.analyzer.analyze(
+            video_frames=video_frames,
+            text_prompts=text_prompts,
+            fps=video_info['fps']
+        )
+        
+        # 添加视频信息
+        result['video_info'] = {
+            'path': video_path,
+            'width': video_info['width'],
+            'height': video_info['height'],
+            'frame_count': video_info['frame_count'],
+            'fps': video_info['fps'],
+            'duration': video_info['duration']
+        }
+        
+        # 保存结果
+        if output_path:
+            self._save_results(result, output_path)
+        
+        return result
+    
+    def _save_results(self, result: dict, output_path: str):
+        """
+        保存分析结果
+        
+        Args:
+            result: 分析结果字典
+            output_path: 输出文件路径
+        """
+        # 确保输出目录存在
+        output_dir = os.path.dirname(output_path)
+        if output_dir:
+            os.makedirs(output_dir, exist_ok=True)
+        
+        # 保存JSON结果
+        with open(output_path, 'w', encoding='utf-8') as f:
+            json.dump(result, f, indent=2, ensure_ascii=False)
+        
+        print(f"\n结果已保存到: {output_path}")
+
+
+def parse_args():
+    """解析命令行参数"""
+    parser = argparse.ArgumentParser(
+        description='时序合理性分析工具',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+示例用法:
+  # 基本使用
+  python run_analysis.py --video path/to/video.mp4
+  
+  # 指定文本提示
+  python run_analysis.py --video path/to/video.mp4 --prompts "tongue" "finger"
+  
+  # 使用配置文件
+  python run_analysis.py --video path/to/video.mp4 --config config.yaml
+  
+  # 指定输出路径
+  python run_analysis.py --video path/to/video.mp4 --output results.json
+  
+  # 指定设备
+  python run_analysis.py --video path/to/video.mp4 --device cuda:0
+        """
+    )
+    
+    # 必需参数
+    parser.add_argument(
+        '--video',
+        type=str,
+        required=True,
+        help='视频文件路径'
+    )
+    
+    # 可选参数
+    parser.add_argument(
+        '--config',
+        type=str,
+        default=None,
+        help='配置文件路径（YAML格式）'
+    )
+    
+    parser.add_argument(
+        '--prompts',
+        type=str,
+        nargs='+',
+        default=None,
+        help='文本提示列表（如: --prompts "tongue" "finger"）'
+    )
+    
+    parser.add_argument(
+        '--output',
+        type=str,
+        default=None,
+        help='输出结果文件路径（JSON格式）'
+    )
+    
+    parser.add_argument(
+        '--device',
+        type=str,
+        default=None,
+        help='计算设备（如: cuda:0, cpu）'
+    )
+    
+    parser.add_argument(
+        '--raft-model',
+        type=str,
+        default=None,
+        help='RAFT模型路径'
+    )
+    
+    parser.add_argument(
+        '--raft-type',
+        type=str,
+        choices=['large', 'small'],
+        default=None,
+        help='RAFT模型类型'
+    )
+    
+    parser.add_argument(
+        '--output-dir',
+        type=str,
+        default=None,
+        help='输出目录'
+    )
+    
+    parser.add_argument(
+        '--save-visualizations',
+        action='store_true',
+        help='保存可视化结果'
+    )
+    
+    return parser.parse_args()
+
+
+def main():
+    """主函数"""
+    args = parse_args()
+    
+    # 检查视频文件是否存在
+    if not os.path.exists(args.video):
+        print(f"错误: 视频文件不存在: {args.video}")
+        sys.exit(1)
+    
+    # 加载配置
+    if args.config:
+        if not os.path.exists(args.config):
+            print(f"错误: 配置文件不存在: {args.config}")
+            sys.exit(1)
+        try:
+            config = load_config_from_yaml(args.config)
+            print(f"已加载配置文件: {args.config}")
+        except Exception as e:
+            print(f"错误: 加载配置文件失败: {e}")
+            sys.exit(1)
+    else:
+        config = get_default_config()
+        print("使用默认配置")
+    
+    # 更新配置（命令行参数优先级更高）
+    if args.device:
+        config.device = args.device
+        config.raft.use_gpu = "cuda" in args.device
+    
+    if args.raft_model:
+        config.raft.model_path = args.raft_model
+    
+    if args.raft_type:
+        config.raft.model_type = args.raft_type
+    
+    if args.output_dir:
+        config.output_dir = args.output_dir
+    
+    if args.save_visualizations:
+        config.save_visualizations = True
+    
+    # 设置输出路径
+    if args.output:
+        output_path = args.output
+    else:
+        # 默认输出路径
+        video_name = Path(args.video).stem
+        output_dir = config.output_dir or "outputs/temporal_reasoning"
+        os.makedirs(output_dir, exist_ok=True)
+        output_path = os.path.join(output_dir, f"{video_name}_result.json")
+    
+    # 创建运行器
+    runner = TemporalReasoningRunner(config)
+    
+    try:
+        # 运行分析
+        result = runner.run(
+            video_path=args.video,
+            text_prompts=args.prompts,
+            output_path=output_path
+        )
+        
+        # 打印摘要
+        print("\n" + "=" * 50)
+        print("分析摘要")
+        print("=" * 50)
+        print(f"运动合理性得分: {result['motion_reasonableness_score']:.3f}")
+        print(f"结构稳定性得分: {result['structure_stability_score']:.3f}")
+        print(f"异常数量: {len(result['anomalies'])}")
+        
+        if result['anomalies']:
+            print("\n异常列表:")
+            for i, anomaly in enumerate(result['anomalies'], 1):
+                print(f"  {i}. [{anomaly['severity']}] {anomaly['type']} "
+                      f"({anomaly['timestamp']}, 置信度: {anomaly['confidence']:.2f})")
+                print(f"     描述: {anomaly['description']}")
+        
+        print("=" * 50)
+        
+    except Exception as e:
+        print(f"\n错误: 分析失败: {e}")
+        import traceback
+        traceback.print_exc()
+        sys.exit(1)
+
+
+if __name__ == '__main__':
+    main()
+
