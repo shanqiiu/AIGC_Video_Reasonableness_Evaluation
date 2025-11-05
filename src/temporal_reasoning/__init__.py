@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Ê±ĞòºÏÀíĞÔ·ÖÎöÄ£¿é
+æ—¶åºåˆç†æ€§åˆ†ææ¨¡å—
 """
 
 from .core.temporal_analyzer import TemporalReasoningAnalyzer

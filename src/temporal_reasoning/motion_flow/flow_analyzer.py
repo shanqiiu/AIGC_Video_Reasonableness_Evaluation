@@ -6,6 +6,7 @@
 import numpy as np
 from typing import List, Tuple, Dict
 from tqdm import tqdm
+import torch
 
 from .raft_wrapper import RAFTWrapper
 from .motion_smoothness import (
@@ -28,7 +29,11 @@ class MotionFlowAnalyzer:
         """
         self.config = config
         self.raft_model = None
-        self.device = config.use_gpu if config.use_gpu else "cpu"
+        # 根据use_gpu配置正确设置设备字符串
+        if config.use_gpu and torch.cuda.is_available():
+            self.device = "cuda:0"
+        else:
+            self.device = "cpu"
     
     def initialize(self):
         """初始化RAFT模型"""
@@ -43,6 +48,8 @@ class MotionFlowAnalyzer:
         except Exception as e:
             print(f"警告: 光流分析器初始化失败: {e}")
             print("将使用简化实现")
+            # 初始化失败时，raft_model保持为None
+            # analyze()方法会检查并抛出异常
     
     def analyze(
         self,
@@ -117,4 +124,3 @@ class MotionFlowAnalyzer:
         print(f"检测到 {len(motion_anomalies)} 个运动异常")
         
         return final_score, motion_anomalies
-
