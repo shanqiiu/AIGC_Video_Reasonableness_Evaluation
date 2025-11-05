@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-实例追踪分析器
+实例追踪分析�?
 """
 
 import numpy as np
@@ -13,10 +13,11 @@ warnings.filterwarnings("ignore")
 
 from ..core.config import GroundingDINOConfig, SAMConfig, TrackerConfig
 from .cotracker_validator import CoTrackerValidator
+from .grounded_sam_wrapper import GroundedSAMWrapper
 
 
 class InstanceTrackingAnalyzer:
-    """实例追踪分析器"""
+    """实例追踪分析�?"""
     
     def __init__(
         self,
@@ -30,7 +31,7 @@ class InstanceTrackingAnalyzer:
         Args:
             gdino_config: Grounding DINO配置
             sam_config: SAM配置
-            tracker_config: 追踪器配置
+            tracker_config: 追踪器配�?
         """
         self.gdino_config = gdino_config
         self.sam_config = sam_config
@@ -40,20 +41,43 @@ class InstanceTrackingAnalyzer:
         self.sam_model = None
         self.tracker = None
         self.cotracker_validator = None
+        self.grounded_sam_wrapper = None
     
     def initialize(self):
-        """初始化模型"""
+        """初始化模�?"""
         print("正在初始化实例追踪分析器...")
         try:
-            # 这里可以添加实际的模型初始化代码
-            # 由于Grounded-SAM-2的集成较复杂，这里提供一个占位实现
-            print("警告: Grounded-SAM-2模型初始化需要根据实际实现调整")
-            print("实例追踪分析器使用简化实现")
+                        # 初始化 Grounded-SAM（复用 aux_motion_intensity_2 的实现）
+            try:
+                # 根据use_gpu配置正确设置设备字符串
+                if self.gdino_config.use_gpu and torch.cuda.is_available():
+                    device = "cuda:0"
+                else:
+                    device = "cpu"
+                
+                self.grounded_sam_wrapper = GroundedSAMWrapper(
+                    gdino_config_path=self.gdino_config.config_path,
+                    gdino_checkpoint_path=self.gdino_config.model_path,
+                    sam_checkpoint_path=self.sam_config.model_path,
+                    device=device,
+                    text_threshold=self.gdino_config.text_threshold,
+                    box_threshold=self.gdino_config.box_threshold,
+                    grid_size=self.tracker_config.grid_size
+                )
+                print("Grounded-SAM 初始化成功")
+            except Exception as e:
+                print(f"警告: Grounded-SAM 初始化失败: {e}")
+                print("将使用简化实现")
+                self.grounded_sam_wrapper = None
             
-            # 初始化Co-Tracker验证器（如果启用）
+            # 初始化Co-Tracker验证器（如果启用�?
             if self.tracker_config.enable_cotracker_validation:
                 try:
-                    device = self.tracker_config.use_gpu if self.tracker_config.use_gpu else "cpu"
+                    # ����use_gpu������ȷ�����豸�ַ���
+                    if self.tracker_config.use_gpu and torch.cuda.is_available():
+                        device = "cuda:0"
+                    else:
+                        device = "cpu"
                     checkpoint_path = self.tracker_config.cotracker_checkpoint or self.tracker_config.model_path
                     self.cotracker_validator = CoTrackerValidator(
                         checkpoint_path=checkpoint_path,
@@ -70,12 +94,12 @@ class InstanceTrackingAnalyzer:
                     print("将不使用Co-Tracker验证")
                     self.cotracker_validator = None
             else:
-                print("Co-Tracker验证已禁用")
+                print("Co-Tracker验证已禁�?")
                 self.cotracker_validator = None
                 
         except Exception as e:
             print(f"警告: 实例追踪分析器初始化失败: {e}")
-            print("将使用简化实现")
+            print("将使用简化实�?")
     
     def detect_instances(
         self,
@@ -92,9 +116,15 @@ class InstanceTrackingAnalyzer:
         Returns:
             掩码列表，每个元素为(mask, confidence)元组
         """
-        # 简化实现：返回空列表
-        # 实际实现需要调用Grounded DINO + SAM
-        return []
+        if self.grounded_sam_wrapper is None:
+        # 如果 Grounded-SAM 未初始化，返回空列表
+            return []
+        
+        try:
+            return self.grounded_sam_wrapper.detect_and_segment(image, text_prompts)
+        except Exception as e:
+            print(f"警告: 实例检测失败: {e}")
+            return []
     
     def track_instances(
         self,
@@ -105,13 +135,13 @@ class InstanceTrackingAnalyzer:
         追踪实例
         
         Args:
-            video_frames: 视频帧序列
-            detections: 每帧的检测结果
+            video_frames: 视频帧序�?
+            detections: 每帧的检测结�?
         
         Returns:
-            追踪结果字典，key为实例ID，value为追踪信息
+            追踪结果字典，key为实例ID，value为追踪信�?
         """
-        # 简化实现：返回空字典
+        # 简化实现：返回空字�?
         # 实际实现需要调用DeAOT或Co-Tracker
         return {}
     
@@ -122,32 +152,32 @@ class InstanceTrackingAnalyzer:
         fps: float = 30.0
     ) -> Tuple[float, List[Dict]]:
         """
-        分析视频结构稳定性
+        分析视频结构稳定�?
         
         Args:
-            video_frames: 视频帧序列
-            text_prompts: 可选文本提示列表
+            video_frames: 视频帧序�?
+            text_prompts: 可选文本提示列�?
             fps: 视频帧率
         
         Returns:
             (structure_score, anomalies):
-            - structure_score: 结构稳定性得分 (0-1)
+            - structure_score: 结构稳定性得�? (0-1)
             - anomalies: 结构异常列表
         """
-        print("正在分析结构稳定性...")
+        print("正在分析结构稳定�?...")
         
         if text_prompts is None:
             text_prompts = []
         
-        # 简化实现：如果没有文本提示，返回默认得分
+        # 简化实现：如果没有文本提示，返回默认得�?
         if not text_prompts:
-            print("警告: 未提供文本提示，无法进行实例检测")
+            print("警告: 未提供文本提示，无法进行实例检�?")
             return 1.0, []
         
-        # 1. 检测实例
-        print("正在检测实例...")
+        # 1. 检测实�?
+        print("正在检测实�?...")
         detections = []
-        for i, frame in enumerate(tqdm(video_frames, desc="检测实例")):
+        for i, frame in enumerate(tqdm(video_frames, desc="检测实�?")):
             masks = self.detect_instances(frame, text_prompts)
             detections.append(masks)
         
@@ -155,8 +185,8 @@ class InstanceTrackingAnalyzer:
         print("正在追踪实例...")
         tracked_instances = self.track_instances(video_frames, detections)
         
-        # 3. 分析结构稳定性
-        print("正在分析结构完整性...")
+        # 3. 分析结构稳定�?
+        print("正在分析结构完整�?...")
         structure_score, anomalies = self._analyze_structure_stability(
             tracked_instances,
             fps=fps
@@ -170,7 +200,7 @@ class InstanceTrackingAnalyzer:
                 video_frames
             )
         
-        print(f"结构稳定性得分: {structure_score:.3f}")
+        print(f"结构稳定性得�?: {structure_score:.3f}")
         print(f"检测到 {len(anomalies)} 个结构异常（已过滤假阳性）")
         
         return structure_score, anomalies
@@ -181,7 +211,7 @@ class InstanceTrackingAnalyzer:
         fps: float = 30.0
     ) -> Tuple[float, List[Dict]]:
         """
-        分析结构稳定性
+        分析结构稳定�?
         
         Args:
             tracked_instances: 追踪结果
@@ -199,7 +229,7 @@ class InstanceTrackingAnalyzer:
         for instance_id, track_info in tracked_instances.items():
             # 分析掩码面积变化
             # 分析掩码形状变化
-            # 检测消失异常
+            # 检测消失异�?
             
             # 简化实现：假设所有实例都正常
             structure_scores.append(1.0)
@@ -218,7 +248,7 @@ class InstanceTrackingAnalyzer:
         
         Args:
             anomalies: 异常列表
-            video_frames: 视频帧列表
+            video_frames: 视频帧列�?
         
         Returns:
             验证后的异常列表
@@ -283,6 +313,6 @@ class InstanceTrackingAnalyzer:
         except Exception as e:
             raise RuntimeError(
                 f"Co-Tracker验证失败: {e}\n"
-                f"请检查Co-Tracker模型是否正确初始化"
+                f"请检查Co-Tracker模型是否正确初始�?"
             )
 
