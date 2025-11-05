@@ -1,0 +1,24 @@
+{
+  "motion_reasonableness_score": 0.30975087855275224,
+  "structure_stability_score": 1.0,
+  "anomalies": [],
+  "sub_scores": {
+    "motion_score": 0.30975087855275224,
+    "structure_score": 1.0,
+    "physiological_score": 1.0
+  },
+  "anomaly_counts": {
+    "motion": 127,
+    "structure": 0,
+    "physiological": 0,
+    "fused": 0
+  },
+  "video_info": {
+    "path": ".\\test.mp4",
+    "width": 1280,
+    "height": 720,
+    "frame_count": 129,
+    "fps": 24.0,
+    "duration": 5.375
+  }
+}
