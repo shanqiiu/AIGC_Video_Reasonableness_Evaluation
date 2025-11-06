@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
-Grounded-SAM-2 封装�?
-用于封装 Grounding DINO � 和 SAM2 的集成调�?
+Grounded-SAM-2 封装类
+用于封装 Grounding DINO 和 SAM2 的集成调用
 """
 
 import sys
@@ -56,8 +56,7 @@ try:
     # 导入 SAM2
     try:
         # 确保导入 sam2 模块以初始化 Hydra
-
-        import sam2  # 这会触发 sam2/__init__.py 中的 Hydra 初始�?
+        import sam2  # 这会触发 sam2/__init__.py 中的 Hydra 初始化
         from sam2.build_sam import build_sam2, build_sam2_video_predictor
         from sam2.sam2_image_predictor import SAM2ImagePredictor
         from sam2.sam2_video_predictor import SAM2VideoPredictor
@@ -73,7 +72,7 @@ except Exception as e:
 
 
 def preprocess_caption(caption: str) -> str:
-    """预处理文本提示：小写并添加句�?"""
+    """预处理文本提示：小写并添加句号"""
     result = caption.lower().strip()
     if result.endswith("."):
         return result
@@ -81,7 +80,7 @@ def preprocess_caption(caption: str) -> str:
 
 
 class GroundedSAM2Wrapper:
-    """Grounded-SAM-2 封装�?"""
+    """Grounded-SAM-2 封装类"""
     
     def __init__(
         self,
@@ -95,7 +94,7 @@ class GroundedSAM2Wrapper:
         bert_path: Optional[str] = None
     ):
         """
-        初始�? Grounded-SAM-2 封装�?
+        初始化 Grounded-SAM-2 封装类
         
         Args:
             gdino_config_path: Grounding DINO 配置文件路径
@@ -103,9 +102,9 @@ class GroundedSAM2Wrapper:
             sam2_config_path: SAM2 配置文件路径
             sam2_checkpoint_path: SAM2 模型权重路径
             device: 计算设备
-            text_threshold: 文本阈�?
-            box_threshold: 框阈�?
-            bert_path: BERT 模型本地路径（如果为 None，会尝试�? Hugging Face Hub 下载�?
+            text_threshold: 文本阈值
+            box_threshold: 框阈值
+            bert_path: BERT 模型本地路径（如果为 None，会尝试从 Hugging Face Hub 下载）
         """
         self.device = device if torch.cuda.is_available() and "cuda" in device else "cpu"
         self.text_threshold = text_threshold
@@ -116,7 +115,7 @@ class GroundedSAM2Wrapper:
         self.sam2_image_predictor = None
         self.sam2_video_predictor = None
         
-        # 初始化模�?
+        # 初始化模型
         self._initialize_models(
             gdino_config_path,
             gdino_checkpoint_path,
@@ -131,22 +130,22 @@ class GroundedSAM2Wrapper:
         sam2_config_path: str,
         sam2_checkpoint_path: str
     ):
-        """初始化模�?"""
+        """初始化模型"""
         if not HAS_GROUNDING_DINO:
             raise ImportError(
                 "无法导入 Grounding DINO 模块\n"
-                "请确�? third_party/Grounded-SAM-2 目录存在且可访问"
+                "请确保 third_party/Grounded-SAM-2 目录存在且可访问"
             )
         
         if not HAS_SAM2:
             raise ImportError(
                 "无法导入 SAM2 模块\n"
-                "请确�? third_party/Grounded-SAM-2 目录存在且可访问"
+                "请确保 third_party/Grounded-SAM-2 目录存在且可访问"
             )
         
-        # 初始�? Grounding DINO
+        # 初始化 Grounding DINO
         try:
-            print("正在初始�? Grounding DINO...")
+            print("正在初始化 Grounding DINO...")
             
             # 加载配置文件
             from grounding_dino.groundingdino.util.slconfig import SLConfig
@@ -157,24 +156,24 @@ class GroundedSAM2Wrapper:
             args = SLConfig.fromfile(gdino_config_path)
             args.device = self.device
             
-            # 如果提供了本�? BERT 路径，设置它以避免从 Hugging Face Hub 下载
+            # 如果提供了本地 BERT 路径，设置它以避免从 Hugging Face Hub 下载
             if self.bert_path:
-                # 检查路径是否存�?
+                # 检查路径是否存在
                 bert_path_obj = Path(self.bert_path)
                 if bert_path_obj.exists() and bert_path_obj.is_dir():
-                    # �? text_encoder_type 设置为本地路径，这样 from_pretrained 会使用本地模�?
+                    # 将 text_encoder_type 设置为本地路径，这样 from_pretrained 会使用本地模型
                     args.text_encoder_type = str(bert_path_obj.absolute())
                     print(f"使用本地 BERT 模型: {self.bert_path}")
                     
                     # 设置环境变量，强制使用离线模式，避免尝试下载
-                    # 注意：这会影响整�? transformers 库的行为
+                    # 注意：这会影响整个 transformers 库的行为
                     original_hf_offline = os.environ.get("HF_HUB_OFFLINE", None)
                     original_transformers_offline = os.environ.get("TRANSFORMERS_OFFLINE", None)
                     try:
                         os.environ["HF_HUB_OFFLINE"] = "1"
                         os.environ["TRANSFORMERS_OFFLINE"] = "1"
                         
-                        # 构建模型（此时会使用本地 BERT�?
+                        # 构建模型（此时会使用本地 BERT）
                         self.grounding_dino_model = build_model(args)
                     finally:
                         # 恢复环境变量
@@ -188,12 +187,12 @@ class GroundedSAM2Wrapper:
                         else:
                             os.environ["TRANSFORMERS_OFFLINE"] = original_transformers_offline
                 else:
-                    print(f"警告: BERT 路径不存�?: {self.bert_path}，将尝试�? Hugging Face Hub 下载")
-                    # 构建模型（可能会尝试下载�?
+                    print(f"警告: BERT 路径不存在: {self.bert_path}，将尝试从 Hugging Face Hub 下载")
+                    # 构建模型（可能会尝试下载）
                     self.grounding_dino_model = build_model(args)
             else:
-                print("警告: 未提�? BERT 路径，将尝试�? Hugging Face Hub 下载")
-                # 构建模型（可能会尝试下载�?
+                print("警告: 未提供 BERT 路径，将尝试从 Hugging Face Hub 下载")
+                # 构建模型（可能会尝试下载）
                 self.grounding_dino_model = build_model(args)
             
             # 加载权重
@@ -203,17 +202,17 @@ class GroundedSAM2Wrapper:
             )
             self.grounding_dino_model.eval()
             
-            print("Grounding DINO 初始化成�?")
+            print("Grounding DINO 初始化成功")
         except Exception as e:
-            raise RuntimeError(f"Grounding DINO 初始化失�?: {e}")
+            raise RuntimeError(f"Grounding DINO 初始化失败: {e}")
         
-        # 初始� 和 SAM2
+        # 初始化 SAM2
         try:
-            print("正在初始� 和 SAM2...")
+            print("正在初始化 SAM2...")
             
             # build_sam2 的参数签名：
             # build_sam2(config_file, ckpt_path=None, device="cuda", ...)
-            # 注意：config_file 是第一个位置参数，需要使�? Hydra 配置名称
+            # 注意：config_file 是第一个位置参数，需要使用 Hydra 配置名称
             # Hydra 需要相对于 sam2/configs 的相对路径，例如：sam2.1/sam2.1_hiera_l
             
             # 将配置文件路径转换为 Hydra 配置名称
@@ -226,13 +225,13 @@ class GroundedSAM2Wrapper:
             config_name = None
             
             if sam2_config_path_obj.exists():
-                # 如果是绝对路径，尝试转换为相对于 sam2/configs 的相对路�?
+                # 如果是绝对路径，尝试转换为相对于 sam2/configs 的相对路径
                 try:
-                    # 获取相对�? sam2/configs 的相对路�?
+                    # 获取相对于 sam2/configs 的相对路径
                     relative_path = sam2_config_path_obj.relative_to(sam2_configs_dir)
-                    # 移除 .yaml 扩展名，转换�? Hydra 配置名称
+                    # 移除 .yaml 扩展名，转换为 Hydra 配置名称
                     # 例如：sam2.1/sam2.1_hiera_l.yaml -> sam2.1/sam2.1_hiera_l
-                    # Windows ·��ʹ�÷�б�ܣ���Ҫת��Ϊ��б�ܣ�Hydra ����������Ҫ��
+                    # Windows 路径使用反斜杠，需要转换为正斜杠，Hydra 配置名称需要正斜杠
                     # 需要包含 configs/ 前缀，因为 Hydra 在 sam2 包内查找配置文件
                     config_name = "configs/" + str(relative_path.with_suffix('')).replace('\\', '/')
                     print(f"转换配置文件路径: {sam2_config_path} -> {config_name}")
@@ -266,12 +265,12 @@ class GroundedSAM2Wrapper:
                         elif config_stem.startswith('sam2'):
                             config_name = f"configs/sam2/{config_stem}"
             else:
-                # 如果路径不存在，假设已经�? Hydra 配置名称或相对路�?
-                # 例如：sam2.1/sam2.1_hiera_l �? configs/sam2.1/sam2.1_hiera_l.yaml
+                # 如果路径不存在，假设已经是 Hydra 配置名称或相对路径
+                # 例如：sam2.1/sam2.1_hiera_l 或 configs/sam2.1/sam2.1_hiera_l.yaml
                 config_str = sam2_config_path.replace('\\', '/')
                 
                 if 'configs/' in config_str:
-                    # 提取 configs/ 之后的部分，移除扩展�?
+                    # 提取 configs/ 之后的部分，移除扩展名
                     parts = config_str.split('configs/')
                     if len(parts) > 1:
                         # 保留 configs/ 前缀
@@ -279,7 +278,6 @@ class GroundedSAM2Wrapper:
                     else:
                         config_name = sam2_config_path
                 elif config_str.startswith('sam2.1/') or config_str.startswith('sam2/'):
-                    # 已经�? Hydra 配置名称格式
                     # 已经是 Hydra 配置名称格式，但缺少 configs/ 前缀，需要添加
                     config_name = "configs/" + config_str.replace('.yaml', '').replace('.yml', '')
                 elif '/' in config_str or '\\' in config_str:
@@ -315,10 +313,10 @@ class GroundedSAM2Wrapper:
                 raise ValueError(
                     f"无法识别 SAM2 配置名称。\n"
                     f"配置文件路径: {sam2_config_path}\n"
-                    f"请确保配置文件路径正确，或使�? Hydra 配置名称格式（如：sam2.1/sam2.1_hiera_l�?"
+                    f"请确保配置文件路径正确，或使用 Hydra 配置名称格式（如：sam2.1/sam2.1_hiera_l）"
                 )
             
-            # ȷ����������ʹ����б�ܣ�Hydra ��Ҫ��Windows ·������ʹ�÷�б�ܣ�
+            # 确保配置名称使用正斜杠，Hydra 需要正斜杠（Windows 路径使用反斜杠）
             config_name = config_name.replace('\\', '/')
             
             # 确保配置名称包含 configs/ 前缀（如果还没有）
@@ -333,9 +331,9 @@ class GroundedSAM2Wrapper:
                     elif 'sam2' in config_name:
                         config_name = config_name.replace('sam2/', 'configs/sam2/')
             
-            print(f"ʹ�� SAM2 ����: {config_name}")
+            print(f"使用 SAM2 配置: {config_name}")
             
-            # 调用 build_sam2，使用位置参�?
+            # 调用 build_sam2，使用位置参数
             # build_sam2(config_file, ckpt_path, device, ...)
             print("正在调用 build_sam2...")
             try:
@@ -363,15 +361,15 @@ class GroundedSAM2Wrapper:
                 traceback.print_exc()
                 raise
             
-            # 如果需要视频追踪，也初始化视频预测�?
+            # 如果需要视频追踪，也初始化视频预测器
             self.sam2_video_predictor = build_sam2_video_predictor(
                 config_name,  # 位置参数：config_file
                 sam2_checkpoint_path,  # 位置参数：ckpt_path
                 device=self.device  # 关键字参数：device
             )
-            print("SAM2 初始化成�?")
+            print("SAM2 初始化成功")
         except Exception as e:
-            raise RuntimeError(f"SAM2 初始化失�?: {e}")
+            raise RuntimeError(f"SAM2 初始化失败: {e}")
     
     def detect_and_segment(
         self,
@@ -382,7 +380,7 @@ class GroundedSAM2Wrapper:
         检测和分割实例
         
         Args:
-            image: 输入图像 (H, W, 3) RGB，范�? [0, 255]
+            image: 输入图像 (H, W, 3) RGB，范围 [0, 255]
             text_prompts: 文本提示列表
         
         Returns:
@@ -403,13 +401,13 @@ class GroundedSAM2Wrapper:
         else:
             image_pil = image
         
-        # 加载图像（Grounding DINO 格式�?
+        # 加载图像（Grounding DINO 格式）
         image_source, image_tensor = load_image_from_array(image_pil)
         
         # 设置 SAM2 图像
         self.sam2_image_predictor.set_image(image_source)
         
-        # 使用 Grounding DINO 检�?
+        # 使用 Grounding DINO 检测
         boxes, confidences, labels = predict(
             model=self.grounding_dino_model,
             image=image_tensor,
@@ -422,7 +420,7 @@ class GroundedSAM2Wrapper:
         if len(boxes) == 0:
             return []
         
-        # 转换框格�?
+        # 转换框格式
         h, w, _ = image_source.shape
         boxes = boxes * torch.Tensor([w, h, w, h])
         input_boxes = box_convert(boxes=boxes, in_fmt="cxcywh", out_fmt="xyxy").numpy()
@@ -439,7 +437,7 @@ class GroundedSAM2Wrapper:
         if masks.ndim == 4:
             masks = masks.squeeze(1)  # (n, H, W)
         
-        # 转换�? numpy 数组
+        # 转换为 numpy 数组
         if isinstance(masks, torch.Tensor):
             masks = masks.cpu().numpy()
         
@@ -459,26 +457,26 @@ class GroundedSAM2Wrapper:
         query_frame: int = 0
     ) -> Dict[int, Dict]:
         """
-        追踪实例（使� 和 SAM2 视频预测器）
+        追踪实例（使用 SAM2 视频预测器）
         
         Args:
-            video_frames: 视频帧序列，每帧�? (H, W, 3) RGB
+            video_frames: 视频帧序列，每帧为 (H, W, 3) RGB
             initial_mask: 初始帧的掩码 (H, W)
-            query_frame: 查询帧索�?
+            query_frame: 查询帧索引
         
         Returns:
             追踪结果字典
         """
         if self.sam2_video_predictor is None:
-            raise RuntimeError("SAM2 视频预测器未初始�?")
+            raise RuntimeError("SAM2 视频预测器未初始化")
         
         # 这里需要实现视频追踪逻辑
         # 由于 SAM2 视频追踪需要特定的帧格式，这里提供基本框架
-        # 实际实现需要根� 和 SAM2 视频预测器的 API 进行调整
+        # 实际实现需要根据 SAM2 视频预测器的 API 进行调整
         
         # TODO: 实现视频追踪逻辑
-        # 1. 准备视频帧（转换� 和 SAM2 需要的格式�?
-        # 2. 初始化视频预测器状�?
+        # 1. 准备视频帧（转换为 SAM2 需要的格式）
+        # 2. 初始化视频预测器状态
         # 3. 使用初始掩码进行追踪
         # 4. 返回追踪结果
         
@@ -487,7 +485,7 @@ class GroundedSAM2Wrapper:
 
 def load_image_from_array(image: Image.Image) -> Tuple[np.ndarray, torch.Tensor]:
     """
-    �? PIL Image 加载图像（Grounding DINO 格式�?
+    从 PIL Image 加载图像（Grounding DINO 格式）
     
     Args:
         image: 输入图像 PIL Image 格式
@@ -495,9 +493,9 @@ def load_image_from_array(image: Image.Image) -> Tuple[np.ndarray, torch.Tensor]
     Returns:
         (image_source, image_tensor):
         - image_source: 原始图像数组 (H, W, 3)
-        - image_tensor: 预处理后的张�?
+        - image_tensor: 预处理后的张量
     """
-    # 确保路径已添�?
+    # 确保路径已添加
     base_dir = Path(__file__).parent.parent.parent.parent
     grounded_sam2_path = base_dir / "third_party" / "Grounded-SAM-2"
     grounding_dino_path = grounded_sam2_path / "grounding_dino"
@@ -512,10 +510,9 @@ def load_image_from_array(image: Image.Image) -> Tuple[np.ndarray, torch.Tensor]
         T.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
     ])
     
-    # 确保图像�? RGB 格式
+    # 确保图像为 RGB 格式
     image_pil = image.convert("RGB")
     image_source = np.asarray(image_pil)
     image_tensor, _ = transform(image_pil, None)
     
     return image_source, image_tensor
-
