@@ -87,9 +87,8 @@ class KeypointAnalyzer:
         if self.extractor is None:
             self.initialize()
         
-        # 重置timestamp计数器（每次处理新视频时都必须重置）
-        # 这是关键：Linux环境下，如果extractor对象被重复使用，timestamp会累积
-        # 必须在每次处理新视频时重置，否则会报"timestamp must be monotonically increasing"错误
+        # 重置timestamp计数器（兼容性调用，IMAGE模式不需要timestamp）
+        # 注意：使用IMAGE模式时，不需要timestamp，但保留此调用以保持兼容性
         if hasattr(self.extractor, 'reset_timestamp'):
             self.extractor.reset_timestamp()
     

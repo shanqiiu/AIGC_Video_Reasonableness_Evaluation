@@ -103,7 +103,7 @@ class MediaPipeKeypointExtractor:
         self.landmarker = None
         self.holistic = None
         self.use_holistic = False
-        self.timestamp_ms = 0  # 用于VIDEO模式的timestamp计数器
+        # 注意：使用IMAGE模式，不需要timestamp计数器
         self._initialize()
     
     def _initialize(self):
@@ -133,16 +133,17 @@ class MediaPipeKeypointExtractor:
                 base_options = python.BaseOptions()
             
             # 尝试使用HolisticLandmarker（如果新API支持）
+            # 使用IMAGE模式，逐帧处理，避免VIDEO模式的timestamp问题
             try:
                 options = vision.HolisticLandmarkerOptions(
                     base_options=base_options,
-                    running_mode=vision.RunningMode.VIDEO
+                    running_mode=vision.RunningMode.IMAGE
                 )
                 self.landmarker = vision.HolisticLandmarker.create_from_options(options)
                 self.mp_image = Image
                 self.image_format = ImageFormat.SRGB
                 self.use_holistic = True
-                print(f"MediaPipe HolisticLandmarker（新API）初始化成功")
+                print(f"MediaPipe HolisticLandmarker（新API，IMAGE模式）初始化成功")
                 return
             except AttributeError:
                 # 新API不支持HolisticLandmarker，使用旧API
@@ -192,10 +193,11 @@ class MediaPipeKeypointExtractor:
                 base_options = python.BaseOptions()
             
             # 配置PoseLandmarker选项
+            # 使用IMAGE模式，逐帧处理，避免VIDEO模式的timestamp问题
             options = vision.PoseLandmarkerOptions(
                 base_options=base_options,
                 output_segmentation_masks=False,
-                running_mode=vision.RunningMode.VIDEO
+                running_mode=vision.RunningMode.IMAGE
             )
             
             # 创建PoseLandmarker
@@ -205,9 +207,10 @@ class MediaPipeKeypointExtractor:
             self.use_holistic = False
             
             model_info = str(self.model_path) if self.model_path else "默认模型"
-            print(f"MediaPipe PoseLandmarker模型初始化成功: {model_info}")
+            print(f"MediaPipe PoseLandmarker模型初始化成功（IMAGE模式）: {model_info}")
             print(f"模型缓存目录: {os.environ.get('MEDIAPIPE_CACHE_DIR', '系统默认')}")
             print("注意: PoseLandmarker仅支持身体姿态检测（33个关键点）")
+            print("注意: 使用IMAGE模式，逐帧处理，避免VIDEO模式的timestamp问题")
             
         except ImportError as e:
             raise ImportError(
@@ -224,30 +227,19 @@ class MediaPipeKeypointExtractor:
         """
         重置timestamp计数器（用于处理新视频时）
         
-        注意：在Linux环境下，如果extractor对象被重复使用，必须调用此方法重置timestamp
-        否则MediaPipe会报"timestamp must be monotonically increasing"错误
-        
-        关键：MediaPipe的landmarker对象内部维护了timestamp状态，仅重置self.timestamp_ms不够
-        需要重新初始化landmarker以清除内部状态
+        注意：使用IMAGE模式时，不需要timestamp，此方法为空实现
+        保留此方法是为了兼容性，避免调用时出错
         """
-        self.timestamp_ms = 0
-        
-        # 如果使用新API的landmarker，需要重新初始化以清除内部timestamp状态
-        # 这是关键：MediaPipe内部维护了timestamp状态，必须重新初始化才能清除
-        if self.landmarker is not None and hasattr(self.landmarker, 'detect_for_video'):
-            # 重新初始化landmarker以清除内部状态
-            if self.is_holistic:
-                self._initialize_holistic()
-            else:
-                self._initialize_pose()
+        # IMAGE模式不需要timestamp，无需操作
+        pass
     
     def extract_keypoints(self, image: np.ndarray, fps: float = 30.0) -> Dict:
         """
-        提取关键点
+        提取关键点（使用IMAGE模式，逐帧处理）
         
         Args:
             image: 输入图像 (H, W, 3) RGB，范围[0, 255]，uint8类型
-            fps: 视频帧率，用于计算timestamp增量（默认30fps）
+            fps: 视频帧率（保留参数以兼容接口，IMAGE模式不使用）
         
         Returns:
             关键点字典，包含：
@@ -257,14 +249,14 @@ class MediaPipeKeypointExtractor:
             - face: 面部关键点 (N, 3) 或 None
         """
         if self.use_holistic:
-            return self._extract_keypoints_holistic(image, fps)
+            return self._extract_keypoints_holistic(image)
         else:
-            return self._extract_keypoints_pose(image, fps)
+            return self._extract_keypoints_pose(image)
     
-    def _extract_keypoints_holistic(self, image: np.ndarray, fps: float = 30.0) -> Dict:
-        """使用Holistic模型提取关键点（支持身体+手部+面部）"""
+    def _extract_keypoints_holistic(self, image: np.ndarray) -> Dict:
+        """使用Holistic模型提取关键点（支持身体+手部+面部）- IMAGE模式"""
         # 如果使用新API的HolisticLandmarker
-        if self.landmarker is not None and hasattr(self.landmarker, 'detect_for_video'):
+        if self.landmarker is not None and hasattr(self.landmarker, 'detect'):
             try:
                 # 确保图像格式正确
                 if image.dtype != np.uint8:
@@ -278,17 +270,13 @@ class MediaPipeKeypointExtractor:
                     data=image
                 )
                 
-                # 使用递增的timestamp（VIDEO模式要求timestamp必须单调递增）
-                frame_time_ms = int(1000.0 / fps)  # 根据fps计算每帧时间间隔（毫秒）
-                current_timestamp = self.timestamp_ms
-                
+                # 使用IMAGE模式，逐帧处理，不需要timestamp
                 try:
-                    detection_result = self.landmarker.detect_for_video(mp_image, timestamp_ms=current_timestamp)
+                    detection_result = self.landmarker.detect(mp_image)
                     
                     # 检查detection_result是否有效
                     if detection_result is None:
-                        print("警告: detect_for_video返回None，跳过关键点提取")
-                        self.timestamp_ms += frame_time_ms
+                        print("警告: detect返回None，跳过关键点提取")
                         return self._empty_keypoints()
                     
                     keypoints = {
@@ -344,16 +332,10 @@ class MediaPipeKeypointExtractor:
                             print(f"警告: 提取right_hand_landmarks失败: {e}")
                             keypoints['right_hand'] = None
                     
-                    # 成功后才递增timestamp
-                    self.timestamp_ms += frame_time_ms
                     return keypoints
                 except Exception as e:
-                    # 如果detect_for_video失败，可能是timestamp问题
-                    # 在这种情况下，我们需要递增timestamp，因为MediaPipe内部可能已经记录了timestamp
-                    # 但为了安全，我们递增timestamp，然后fallback到旧API
+                    # IMAGE模式失败，尝试使用旧API
                     print(f"警告: HolisticLandmarker（新API）提取失败: {e}")
-                    # 递增timestamp，因为MediaPipe内部可能已经记录了timestamp
-                    self.timestamp_ms += frame_time_ms
                     raise  # 重新抛出异常，让外层catch处理
             except Exception as e:
                 print(f"警告: HolisticLandmarker（新API）提取失败，尝试使用旧API: {e}")
@@ -407,8 +389,8 @@ class MediaPipeKeypointExtractor:
             print(f"警告: 关键点提取失败（Holistic）: {e}")
             return self._empty_keypoints()
     
-    def _extract_keypoints_pose(self, image: np.ndarray, fps: float = 30.0) -> Dict:
-        """使用PoseLandmarker模型提取关键点（仅支持身体）"""
+    def _extract_keypoints_pose(self, image: np.ndarray) -> Dict:
+        """使用PoseLandmarker模型提取关键点（仅支持身体）- IMAGE模式"""
         if self.landmarker is None:
             return self._empty_keypoints()
         
@@ -427,17 +409,12 @@ class MediaPipeKeypointExtractor:
                 data=image
             )
             
-            # 检测关键点（使用递增的timestamp）
-            frame_time_ms = int(1000.0 / fps)  # 根据fps计算每帧时间间隔（毫秒）
-            detection_result = self.landmarker.detect_for_video(
-                mp_image,
-                timestamp_ms=self.timestamp_ms
-            )
-            self.timestamp_ms += frame_time_ms  # 递增timestamp
+            # 检测关键点（使用IMAGE模式，不需要timestamp）
+            detection_result = self.landmarker.detect(mp_image)
             
             # 检查detection_result是否有效
             if detection_result is None:
-                print("警告: detect_for_video返回None，跳过关键点提取")
+                print("警告: detect返回None，跳过关键点提取")
                 return self._empty_keypoints()
             
             # 提取关键点
