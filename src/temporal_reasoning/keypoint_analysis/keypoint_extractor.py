@@ -285,6 +285,12 @@ class MediaPipeKeypointExtractor:
                 try:
                     detection_result = self.landmarker.detect_for_video(mp_image, timestamp_ms=current_timestamp)
                     
+                    # 检查detection_result是否有效
+                    if detection_result is None:
+                        print("警告: detect_for_video返回None，跳过关键点提取")
+                        self.timestamp_ms += frame_time_ms
+                        return self._empty_keypoints()
+                    
                     keypoints = {
                         'body': None,
                         'left_hand': None,
@@ -293,22 +299,50 @@ class MediaPipeKeypointExtractor:
                     }
                     
                     # 提取所有关键点（新API格式）
-                    if hasattr(detection_result, 'pose_landmarks') and detection_result.pose_landmarks:
-                        keypoints['body'] = np.array([
-                            [lm.x, lm.y, lm.z] for lm in detection_result.pose_landmarks[0]
-                        ])
-                    if hasattr(detection_result, 'face_landmarks') and detection_result.face_landmarks:
-                        keypoints['face'] = np.array([
-                            [lm.x, lm.y, lm.z] for lm in detection_result.face_landmarks[0]
-                        ])
-                    if hasattr(detection_result, 'left_hand_landmarks') and detection_result.left_hand_landmarks:
-                        keypoints['left_hand'] = np.array([
-                            [lm.x, lm.y, lm.z] for lm in detection_result.left_hand_landmarks[0]
-                        ])
-                    if hasattr(detection_result, 'right_hand_landmarks') and detection_result.right_hand_landmarks:
-                        keypoints['right_hand'] = np.array([
-                            [lm.x, lm.y, lm.z] for lm in detection_result.right_hand_landmarks[0]
-                        ])
+                    # 注意：必须检查列表是否为空且长度大于0，否则访问[0]会导致MediaPipe内部Packet错误
+                    if (hasattr(detection_result, 'pose_landmarks') and 
+                        detection_result.pose_landmarks and 
+                        len(detection_result.pose_landmarks) > 0):
+                        try:
+                            keypoints['body'] = np.array([
+                                [lm.x, lm.y, lm.z] for lm in detection_result.pose_landmarks[0]
+                            ])
+                        except (IndexError, AttributeError, TypeError) as e:
+                            print(f"警告: 提取pose_landmarks失败: {e}")
+                            keypoints['body'] = None
+                    
+                    if (hasattr(detection_result, 'face_landmarks') and 
+                        detection_result.face_landmarks and 
+                        len(detection_result.face_landmarks) > 0):
+                        try:
+                            keypoints['face'] = np.array([
+                                [lm.x, lm.y, lm.z] for lm in detection_result.face_landmarks[0]
+                            ])
+                        except (IndexError, AttributeError, TypeError) as e:
+                            print(f"警告: 提取face_landmarks失败: {e}")
+                            keypoints['face'] = None
+                    
+                    if (hasattr(detection_result, 'left_hand_landmarks') and 
+                        detection_result.left_hand_landmarks and 
+                        len(detection_result.left_hand_landmarks) > 0):
+                        try:
+                            keypoints['left_hand'] = np.array([
+                                [lm.x, lm.y, lm.z] for lm in detection_result.left_hand_landmarks[0]
+                            ])
+                        except (IndexError, AttributeError, TypeError) as e:
+                            print(f"警告: 提取left_hand_landmarks失败: {e}")
+                            keypoints['left_hand'] = None
+                    
+                    if (hasattr(detection_result, 'right_hand_landmarks') and 
+                        detection_result.right_hand_landmarks and 
+                        len(detection_result.right_hand_landmarks) > 0):
+                        try:
+                            keypoints['right_hand'] = np.array([
+                                [lm.x, lm.y, lm.z] for lm in detection_result.right_hand_landmarks[0]
+                            ])
+                        except (IndexError, AttributeError, TypeError) as e:
+                            print(f"警告: 提取right_hand_landmarks失败: {e}")
+                            keypoints['right_hand'] = None
                     
                     # 成功后才递增timestamp
                     self.timestamp_ms += frame_time_ms
@@ -401,6 +435,11 @@ class MediaPipeKeypointExtractor:
             )
             self.timestamp_ms += frame_time_ms  # 递增timestamp
             
+            # 检查detection_result是否有效
+            if detection_result is None:
+                print("警告: detect_for_video返回None，跳过关键点提取")
+                return self._empty_keypoints()
+            
             # 提取关键点
             keypoints = {
                 'body': None,
@@ -410,10 +449,17 @@ class MediaPipeKeypointExtractor:
             }
             
             # 提取身体关键点（PoseLandmarker仅支持身体姿态）
-            if detection_result.pose_landmarks:
-                keypoints['body'] = np.array([
-                    [lm.x, lm.y, lm.z] for lm in detection_result.pose_landmarks[0]
-                ])
+            # 注意：必须检查列表是否为空且长度大于0，否则访问[0]会导致MediaPipe内部Packet错误
+            if (hasattr(detection_result, 'pose_landmarks') and 
+                detection_result.pose_landmarks and 
+                len(detection_result.pose_landmarks) > 0):
+                try:
+                    keypoints['body'] = np.array([
+                        [lm.x, lm.y, lm.z] for lm in detection_result.pose_landmarks[0]
+                    ])
+                except (IndexError, AttributeError, TypeError) as e:
+                    print(f"警告: 提取pose_landmarks失败: {e}")
+                    keypoints['body'] = None
             
             # 注意：PoseLandmarker仅支持身体姿态检测（33个关键点）
             # 不支持手部和面部关键点
