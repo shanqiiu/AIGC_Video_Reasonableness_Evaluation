@@ -221,8 +221,25 @@ class MediaPipeKeypointExtractor:
             )
     
     def reset_timestamp(self):
-        """重置timestamp计数器（用于处理新视频时）"""
+        """
+        重置timestamp计数器（用于处理新视频时）
+        
+        注意：在Linux环境下，如果extractor对象被重复使用，必须调用此方法重置timestamp
+        否则MediaPipe会报"timestamp must be monotonically increasing"错误
+        
+        关键：MediaPipe的landmarker对象内部维护了timestamp状态，仅重置self.timestamp_ms不够
+        需要重新初始化landmarker以清除内部状态
+        """
         self.timestamp_ms = 0
+        
+        # 如果使用新API的landmarker，需要重新初始化以清除内部timestamp状态
+        # 这是关键：MediaPipe内部维护了timestamp状态，必须重新初始化才能清除
+        if self.landmarker is not None and hasattr(self.landmarker, 'detect_for_video'):
+            # 重新初始化landmarker以清除内部状态
+            if self.is_holistic:
+                self._initialize_holistic()
+            else:
+                self._initialize_pose()
     
     def extract_keypoints(self, image: np.ndarray, fps: float = 30.0) -> Dict:
         """
@@ -263,35 +280,47 @@ class MediaPipeKeypointExtractor:
                 
                 # 使用递增的timestamp（VIDEO模式要求timestamp必须单调递增）
                 frame_time_ms = int(1000.0 / fps)  # 根据fps计算每帧时间间隔（毫秒）
-                detection_result = self.landmarker.detect_for_video(mp_image, timestamp_ms=self.timestamp_ms)
-                self.timestamp_ms += frame_time_ms  # 递增timestamp
+                current_timestamp = self.timestamp_ms
                 
-                keypoints = {
-                    'body': None,
-                    'left_hand': None,
-                    'right_hand': None,
-                    'face': None
-                }
-                
-                # 提取所有关键点（新API格式）
-                if hasattr(detection_result, 'pose_landmarks') and detection_result.pose_landmarks:
-                    keypoints['body'] = np.array([
-                        [lm.x, lm.y, lm.z] for lm in detection_result.pose_landmarks[0]
-                    ])
-                if hasattr(detection_result, 'face_landmarks') and detection_result.face_landmarks:
-                    keypoints['face'] = np.array([
-                        [lm.x, lm.y, lm.z] for lm in detection_result.face_landmarks[0]
-                    ])
-                if hasattr(detection_result, 'left_hand_landmarks') and detection_result.left_hand_landmarks:
-                    keypoints['left_hand'] = np.array([
-                        [lm.x, lm.y, lm.z] for lm in detection_result.left_hand_landmarks[0]
-                    ])
-                if hasattr(detection_result, 'right_hand_landmarks') and detection_result.right_hand_landmarks:
-                    keypoints['right_hand'] = np.array([
-                        [lm.x, lm.y, lm.z] for lm in detection_result.right_hand_landmarks[0]
-                    ])
-                
-                return keypoints
+                try:
+                    detection_result = self.landmarker.detect_for_video(mp_image, timestamp_ms=current_timestamp)
+                    
+                    keypoints = {
+                        'body': None,
+                        'left_hand': None,
+                        'right_hand': None,
+                        'face': None
+                    }
+                    
+                    # 提取所有关键点（新API格式）
+                    if hasattr(detection_result, 'pose_landmarks') and detection_result.pose_landmarks:
+                        keypoints['body'] = np.array([
+                            [lm.x, lm.y, lm.z] for lm in detection_result.pose_landmarks[0]
+                        ])
+                    if hasattr(detection_result, 'face_landmarks') and detection_result.face_landmarks:
+                        keypoints['face'] = np.array([
+                            [lm.x, lm.y, lm.z] for lm in detection_result.face_landmarks[0]
+                        ])
+                    if hasattr(detection_result, 'left_hand_landmarks') and detection_result.left_hand_landmarks:
+                        keypoints['left_hand'] = np.array([
+                            [lm.x, lm.y, lm.z] for lm in detection_result.left_hand_landmarks[0]
+                        ])
+                    if hasattr(detection_result, 'right_hand_landmarks') and detection_result.right_hand_landmarks:
+                        keypoints['right_hand'] = np.array([
+                            [lm.x, lm.y, lm.z] for lm in detection_result.right_hand_landmarks[0]
+                        ])
+                    
+                    # 成功后才递增timestamp
+                    self.timestamp_ms += frame_time_ms
+                    return keypoints
+                except Exception as e:
+                    # 如果detect_for_video失败，可能是timestamp问题
+                    # 在这种情况下，我们需要递增timestamp，因为MediaPipe内部可能已经记录了timestamp
+                    # 但为了安全，我们递增timestamp，然后fallback到旧API
+                    print(f"警告: HolisticLandmarker（新API）提取失败: {e}")
+                    # 递增timestamp，因为MediaPipe内部可能已经记录了timestamp
+                    self.timestamp_ms += frame_time_ms
+                    raise  # 重新抛出异常，让外层catch处理
             except Exception as e:
                 print(f"警告: HolisticLandmarker（新API）提取失败，尝试使用旧API: {e}")
                 # 如果新API失败，尝试使用旧API
