@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 """
-关键点提取器 - 使用最新MediaPipe API
-支持PoseLandmarker和Holistic模型
+关键点提取器 - 使用MediaPipe旧API
+仅支持Holistic模型（身体+手部+面部）
+仅支持离线模式，从缓存目录加载模型
 """
 
 import os
@@ -9,342 +10,178 @@ import numpy as np
 from typing import Dict, Optional
 from pathlib import Path
 import warnings
-import urllib.request
 
 warnings.filterwarnings("ignore")
 
-# MediaPipe官方模型下载URL
-DEFAULT_MODEL_URL = "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_heavy/float16/1/pose_landmarker_heavy.task"
-# Holistic模型URL
-HOLISTIC_MODEL_URL = "https://storage.googleapis.com/mediapipe-models/holistic_landmarker/holistic_landmarker/float16/1/holistic_landmarker.task"
-
 
 class MediaPipeKeypointExtractor:
-    """基于MediaPipe的关键点提取器（支持PoseLandmarker和Holistic）"""
+    """基于MediaPipe的关键点提取器（使用旧API，仅离线模式）"""
     
     def __init__(self, model_path: Optional[str] = None, cache_dir: str = ".cache"):
         """
-        初始化MediaPipe关键点提取器
+        初始化MediaPipe关键点提取器（仅离线模式）
         
         Args:
-            model_path: .task模型文件路径，如果为None则使用默认模型
-                       如果路径包含'holistic'，将使用Holistic模型（支持身体+手部+面部）
+            model_path: 模型文件路径（旧API不使用此参数，保留以兼容接口）
             cache_dir: 模型缓存目录，默认为.cache
+                      模型文件应位于 cache_dir/mediapipe/models/ 目录中
+        
+        Raises:
+            RuntimeError: 如果模型文件不存在或初始化失败
         """
         self.cache_dir = Path(cache_dir).absolute()
         self.cache_dir.mkdir(parents=True, exist_ok=True)
         
         # 设置MediaPipe缓存目录环境变量
+        # 默认从 .cache/mediapipe 加载模型（模型文件直接在此目录下，不在models子目录中）
         mediapipe_cache = self.cache_dir / "mediapipe"
         mediapipe_cache.mkdir(parents=True, exist_ok=True)
         os.environ['MEDIAPIPE_CACHE_DIR'] = str(mediapipe_cache)
         
-        # 检测模型类型
-        self.is_holistic = False
-        if model_path:
-            model_name = str(model_path).lower()
-            self.is_holistic = 'holistic' in model_name
+        # 禁用自动下载
+        os.environ['MEDIAPIPE_DISABLE_AUTO_DOWNLOAD'] = '1'
         
-        # 模型路径处理
-        if model_path:
-            # 检查是否是URL
-            if str(model_path).startswith(('http://', 'https://')):
-                # 如果是URL，直接下载
-                self.model_path = self._download_model(str(model_path), mediapipe_cache)
-                # 检查下载的模型是否是holistic
-                if 'holistic' in str(self.model_path).lower():
-                    self.is_holistic = True
-            else:
-                # 如果是本地路径
-                self.model_path = Path(model_path)
-                if not self.model_path.exists():
-                    # 文件不存在，根据模型类型选择默认URL
-                    if self.is_holistic:
-                        print(f"Holistic模型文件不存在: {model_path}")
-                        print("尝试从默认URL下载Holistic模型...")
-                        try:
-                            self.model_path = self._download_model(HOLISTIC_MODEL_URL, mediapipe_cache)
-                        except:
-                            # 如果下载失败，使用旧API（不需要.task文件）
-                            self.model_path = None
-                    else:
-                        print(f"模型文件不存在: {model_path}")
-                        print("尝试从默认URL下载PoseLandmarker模型...")
-                        self.model_path = self._download_model(DEFAULT_MODEL_URL, mediapipe_cache)
-        else:
-            # 优先使用holistic_landmarker.task（支持身体+手部+面部）
-            holistic_model_path = mediapipe_cache / "holistic_landmarker.task"
-            pose_model_path = mediapipe_cache / "pose_landmarker_heavy.task"
-            
-            # 优先查找holistic模型
-            if holistic_model_path.exists():
-                print(f"发现holistic模型文件: {holistic_model_path}")
-                self.model_path = holistic_model_path
-                self.is_holistic = True
-            elif pose_model_path.exists():
-                print(f"发现pose模型文件: {pose_model_path}")
-                print("注意: pose模型仅支持身体姿态检测，不支持人脸和手部检测")
-                self.model_path = pose_model_path
-                self.is_holistic = False
-            else:
-                # 两个模型都不存在，优先下载holistic模型
-                print("缓存目录中未找到模型文件，正在下载holistic模型...")
-                print("注意: holistic模型支持身体+手部+面部检测（543个关键点）")
-                try:
-                    self.model_path = self._download_model(HOLISTIC_MODEL_URL, mediapipe_cache)
-                    self.is_holistic = True
-                except Exception as e:
-                    print(f"Holistic模型下载失败: {e}")
-                    print("尝试下载pose模型作为后备...")
-                    self.model_path = self._download_model(DEFAULT_MODEL_URL, mediapipe_cache)
-                    self.is_holistic = False
-                    print("注意: pose模型仅支持身体姿态检测（33个关键点）")
+        print(f"MediaPipe缓存目录: {mediapipe_cache}")
+        print("离线模式：仅从缓存目录加载模型（不会自动下载）")
+        print("注意：模型文件应直接放在 mediapipe/ 目录中")
         
-        self.landmarker = None
+        # 初始化Holistic模型
         self.holistic = None
-        self.use_holistic = False
-        # 注意：使用IMAGE模式，不需要timestamp计数器
-        self._initialize()
-    
-    def _initialize(self):
-        """初始化MediaPipe模型"""
-        if self.is_holistic:
-            # 使用Holistic模型（优先尝试新API，失败则使用旧API）
-            self._initialize_holistic()
-        else:
-            # 使用PoseLandmarker（新API）
-            self._initialize_pose()
+        self.mp_holistic = None
+        self._initialize_holistic()
     
     def _initialize_holistic(self):
-        """初始化Holistic模型"""
-        # 首先尝试使用新API（如果支持）
-        try:
-            from mediapipe.tasks import python
-            from mediapipe.tasks.python import vision
-            from mediapipe import Image, ImageFormat
-            
-            # 检查是否有.task文件
-            if self.model_path and self.model_path.exists():
-                base_options = python.BaseOptions(
-                    model_asset_path=str(self.model_path)
-                )
-            else:
-                # 使用默认模型（MediaPipe会自动下载）
-                base_options = python.BaseOptions()
-            
-            # 尝试使用HolisticLandmarker（如果新API支持）
-            # 使用IMAGE模式，逐帧处理，避免VIDEO模式的timestamp问题
-            try:
-                options = vision.HolisticLandmarkerOptions(
-                    base_options=base_options,
-                    running_mode=vision.RunningMode.IMAGE
-                )
-                self.landmarker = vision.HolisticLandmarker.create_from_options(options)
-                self.mp_image = Image
-                self.image_format = ImageFormat.SRGB
-                self.use_holistic = True
-                print(f"MediaPipe HolisticLandmarker（新API，IMAGE模式）初始化成功")
-                return
-            except AttributeError:
-                # 新API不支持HolisticLandmarker，使用旧API
-                print("新API不支持HolisticLandmarker，使用旧API的Holistic模型...")
-                pass
-        except ImportError:
-            pass
-        
-        # 使用旧API的Holistic模型
+        """初始化Holistic模型（仅离线模式）"""
         try:
             import mediapipe as mp
             
-            self.mp_holistic = mp.solutions.holistic
-            self.holistic = self.mp_holistic.Holistic(
-                static_image_mode=False,
-                model_complexity=2,
-                enable_segmentation=False,
-                refine_face_landmarks=True
-            )
-            self.use_holistic = True
+            # 检查模型是否已缓存
+            # 优先从指定的缓存目录加载模型
+            # 模型文件直接放在 mediapipe 目录下，不在 models 子目录中
+            primary_cache_dir = self.cache_dir / "mediapipe"
             
-            print("MediaPipe Holistic模型（旧API）初始化成功")
-            print("支持检测：身体（33个）+ 手部（42个）+ 面部（468个）关键点")
+            # 也检查其他可能的缓存位置（作为后备）
+            user_home = Path.home()
+            possible_cache_dirs = [
+                primary_cache_dir,  # 优先使用指定的缓存目录
+                user_home / ".mediapipe" / "models",  # 系统默认位置（如果有models子目录）
+                Path(os.environ.get('MEDIAPIPE_CACHE_DIR', '')) if os.environ.get('MEDIAPIPE_CACHE_DIR') else None,
+            ]
+            
+            # 过滤掉None
+            possible_cache_dirs = [d for d in possible_cache_dirs if d is not None]
+            
+            # 检查是否有模型文件（MediaPipe旧API使用.tflite或.binarypb格式）
+            model_found = False
+            found_cache_dir = None
+            model_files = []
+            
+            for cache_dir in possible_cache_dirs:
+                if cache_dir.exists():
+                    # 检查是否有模型文件
+                    found_files = list(cache_dir.glob("*.tflite")) + list(cache_dir.glob("*.binarypb"))
+                    if found_files:
+                        model_found = True
+                        found_cache_dir = cache_dir
+                        model_files = found_files
+                        print(f"在缓存目录发现模型文件: {cache_dir}")
+                        print(f"  找到 {len(model_files)} 个模型文件:")
+                        for f in model_files[:5]:  # 显示前5个文件
+                            print(f"    - {f.name} ({f.stat().st_size / 1024 / 1024:.2f} MB)")
+                        if len(model_files) > 5:
+                            print(f"    ... 还有 {len(model_files) - 5} 个文件")
+                        break
+            
+            if not model_found:
+                error_msg = (
+                    "错误：未找到MediaPipe模型文件\n"
+                    f"请确保模型文件位于以下目录：\n"
+                    f"  主要缓存目录: {primary_cache_dir}\n"
+                )
+                for cache_dir in possible_cache_dirs[1:]:  # 跳过主要目录
+                    if cache_dir:
+                        error_msg += f"  - {cache_dir}\n"
+                error_msg += (
+                    "\n模型文件格式：.tflite 或 .binarypb\n"
+                    "模型文件应直接放在 mediapipe/ 目录中（不在 models/ 子目录中）\n"
+                    "提示：请在联网环境下首次运行以下载模型，或手动将模型文件复制到缓存目录"
+                )
+                raise RuntimeError(error_msg)
+            
+            self.mp_holistic = mp.solutions.holistic
+            
+            # 尝试初始化Holistic模型
+            try:
+                self.holistic = self.mp_holistic.Holistic(
+                    static_image_mode=False,
+                    model_complexity=2,
+                    enable_segmentation=False,
+                    refine_face_landmarks=True
+                )
+                
+                print("MediaPipe Holistic模型（旧API）初始化成功")
+                print("支持检测：身体（33个）+ 手部（42个）+ 面部（468个）关键点")
+                
+            except Exception as init_error:
+                error_msg = (
+                    f"MediaPipe Holistic模型初始化失败: {init_error}\n"
+                    "可能原因：\n"
+                    "1. 模型文件损坏或不完整\n"
+                    "2. MediaPipe版本不兼容\n"
+                    "3. 模型文件格式不正确\n\n"
+                    "解决方案：\n"
+                    "1. 检查模型文件是否完整\n"
+                    "2. 重新下载模型文件\n"
+                    "3. 检查MediaPipe版本兼容性\n"
+                    f"4. 检查模型缓存目录: {found_cache_dir}"
+                )
+                raise RuntimeError(error_msg)
             
         except ImportError as e:
             raise ImportError(
                 f"MediaPipe未安装: {e}\n"
                 "请安装MediaPipe: pip install mediapipe"
             )
-        except Exception as e:
-            raise RuntimeError(f"MediaPipe Holistic模型初始化失败: {e}")
-    
-    def _initialize_pose(self):
-        """初始化PoseLandmarker模型（仅使用新API）"""
-        try:
-            from mediapipe.tasks import python
-            from mediapipe.tasks.python import vision
-            from mediapipe import Image, ImageFormat
-            
-            # 配置BaseOptions
-            if self.model_path:
-                base_options = python.BaseOptions(
-                    model_asset_path=str(self.model_path)
-                )
-            else:
-                # 使用默认模型（MediaPipe会自动下载到缓存目录）
-                base_options = python.BaseOptions()
-            
-            # 配置PoseLandmarker选项
-            # 使用IMAGE模式，逐帧处理，避免VIDEO模式的timestamp问题
-            options = vision.PoseLandmarkerOptions(
-                base_options=base_options,
-                output_segmentation_masks=False,
-                running_mode=vision.RunningMode.IMAGE
-            )
-            
-            # 创建PoseLandmarker
-            self.landmarker = vision.PoseLandmarker.create_from_options(options)
-            self.mp_image = Image
-            self.image_format = ImageFormat.SRGB
-            self.use_holistic = False
-            
-            model_info = str(self.model_path) if self.model_path else "默认模型"
-            print(f"MediaPipe PoseLandmarker模型初始化成功（IMAGE模式）: {model_info}")
-            print(f"模型缓存目录: {os.environ.get('MEDIAPIPE_CACHE_DIR', '系统默认')}")
-            print("注意: PoseLandmarker仅支持身体姿态检测（33个关键点）")
-            print("注意: 使用IMAGE模式，逐帧处理，避免VIDEO模式的timestamp问题")
-            
-        except ImportError as e:
-            raise ImportError(
-                f"MediaPipe新API不可用: {e}\n"
-                "请确保已安装最新版本的MediaPipe: pip install mediapipe>=0.10.0"
-            )
+        except RuntimeError:
+            # 重新抛出RuntimeError（包含详细的错误信息）
+            raise
         except Exception as e:
             raise RuntimeError(
-                f"MediaPipe初始化失败: {e}\n"
-                "请确保MediaPipe版本>=0.10.0，并检查模型文件路径是否正确"
+                f"MediaPipe Holistic模型初始化失败: {e}\n"
+                "请检查模型文件是否存在且完整"
             )
     
     def reset_timestamp(self):
         """
         重置timestamp计数器（用于处理新视频时）
         
-        注意：使用IMAGE模式时，不需要timestamp，此方法为空实现
+        注意：旧API不需要timestamp，此方法为空实现
         保留此方法是为了兼容性，避免调用时出错
         """
-        # IMAGE模式不需要timestamp，无需操作
+        # 旧API不需要timestamp，无需操作
         pass
     
     def extract_keypoints(self, image: np.ndarray, fps: float = 30.0) -> Dict:
         """
-        提取关键点（使用IMAGE模式，逐帧处理）
+        提取关键点
         
         Args:
             image: 输入图像 (H, W, 3) RGB，范围[0, 255]，uint8类型
-            fps: 视频帧率（保留参数以兼容接口，IMAGE模式不使用）
+            fps: 视频帧率（保留参数以兼容接口，旧API不使用）
         
         Returns:
             关键点字典，包含：
-            - body: 身体关键点 (N, 3) 或 None
-            - left_hand: 左手关键点 (N, 3) 或 None
-            - right_hand: 右手关键点 (N, 3) 或 None
-            - face: 面部关键点 (N, 3) 或 None
+            - body: 身体关键点 (33, 3) 或 None
+            - left_hand: 左手关键点 (21, 3) 或 None
+            - right_hand: 右手关键点 (21, 3) 或 None
+            - face: 面部关键点 (468, 3) 或 None
         """
-        if self.use_holistic:
-            return self._extract_keypoints_holistic(image)
-        else:
-            return self._extract_keypoints_pose(image)
+        return self._extract_keypoints_holistic(image)
     
     def _extract_keypoints_holistic(self, image: np.ndarray) -> Dict:
-        """使用Holistic模型提取关键点（支持身体+手部+面部）- IMAGE模式"""
-        # 如果使用新API的HolisticLandmarker
-        if self.landmarker is not None and hasattr(self.landmarker, 'detect'):
-            try:
-                # 确保图像格式正确
-                if image.dtype != np.uint8:
-                    image = (image * 255).astype(np.uint8) if image.max() <= 1.0 else image.astype(np.uint8)
-                
-                if not image.flags['C_CONTIGUOUS']:
-                    image = np.ascontiguousarray(image)
-                
-                mp_image = self.mp_image(
-                    image_format=self.image_format,
-                    data=image
-                )
-                
-                # 使用IMAGE模式，逐帧处理，不需要timestamp
-                try:
-                    detection_result = self.landmarker.detect(mp_image)
-                    
-                    # 检查detection_result是否有效
-                    if detection_result is None:
-                        print("警告: detect返回None，跳过关键点提取")
-                        return self._empty_keypoints()
-                    
-                    keypoints = {
-                        'body': None,
-                        'left_hand': None,
-                        'right_hand': None,
-                        'face': None
-                    }
-                    
-                    # 提取所有关键点（新API格式）
-                    # 注意：必须检查列表是否为空且长度大于0，否则访问[0]会导致MediaPipe内部Packet错误
-                    if (hasattr(detection_result, 'pose_landmarks') and 
-                        detection_result.pose_landmarks and 
-                        len(detection_result.pose_landmarks) > 0):
-                        try:
-                            keypoints['body'] = np.array([
-                                [lm.x, lm.y, lm.z] for lm in detection_result.pose_landmarks[0]
-                            ])
-                        except (IndexError, AttributeError, TypeError) as e:
-                            print(f"警告: 提取pose_landmarks失败: {e}")
-                            keypoints['body'] = None
-                    
-                    if (hasattr(detection_result, 'face_landmarks') and 
-                        detection_result.face_landmarks and 
-                        len(detection_result.face_landmarks) > 0):
-                        try:
-                            keypoints['face'] = np.array([
-                                [lm.x, lm.y, lm.z] for lm in detection_result.face_landmarks[0]
-                            ])
-                        except (IndexError, AttributeError, TypeError) as e:
-                            print(f"警告: 提取face_landmarks失败: {e}")
-                            keypoints['face'] = None
-                    
-                    if (hasattr(detection_result, 'left_hand_landmarks') and 
-                        detection_result.left_hand_landmarks and 
-                        len(detection_result.left_hand_landmarks) > 0):
-                        try:
-                            keypoints['left_hand'] = np.array([
-                                [lm.x, lm.y, lm.z] for lm in detection_result.left_hand_landmarks[0]
-                            ])
-                        except (IndexError, AttributeError, TypeError) as e:
-                            print(f"警告: 提取left_hand_landmarks失败: {e}")
-                            keypoints['left_hand'] = None
-                    
-                    if (hasattr(detection_result, 'right_hand_landmarks') and 
-                        detection_result.right_hand_landmarks and 
-                        len(detection_result.right_hand_landmarks) > 0):
-                        try:
-                            keypoints['right_hand'] = np.array([
-                                [lm.x, lm.y, lm.z] for lm in detection_result.right_hand_landmarks[0]
-                            ])
-                        except (IndexError, AttributeError, TypeError) as e:
-                            print(f"警告: 提取right_hand_landmarks失败: {e}")
-                            keypoints['right_hand'] = None
-                    
-                    return keypoints
-                except Exception as e:
-                    # IMAGE模式失败，尝试使用旧API
-                    print(f"警告: HolisticLandmarker（新API）提取失败: {e}")
-                    raise  # 重新抛出异常，让外层catch处理
-            except Exception as e:
-                print(f"警告: HolisticLandmarker（新API）提取失败，尝试使用旧API: {e}")
-                # 如果新API失败，尝试使用旧API
-                pass
-        
-        # 使用旧API的Holistic模型
+        """使用Holistic模型提取关键点（支持身体+手部+面部）"""
         if self.holistic is None:
-            return self._empty_keypoints()
+            raise RuntimeError("MediaPipe Holistic模型未初始化")
         
         try:
             # 确保图像格式正确
@@ -388,117 +225,6 @@ class MediaPipeKeypointExtractor:
         except Exception as e:
             print(f"警告: 关键点提取失败（Holistic）: {e}")
             return self._empty_keypoints()
-    
-    def _extract_keypoints_pose(self, image: np.ndarray) -> Dict:
-        """使用PoseLandmarker模型提取关键点（仅支持身体）- IMAGE模式"""
-        if self.landmarker is None:
-            return self._empty_keypoints()
-        
-        try:
-            # 确保图像格式正确
-            if image.dtype != np.uint8:
-                image = (image * 255).astype(np.uint8) if image.max() <= 1.0 else image.astype(np.uint8)
-            
-            # 确保图像是连续的
-            if not image.flags['C_CONTIGUOUS']:
-                image = np.ascontiguousarray(image)
-            
-            # 转换为MediaPipe Image格式
-            mp_image = self.mp_image(
-                image_format=self.image_format,
-                data=image
-            )
-            
-            # 检测关键点（使用IMAGE模式，不需要timestamp）
-            detection_result = self.landmarker.detect(mp_image)
-            
-            # 检查detection_result是否有效
-            if detection_result is None:
-                print("警告: detect返回None，跳过关键点提取")
-                return self._empty_keypoints()
-            
-            # 提取关键点
-            keypoints = {
-                'body': None,
-                'left_hand': None,
-                'right_hand': None,
-                'face': None
-            }
-            
-            # 提取身体关键点（PoseLandmarker仅支持身体姿态）
-            # 注意：必须检查列表是否为空且长度大于0，否则访问[0]会导致MediaPipe内部Packet错误
-            if (hasattr(detection_result, 'pose_landmarks') and 
-                detection_result.pose_landmarks and 
-                len(detection_result.pose_landmarks) > 0):
-                try:
-                    keypoints['body'] = np.array([
-                        [lm.x, lm.y, lm.z] for lm in detection_result.pose_landmarks[0]
-                    ])
-                except (IndexError, AttributeError, TypeError) as e:
-                    print(f"警告: 提取pose_landmarks失败: {e}")
-                    keypoints['body'] = None
-            
-            # 注意：PoseLandmarker仅支持身体姿态检测（33个关键点）
-            # 不支持手部和面部关键点
-            
-            return keypoints
-            
-        except Exception as e:
-            print(f"警告: 关键点提取失败（PoseLandmarker）: {e}")
-            return self._empty_keypoints()
-    
-    def _download_model(self, url: str, cache_dir: Path) -> Path:
-        """
-        从URL下载模型文件
-        
-        Args:
-            url: 模型文件URL
-            cache_dir: 缓存目录
-        
-        Returns:
-            下载后的模型文件路径
-        """
-        # 从URL提取文件名
-        filename = url.split('/')[-1].split('?')[0]  # 处理URL参数
-        if not filename.endswith('.task'):
-            filename = 'pose_landmarker_heavy.task'  # 默认文件名
-        
-        model_path = cache_dir / filename
-        
-        # 如果文件已存在，直接返回
-        if model_path.exists():
-            print(f"模型文件已存在: {model_path}")
-            return model_path
-        
-        print(f"正在从 {url} 下载模型文件...")
-        print(f"保存到: {model_path}")
-        
-        try:
-            # 使用urllib下载文件，带进度条
-            def show_progress(block_num, block_size, total_size):
-                downloaded = block_num * block_size
-                if total_size > 0:
-                    percent = min(100, downloaded * 100 / total_size)
-                    print(f"\r下载进度: {percent:.1f}% ({downloaded}/{total_size} bytes)", end='', flush=True)
-            
-            urllib.request.urlretrieve(url, model_path, reporthook=show_progress)
-            print(f"\n模型下载完成: {model_path}")
-            
-            # 验证文件是否存在且大小合理
-            if model_path.exists() and model_path.stat().st_size > 0:
-                return model_path
-            else:
-                raise RuntimeError("下载的文件无效或为空")
-                
-        except Exception as e:
-            # 如果下载失败，删除可能的不完整文件
-            if model_path.exists():
-                model_path.unlink()
-            raise RuntimeError(
-                f"模型下载失败: {e}\n"
-                f"请检查网络连接，或手动下载模型文件到: {model_path}\n"
-                f"下载URL: {url}"
-            )
     
     def _empty_keypoints(self) -> Dict:
         """返回空的关键点字典"""

@@ -39,22 +39,21 @@ class KeypointAnalyzer:
                 cache_dir = project_root / ".cache"
                 cache_dir = str(cache_dir.absolute())
                 
-                model_path = self.config.model_path if self.config.model_path else None
-                
                 print(f"缓存目录: {cache_dir}")
-                if model_path:
-                    print(f"模型路径: {model_path}")
-                else:
-                    print("使用默认模型（MediaPipe将自动下载）")
+                print(f"MediaPipe模型缓存目录: {cache_dir}/mediapipe/")
+                print("离线模式：仅从缓存目录加载模型（不会自动下载）")
+                print("注意：模型文件应直接放在 mediapipe/ 目录中（不在 models/ 子目录中）")
                 
                 self.extractor = MediaPipeKeypointExtractor(
-                    model_path=model_path,
+                    model_path=None,  # 旧API不使用model_path
                     cache_dir=cache_dir
                 )
             else:
                 print(f"警告: 不支持的关键点模型类�?: {self.config.model_type}")
                 print("使用MediaPipe作为默认")
-                self.extractor = MediaPipeKeypointExtractor(cache_dir=".cache")
+                self.extractor = MediaPipeKeypointExtractor(
+                    cache_dir=".cache"
+                )
             
             print("关键点分析器初始化完成！")
         except ImportError as e:
