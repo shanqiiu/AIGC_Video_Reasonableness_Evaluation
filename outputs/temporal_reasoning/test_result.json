@@ -1,9 +1,9 @@
 {
-  "motion_reasonableness_score": 0.30975087855275224,
+  "motion_reasonableness_score": 0.3097508695181899,
   "structure_stability_score": 1.0,
   "anomalies": [],
   "sub_scores": {
-    "motion_score": 0.30975087855275224,
+    "motion_score": 0.3097508695181899,
     "structure_score": 1.0,
     "physiological_score": 1.0
   },

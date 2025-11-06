@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Grounded-SAM-2 封装�?
-用于封装 Grounding DINO �? SAM2 的集成调�?
+用于封装 Grounding DINO � 和 SAM2 的集成调�?
 """
 
 import sys
@@ -207,9 +207,9 @@ class GroundedSAM2Wrapper:
         except Exception as e:
             raise RuntimeError(f"Grounding DINO 初始化失�?: {e}")
         
-        # 初始�? SAM2
+        # 初始� 和 SAM2
         try:
-            print("正在初始�? SAM2...")
+            print("正在初始� 和 SAM2...")
             
             # build_sam2 的参数签名：
             # build_sam2(config_file, ckpt_path=None, device="cuda", ...)
@@ -459,7 +459,7 @@ class GroundedSAM2Wrapper:
         query_frame: int = 0
     ) -> Dict[int, Dict]:
         """
-        追踪实例（使�? SAM2 视频预测器）
+        追踪实例（使� 和 SAM2 视频预测器）
         
         Args:
             video_frames: 视频帧序列，每帧�? (H, W, 3) RGB
@@ -474,10 +474,10 @@ class GroundedSAM2Wrapper:
         
         # 这里需要实现视频追踪逻辑
         # 由于 SAM2 视频追踪需要特定的帧格式，这里提供基本框架
-        # 实际实现需要根�? SAM2 视频预测器的 API 进行调整
+        # 实际实现需要根� 和 SAM2 视频预测器的 API 进行调整
         
         # TODO: 实现视频追踪逻辑
-        # 1. 准备视频帧（转换�? SAM2 需要的格式�?
+        # 1. 准备视频帧（转换� 和 SAM2 需要的格式�?
         # 2. 初始化视频预测器状�?
         # 3. 使用初始掩码进行追踪
         # 4. 返回追踪结果

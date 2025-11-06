@@ -6,6 +6,7 @@
 import numpy as np
 from typing import List, Dict, Tuple
 from tqdm import tqdm
+from pathlib import Path
 
 from .keypoint_extractor import MediaPipeKeypointExtractor
 from ..core.config import KeypointConfig
@@ -29,15 +30,42 @@ class KeypointAnalyzer:
         print("正在初始化关键点分析器...")
         try:
             if self.config.model_type == "mediapipe":
-                self.extractor = MediaPipeKeypointExtractor()
+                # 使用.cache作为缓存目录
+                import os
+                from pathlib import Path
+                
+                # 获取项目根目录
+                project_root = Path(__file__).parent.parent.parent.parent
+                cache_dir = project_root / ".cache"
+                cache_dir = str(cache_dir.absolute())
+                
+                model_path = self.config.model_path if self.config.model_path else None
+                
+                print(f"缓存目录: {cache_dir}")
+                if model_path:
+                    print(f"模型路径: {model_path}")
+                else:
+                    print("使用默认模型（MediaPipe将自动下载）")
+                
+                self.extractor = MediaPipeKeypointExtractor(
+                    model_path=model_path,
+                    cache_dir=cache_dir
+                )
             else:
                 print(f"警告: 不支持的关键点模型类型: {self.config.model_type}")
                 print("使用MediaPipe作为默认")
-                self.extractor = MediaPipeKeypointExtractor()
+                self.extractor = MediaPipeKeypointExtractor(cache_dir=".cache")
             
             print("关键点分析器初始化完成！")
+        except ImportError as e:
+            print(f"错误: MediaPipe导入失败: {e}")
+            print("请确保已安装MediaPipe: pip install mediapipe>=0.10.0")
+            import traceback
+            traceback.print_exc()
         except Exception as e:
-            print(f"警告: 关键点分析器初始化失败: {e}")
+            print(f"错误: 关键点分析器初始化失败: {e}")
+            import traceback
+            traceback.print_exc()
     
     def analyze(
         self,
@@ -150,4 +178,3 @@ class KeypointAnalyzer:
         # 简化实现：返回默认得分
         # 实际实现需要分析手部关键点角度变化
         return 1.0, []
-
