@@ -15,7 +15,7 @@ warnings.filterwarnings("ignore")
 
 # MediaPipe官方模型下载URL
 DEFAULT_MODEL_URL = "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_heavy/float16/1/pose_landmarker_heavy.task"
-# Holistic模型URL
+# Holistic模型URL（如果新API支持，否则使用旧API）
 HOLISTIC_MODEL_URL = "https://storage.googleapis.com/mediapipe-models/holistic_landmarker/holistic_landmarker/float16/1/holistic_landmarker.task"
 
 
@@ -62,6 +62,7 @@ class MediaPipeKeypointExtractor:
                     if self.is_holistic:
                         print(f"Holistic模型文件不存在: {model_path}")
                         print("尝试从默认URL下载Holistic模型...")
+                        # 注意：如果新API不支持，将使用旧API的Holistic
                         try:
                             self.model_path = self._download_model(HOLISTIC_MODEL_URL, mediapipe_cache)
                         except:
@@ -72,38 +73,17 @@ class MediaPipeKeypointExtractor:
                         print("尝试从默认URL下载PoseLandmarker模型...")
                         self.model_path = self._download_model(DEFAULT_MODEL_URL, mediapipe_cache)
         else:
-            # 优先使用holistic_landmarker.task（支持身体+手部+面部）
-            holistic_model_path = mediapipe_cache / "holistic_landmarker.task"
-            pose_model_path = mediapipe_cache / "pose_landmarker_heavy.task"
-            
-            # 优先查找holistic模型
-            if holistic_model_path.exists():
-                print(f"发现holistic模型文件: {holistic_model_path}")
-                self.model_path = holistic_model_path
-                self.is_holistic = True
-            elif pose_model_path.exists():
-                print(f"发现pose模型文件: {pose_model_path}")
-                print("注意: pose模型仅支持身体姿态检测，不支持人脸和手部检测")
-                self.model_path = pose_model_path
-                self.is_holistic = False
+            # 使用默认模型（PoseLandmarker）
+            default_model_path = mediapipe_cache / "pose_landmarker_heavy.task"
+            if not default_model_path.exists():
+                print("默认模型文件不存在，正在从网络下载...")
+                self.model_path = self._download_model(DEFAULT_MODEL_URL, mediapipe_cache)
             else:
-                # 两个模型都不存在，优先下载holistic模型
-                print("缓存目录中未找到模型文件，正在下载holistic模型...")
-                print("注意: holistic模型支持身体+手部+面部检测（543个关键点）")
-                try:
-                    self.model_path = self._download_model(HOLISTIC_MODEL_URL, mediapipe_cache)
-                    self.is_holistic = True
-                except Exception as e:
-                    print(f"Holistic模型下载失败: {e}")
-                    print("尝试下载pose模型作为后备...")
-                    self.model_path = self._download_model(DEFAULT_MODEL_URL, mediapipe_cache)
-                    self.is_holistic = False
-                    print("注意: pose模型仅支持身体姿态检测（33个关键点）")
+                self.model_path = default_model_path
         
         self.landmarker = None
         self.holistic = None
         self.use_holistic = False
-        self.timestamp_ms = 0  # 用于VIDEO模式的timestamp计数器
         self._initialize()
     
     def _initialize(self):
@@ -220,17 +200,12 @@ class MediaPipeKeypointExtractor:
                 "请确保MediaPipe版本>=0.10.0，并检查模型文件路径是否正确"
             )
     
-    def reset_timestamp(self):
-        """重置timestamp计数器（用于处理新视频时）"""
-        self.timestamp_ms = 0
-    
-    def extract_keypoints(self, image: np.ndarray, fps: float = 30.0) -> Dict:
+    def extract_keypoints(self, image: np.ndarray) -> Dict:
         """
         提取关键点
         
         Args:
             image: 输入图像 (H, W, 3) RGB，范围[0, 255]，uint8类型
-            fps: 视频帧率，用于计算timestamp增量（默认30fps）
         
         Returns:
             关键点字典，包含：
@@ -240,11 +215,11 @@ class MediaPipeKeypointExtractor:
             - face: 面部关键点 (N, 3) 或 None
         """
         if self.use_holistic:
-            return self._extract_keypoints_holistic(image, fps)
+            return self._extract_keypoints_holistic(image)
         else:
-            return self._extract_keypoints_pose(image, fps)
+            return self._extract_keypoints_pose(image)
     
-    def _extract_keypoints_holistic(self, image: np.ndarray, fps: float = 30.0) -> Dict:
+    def _extract_keypoints_holistic(self, image: np.ndarray) -> Dict:
         """使用Holistic模型提取关键点（支持身体+手部+面部）"""
         # 如果使用新API的HolisticLandmarker
         if self.landmarker is not None and hasattr(self.landmarker, 'detect_for_video'):
@@ -261,10 +236,7 @@ class MediaPipeKeypointExtractor:
                     data=image
                 )
                 
-                # 使用递增的timestamp（VIDEO模式要求timestamp必须单调递增）
-                frame_time_ms = int(1000.0 / fps)  # 根据fps计算每帧时间间隔（毫秒）
-                detection_result = self.landmarker.detect_for_video(mp_image, timestamp_ms=self.timestamp_ms)
-                self.timestamp_ms += frame_time_ms  # 递增timestamp
+                detection_result = self.landmarker.detect_for_video(mp_image, timestamp_ms=0)
                 
                 keypoints = {
                     'body': None,
@@ -344,7 +316,7 @@ class MediaPipeKeypointExtractor:
             print(f"警告: 关键点提取失败（Holistic）: {e}")
             return self._empty_keypoints()
     
-    def _extract_keypoints_pose(self, image: np.ndarray, fps: float = 30.0) -> Dict:
+    def _extract_keypoints_pose(self, image: np.ndarray) -> Dict:
         """使用PoseLandmarker模型提取关键点（仅支持身体）"""
         if self.landmarker is None:
             return self._empty_keypoints()
@@ -364,13 +336,11 @@ class MediaPipeKeypointExtractor:
                 data=image
             )
             
-            # 检测关键点（使用递增的timestamp）
-            frame_time_ms = int(1000.0 / fps)  # 根据fps计算每帧时间间隔（毫秒）
+            # 检测关键点
             detection_result = self.landmarker.detect_for_video(
                 mp_image,
-                timestamp_ms=self.timestamp_ms
+                timestamp_ms=0
             )
-            self.timestamp_ms += frame_time_ms  # 递增timestamp
             
             # 提取关键点
             keypoints = {

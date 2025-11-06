@@ -17,7 +17,7 @@ class KeypointAnalyzer:
     
     def __init__(self, config: KeypointConfig):
         """
-        初始化关键点分析器
+        初始化关键点分析�?
         
         Args:
             config: KeypointConfig配置对象
@@ -26,15 +26,15 @@ class KeypointAnalyzer:
         self.extractor = None
     
     def initialize(self):
-        """初始化关键点提取器"""
-        print("正在初始化关键点分析器...")
+        """初始化关键点提取�?"""
+        print("正在初始化关键点分析�?...")
         try:
             if self.config.model_type == "mediapipe":
                 # 使用.cache作为缓存目录
                 import os
                 from pathlib import Path
                 
-                # 获取项目根目录
+                # 获取项目根目�?
                 project_root = Path(__file__).parent.parent.parent.parent
                 cache_dir = project_root / ".cache"
                 cache_dir = str(cache_dir.absolute())
@@ -52,7 +52,7 @@ class KeypointAnalyzer:
                     cache_dir=cache_dir
                 )
             else:
-                print(f"警告: 不支持的关键点模型类型: {self.config.model_type}")
+                print(f"警告: 不支持的关键点模型类�?: {self.config.model_type}")
                 print("使用MediaPipe作为默认")
                 self.extractor = MediaPipeKeypointExtractor(cache_dir=".cache")
             
@@ -63,7 +63,7 @@ class KeypointAnalyzer:
             import traceback
             traceback.print_exc()
         except Exception as e:
-            print(f"错误: 关键点分析器初始化失败: {e}")
+            print(f"错误: 关键点分析器初始化失�?: {e}")
             import traceback
             traceback.print_exc()
     
@@ -73,27 +73,27 @@ class KeypointAnalyzer:
         fps: float = 30.0
     ) -> Tuple[float, List[Dict]]:
         """
-        分析视频生理动作自然性
+        分析视频生理动作自然�?
         
         Args:
-            video_frames: 视频帧序列
+            video_frames: 视频帧序�?
             fps: 视频帧率
         
         Returns:
             (physiological_score, anomalies):
-            - physiological_score: 生理动作自然性得分 (0-1)
+            - physiological_score: 生理动作自然性得�? (0-1)
             - anomalies: 生理异常列表
         """
         if self.extractor is None:
             self.initialize()
         
-        print("正在分析生理动作自然性...")
+        print("正在分析生理动作自然�?...")
         
-        # 1. 提取关键点序列
-        print("正在提取关键点...")
+        # 1. 提取关键点序�?
+        print("正在提取关键�?...")
         keypoint_sequences = []
-        for frame in tqdm(video_frames, desc="提取关键点"):
-            keypoints = self.extractor.extract_keypoints(frame)
+        for frame in tqdm(video_frames, desc="提取关键�?"):
+            keypoints = self.extractor.extract_keypoints(frame, fps=fps)
             keypoint_sequences.append(keypoints)
         
         # 2. 分析生理动作
@@ -103,8 +103,8 @@ class KeypointAnalyzer:
             fps=fps
         )
         
-        print(f"生理动作自然性得分: {physiological_score:.3f}")
-        print(f"检测到 {len(anomalies)} 个生理异常")
+        print(f"生理动作自然性得�?: {physiological_score:.3f}")
+        print(f"检测到 {len(anomalies)} 个生理异�?")
         
         return physiological_score, anomalies
     
@@ -117,7 +117,7 @@ class KeypointAnalyzer:
         分析生理动作
         
         Args:
-            keypoint_sequences: 关键点序列
+            keypoint_sequences: 关键点序�?
             fps: 视频帧率
         
         Returns:
