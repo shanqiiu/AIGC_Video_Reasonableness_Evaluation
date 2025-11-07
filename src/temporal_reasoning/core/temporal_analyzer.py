@@ -41,7 +41,7 @@ class TemporalReasoningAnalyzer:
     def initialize(self):
         """初始化所有子模块"""
         if self._initialized:
-            print("分析器已初始�??")
+            print("分析器已初始�??")
             return
         
         print("=" * 50)
@@ -63,14 +63,14 @@ class TemporalReasoningAnalyzer:
             )
             self.instance_analyzer.initialize()
             
-            # 初始化关键点分析�??
-            print("\n[3/4] 初始化关键点分析�??...")
+            # 初始化关键点分析�??
+            print("\n[3/4] 初始化关键点分析�??...")
             self.keypoint_analyzer = KeypointAnalyzer(self.config.keypoint)
             self.keypoint_analyzer.initialize()
             
-            # 初始化融合决策引�??
-            print("\n[4/4] 初始化融合决策引�??...")
-            # 获取Co-Tracker验证器（如果可用�??
+            # 初始化融合决策引�??
+            print("\n[4/4] 初始化融合决策引�??...")
+            # 获取Co-Tracker验证器（如果可用�??
             cotracker_validator = None
             if hasattr(self.instance_analyzer, 'cotracker_validator'):
                 cotracker_validator = self.instance_analyzer.cotracker_validator
@@ -85,7 +85,7 @@ class TemporalReasoningAnalyzer:
             print("=" * 50)
             
         except Exception as e:
-            print(f"\n错误: 初始化失�??: {e}")
+            print(f"\n错误: 初始化失�??: {e}")
             raise
     
     def analyze(
@@ -96,11 +96,11 @@ class TemporalReasoningAnalyzer:
         video_path: Optional[str] = None
     ) -> Dict:
         """
-        分析视频时序合理�??
+        分析视频时序合理�??
         
         Args:
             video_frames: 视频帧序列，每帧为RGB图像 (H, W, 3)
-            text_prompts: 可选文本提示列表（如["tongue", "finger"]�??
+            text_prompts: 可选文本提示列表（如["tongue", "finger"]�??
             fps: 视频帧率，如果为None则从视频推断
         
         Returns:
@@ -114,7 +114,7 @@ class TemporalReasoningAnalyzer:
             self.initialize()
         
         if not video_frames:
-            raise ValueError("视频帧序列为�??")
+            raise ValueError("视频帧序列为�??")
         
         if fps is None:
             fps = 30.0  # 默认帧率
@@ -129,31 +129,31 @@ class TemporalReasoningAnalyzer:
         
         # 1. 光流分析
         print("\n>>> 步骤1: 光流分析")
-        # 传递阈值配�??
+        # 传递阈值配�??
         if hasattr(self.config, 'thresholds'):
             self.motion_analyzer.config.motion_discontinuity_threshold = self.config.thresholds.motion_discontinuity_threshold
         motion_score, motion_anomalies = self.motion_analyzer.analyze(video_frames, fps=fps)
         
         # 2. 实例追踪分析
         print("\n>>> 步骤2: 实例追踪分析")
-        # ���û���ı���ʾ�����Զ�ʹ��Ĭ����ʾ
+        # ���û���ı���ʾ�����Զ�ʹ��Ĭ����ʾ
         if text_prompts is None or not text_prompts:
-            print("??  δ�ṩ�ı���ʾ����ʹ��Ĭ����ʾ����ʵ�����")
+            print("??  δ�ṩ�ı���ʾ����ʹ��Ĭ����ʾ����ʵ�����")
         
         structure_score, structure_anomalies = self.instance_analyzer.analyze(
             video_frames, text_prompts=text_prompts, fps=fps, use_default_prompts=True
         )
         
-        # 3. 关键点分�??
-        print("\n>>> 步骤3: 关键点分�??")
+        # 3. 关键点分�??
+        print("\n>>> 步骤3: 关键点分�??")
         physiological_score, physiological_anomalies = self.keypoint_analyzer.analyze(
             video_frames, fps=fps, video_path=video_path
         )
         
-        # 4. 多模态融�??
-        print("\n>>> 步骤4: 多模态融�??")
+        # 4. 多模态融�??
+        print("\n>>> 步骤4: 多模态融�??")
         
-        # 获取Co-Tracker验证器（如果可用�??
+        # 获取Co-Tracker验证器（如果可用�??
         cotracker_validator = None
         if hasattr(self.instance_analyzer, 'cotracker_validator'):
             cotracker_validator = self.instance_analyzer.cotracker_validator
@@ -169,9 +169,9 @@ class TemporalReasoningAnalyzer:
             physiological_anomalies
         )
         
-        # 5. 过滤假阳性（使用Co-Tracker验证�??
+        # 5. 过滤假阳性（使用Co-Tracker验证�??
         if cotracker_validator is not None:
-            print("\n>>> 步骤5: 过滤假阳性异�??")
+            print("\n>>> 步骤5: 过滤假阳性异�??")
             try:
                 # 转换视频帧为tensor
                 import torch
@@ -184,17 +184,17 @@ class TemporalReasoningAnalyzer:
                     video_tensor=video_tensor
                 )
                 
-                print(f"过滤前异常数�??: {len(fused_anomalies)}")
-                print(f"过滤后异常数�??: {len(filtered_anomalies)}")
+                print(f"过滤前异常数�??: {len(fused_anomalies)}")
+                print(f"过滤后异常数�??: {len(filtered_anomalies)}")
                 fused_anomalies = filtered_anomalies
             except Exception as e:
                 raise RuntimeError(
-                    f"假阳性过滤失�??: {e}\n"
-                    f"请检查Co-Tracker模型是否正确初始�??"
+                    f"假阳性过滤失�??: {e}\n"
+                    f"请检查Co-Tracker模型是否正确初始�??"
                 )
         
-        # 6. 计算最终得�??
-        print("\n>>> 步骤6: 计算最终得�??")
+        # 6. 计算最终得�??
+        print("\n>>> 步骤6: 计算最终得�??")
         final_motion_score, final_structure_score = self.fusion_engine.compute_final_scores(
             motion_score,
             structure_score,
@@ -221,11 +221,11 @@ class TemporalReasoningAnalyzer:
         }
         
         print("\n" + "=" * 50)
-        print("分析完成�??")
+        print("分析完成�??")
         print("=" * 50)
-        print(f"运动合理性得�??: {final_motion_score:.3f}")
-        print(f"结构稳定性得�??: {final_structure_score:.3f}")
-        print(f"检测到 {len(fused_anomalies)} 个异�??")
+        print(f"运动合理性得�??: {final_motion_score:.3f}")
+        print(f"结构稳定性得�??: {final_structure_score:.3f}")
+        print(f"检测到 {len(fused_anomalies)} 个异�??")
         print("=" * 50)
         
         return result
