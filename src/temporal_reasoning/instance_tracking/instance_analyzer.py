@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-å®ä¾‹è¿½è¸ªåˆ†æå™¨
+ÊµÀı×·×Ù·ÖÎöÆ÷
 """
 
 import numpy as np
@@ -17,8 +17,18 @@ from .grounded_sam_wrapper import GroundedSAMWrapper
 from .grounded_sam2_wrapper import GroundedSAM2Wrapper
 
 
+# Ä¬ÈÏÎÄ±¾ÌáÊ¾£¨µ±ÓÃ»§Î´Ìá¹©Ê±Ê¹ÓÃ£©
+DEFAULT_TEXT_PROMPTS = [
+    "person",      # ÈË£¨×î³£¼ûµÄ¼ì²âÄ¿±ê£©
+    "face",        # Á³²¿
+    "hand",        # ÊÖ²¿
+    "body",        # ÉíÌå
+    "object"       # Í¨ÓÃÎïÌå
+]
+
+
 class InstanceTrackingAnalyzer:
-    """å®ä¾‹è¿½è¸ªåˆ†æå™¨"""
+    """ÊµÀı×·×Ù·ÖÎöÆ÷"""
     
     def __init__(
         self,
@@ -27,12 +37,12 @@ class InstanceTrackingAnalyzer:
         tracker_config: TrackerConfig
     ):
         """
-        åˆå§‹åŒ–å®ä¾‹è¿½è¸ªåˆ†æå™¨
+        ³õÊ¼»¯ÊµÀı×·×Ù·ÖÎöÆ÷
         
         Args:
-            gdino_config: Grounding DINOé…ç½®
-            sam_config: SAMé…ç½®
-            tracker_config: è¿½è¸ªå™¨é…ç½®
+            gdino_config: Grounding DINOÅäÖÃ
+            sam_config: SAMÅäÖÃ
+            tracker_config: ×·×ÙÆ÷ÅäÖÃ
         """
         self.gdino_config = gdino_config
         self.sam_config = sam_config
@@ -42,16 +52,16 @@ class InstanceTrackingAnalyzer:
         self.sam_model = None
         self.tracker = None
         self.cotracker_validator = None
-        self.grounded_sam_wrapper = None  # SAM v1 å°è£…å™¨
-        self.grounded_sam2_wrapper = None  # SAM2 å°è£…å™¨
-        self.use_sam2 = False  # æ˜¯å¦ä½¿ç”¨ SAM2
+        self.grounded_sam_wrapper = None  # SAM v1 ·â×°Æ÷
+        self.grounded_sam2_wrapper = None  # SAM2 ·â×°Æ÷
+        self.use_sam2 = False  # ÊÇ·ñÊ¹ÓÃ SAM2
     
     def initialize(self):
-        """åˆå§‹åŒ–æ¨¡å‹"""
-        print("æ­£åœ¨åˆå§‹åŒ–å®ä¾‹è¿½è¸ªåˆ†æå™¨...")
+        """³õÊ¼»¯Ä£ĞÍ"""
+        print("ÕıÔÚ³õÊ¼»¯ÊµÀı×·×Ù·ÖÎöÆ÷...")
         try:
             try:
-                # åˆ¤æ–­ä½¿ç”¨ SAM v1 è¿˜æ˜¯ SAM2
+                # ÅĞ¶ÏÊ¹ÓÃ SAM v1 »¹ÊÇ SAM2
                 use_sam2 = False
                 if self.sam_config.model_type and self.sam_config.model_type.startswith("sam2"):
                     use_sam2 = True
@@ -63,9 +73,9 @@ class InstanceTrackingAnalyzer:
                 
                 self.use_sam2 = use_sam2
                 
-                # æ ¹æ®é…ç½®é€‰æ‹©ä½¿ç”¨ SAM v1 æˆ– SAM2
+                # ¸ù¾İÅäÖÃÑ¡ÔñÊ¹ÓÃ SAM v1 »ò SAM2
                 if use_sam2:
-                    # ä½¿ç”¨ SAM2
+                    # Ê¹ÓÃ SAM2
                     if self.gdino_config.use_gpu and torch.cuda.is_available():
                         device = "cuda:0"
                     else:
@@ -73,8 +83,8 @@ class InstanceTrackingAnalyzer:
                     
                     if not self.sam_config.config_path:
                         raise ValueError(
-                            "SAM2 éœ€è¦é…ç½®æ–‡ä»¶è·¯å¾„ (config_path)\n"
-                            "è¯·åœ¨ SAMConfig ä¸­è®¾ç½® config_path"
+                            "SAM2 ĞèÒªÅäÖÃÎÄ¼şÂ·¾¶ (config_path)\n"
+                            "ÇëÔÚ SAMConfig ÖĞÉèÖÃ config_path"
                         )
                     
                     self.grounded_sam2_wrapper = GroundedSAM2Wrapper(
@@ -85,11 +95,11 @@ class InstanceTrackingAnalyzer:
                         device=device,
                         text_threshold=self.gdino_config.text_threshold,
                         box_threshold=self.gdino_config.box_threshold,
-                        bert_path=self.gdino_config.bert_path  # æœ¬åœ° BERT è·¯å¾„
+                        bert_path=self.gdino_config.bert_path  # ±¾µØ BERT Â·¾¶
                     )
-                    print("Grounded-SAM2 åˆå§‹åŒ–æˆåŠŸ")
+                    print("Grounded-SAM2 ³õÊ¼»¯³É¹¦")
                 else:
-                    # ä½¿ç”¨ SAM v1
+                    # Ê¹ÓÃ SAM v1
                     if self.gdino_config.use_gpu and torch.cuda.is_available():
                         device = "cuda:0"
                     else:
@@ -104,14 +114,14 @@ class InstanceTrackingAnalyzer:
                         box_threshold=self.gdino_config.box_threshold,
                         grid_size=self.tracker_config.grid_size
                     )
-                    print("Grounded-SAM (v1) åˆå§‹åŒ–æˆåŠŸ")
+                    print("Grounded-SAM (v1) ³õÊ¼»¯³É¹¦")
             except Exception as e:
-                print(f"è­¦å‘Š: Grounded-SAM åˆå§‹åŒ–å¤±è´¥: {e}")
-                print("å°†ä½¿ç”¨ç®€åŒ–å®ç°")
+                print(f"¾¯¸æ: Grounded-SAM ³õÊ¼»¯Ê§°Ü: {e}")
+                print("½«Ê¹ÓÃ¼ò»¯ÊµÏÖ")
                 self.grounded_sam_wrapper = None
 
             
-            # åˆå§‹åŒ–Co-TrackeréªŒè¯å™¨ï¼ˆå¦‚æœå¯ç”¨ï¼‰
+            # ³õÊ¼»¯Co-TrackerÑéÖ¤Æ÷£¨Èç¹ûÆôÓÃ£©
             if self.tracker_config.enable_cotracker_validation:
                 try:
                     if self.tracker_config.use_gpu and torch.cuda.is_available():
@@ -125,21 +135,21 @@ class InstanceTrackingAnalyzer:
                         grid_size=self.tracker_config.grid_size
                     )
                     if self.cotracker_validator.cotracker_model is not None:
-                        print("Co-TrackeréªŒè¯å™¨åˆå§‹åŒ–æˆåŠŸ")
+                        print("Co-TrackerÑéÖ¤Æ÷³õÊ¼»¯³É¹¦")
                     else:
-                        print("è­¦å‘Š: Co-TrackeréªŒè¯å™¨åˆå§‹åŒ–å¤±è´¥ï¼Œå°†ä¸ä½¿ç”¨Co-TrackeréªŒè¯")
+                        print("¾¯¸æ: Co-TrackerÑéÖ¤Æ÷³õÊ¼»¯Ê§°Ü£¬½«²»Ê¹ÓÃCo-TrackerÑéÖ¤")
                         self.cotracker_validator = None
                 except Exception as e:
-                    print(f"è­¦å‘Š: Co-TrackeréªŒè¯å™¨åˆå§‹åŒ–å¤±è´¥: {e}")
-                    print("å°†ä¸ä½¿ç”¨Co-TrackeréªŒè¯")
+                    print(f"¾¯¸æ: Co-TrackerÑéÖ¤Æ÷³õÊ¼»¯Ê§°Ü: {e}")
+                    print("½«²»Ê¹ÓÃCo-TrackerÑéÖ¤")
                     self.cotracker_validator = None
             else:
-                print("Co-TrackeréªŒè¯å·²ç¦ç”¨")
+                print("Co-TrackerÑéÖ¤ÒÑ½ûÓÃ")
                 self.cotracker_validator = None
                 
         except Exception as e:
-            print(f"è­¦å‘Š: å®ä¾‹è¿½è¸ªåˆ†æå™¨åˆå§‹åŒ–å¤±è´¥: {e}")
-            print("å°†ä½¿ç”¨ç®€åŒ–å®ç°")
+            print(f"¾¯¸æ: ÊµÀı×·×Ù·ÖÎöÆ÷³õÊ¼»¯Ê§°Ü: {e}")
+            print("½«Ê¹ÓÃ¼ò»¯ÊµÏÖ")
     
     def detect_instances(
         self,
@@ -147,35 +157,35 @@ class InstanceTrackingAnalyzer:
         text_prompts: List[str]
     ) -> List[Tuple[np.ndarray, float]]:
         """
-        æ£€æµ‹å’Œåˆ†å‰²å®ä¾‹
+        ¼ì²âºÍ·Ö¸îÊµÀı
         
         Args:
-            image: è¾“å…¥å›¾åƒ (H, W, 3) RGB
-            text_prompts: æ–‡æœ¬æç¤ºåˆ—è¡¨
+            image: ÊäÈëÍ¼Ïñ (H, W, 3) RGB
+            text_prompts: ÎÄ±¾ÌáÊ¾ÁĞ±í
         
         Returns:
-            æ©ç åˆ—è¡¨ï¼Œæ¯ä¸ªå…ƒç´ ä¸º(mask, confidence)å…ƒç»„
+            ÑÚÂëÁĞ±í£¬Ã¿¸öÔªËØÎª(mask, confidence)Ôª×é
         """
-        # æ ¹æ®é…ç½®é€‰æ‹©ä½¿ç”¨ SAM v1 æˆ– SAM2
+        # ¸ù¾İÅäÖÃÑ¡ÔñÊ¹ÓÃ SAM v1 »ò SAM2
         if self.use_sam2:
             if self.grounded_sam2_wrapper is None:
-                # å¦‚æœ Grounded-SAM2 æœªåˆå§‹åŒ–ï¼Œè¿”å›ç©ºåˆ—è¡¨
+                # Èç¹û Grounded-SAM2 Î´³õÊ¼»¯£¬·µ»Ø¿ÕÁĞ±í
                 return []
             
             try:
                 return self.grounded_sam2_wrapper.detect_and_segment(image, text_prompts)
             except Exception as e:
-                print(f"è­¦å‘Š: å®ä¾‹æ£€æµ‹å¤±è´¥ (SAM2): {e}")
+                print(f"¾¯¸æ: ÊµÀı¼ì²âÊ§°Ü (SAM2): {e}")
                 return []
         else:
             if self.grounded_sam_wrapper is None:
-                # å¦‚æœ Grounded-SAM æœªåˆå§‹åŒ–ï¼Œè¿”å›ç©ºåˆ—è¡¨
+                # Èç¹û Grounded-SAM Î´³õÊ¼»¯£¬·µ»Ø¿ÕÁĞ±í
                 return []
             
             try:
                 return self.grounded_sam_wrapper.detect_and_segment(image, text_prompts)
             except Exception as e:
-                print(f"è­¦å‘Š: å®ä¾‹æ£€æµ‹å¤±è´¥ (SAM v1): {e}")
+                print(f"¾¯¸æ: ÊµÀı¼ì²âÊ§°Ü (SAM v1): {e}")
                 return []
 
     
@@ -185,76 +195,81 @@ class InstanceTrackingAnalyzer:
         detections: List[List[Tuple[np.ndarray, float]]]
     ) -> Dict[int, Dict]:
         """
-        è¿½è¸ªå®ä¾‹
+        ×·×ÙÊµÀı
         
         Args:
-            video_frames: è§†é¢‘å¸§åºåˆ—
-            detections: æ¯å¸§çš„æ£€æµ‹ç»“æœ
+            video_frames: ÊÓÆµÖ¡ĞòÁĞ
+            detections: Ã¿Ö¡µÄ¼ì²â½á¹û
         
         Returns:
-            è¿½è¸ªç»“æœå­—å…¸ï¼Œkeyä¸ºå®ä¾‹IDï¼Œvalueä¸ºè¿½è¸ªä¿¡æ¯
+            ×·×Ù½á¹û×Öµä£¬keyÎªÊµÀıID£¬valueÎª×·×ÙĞÅÏ¢
         """
-        # ç®€åŒ–å®ç°ï¼šè¿”å›ç©ºå­—å…¸
-        # å®é™…å®ç°éœ€è¦è°ƒç”¨DeAOTæˆ–Co-Tracker
+        # ¼ò»¯ÊµÏÖ£º·µ»Ø¿Õ×Öµä
+        # Êµ¼ÊÊµÏÖĞèÒªµ÷ÓÃDeAOT»òCo-Tracker
         return {}
     
     def analyze(
         self,
         video_frames: List[np.ndarray],
         text_prompts: Optional[List[str]] = None,
-        fps: float = 30.0
+        fps: float = 30.0,
+        use_default_prompts: bool = True
     ) -> Tuple[float, List[Dict]]:
         """
-        åˆ†æè§†é¢‘ç»“æ„ç¨³å®šæ€§
+        ·ÖÎöÊÓÆµ½á¹¹ÎÈ¶¨ĞÔ
         
         Args:
-            video_frames: è§†é¢‘å¸§åºåˆ—
-            text_prompts: å¯é€‰æ–‡æœ¬æç¤ºåˆ—è¡¨
-            fps: è§†é¢‘å¸§ç‡
+            video_frames: ÊÓÆµÖ¡ĞòÁĞ
+            text_prompts: ÎÄ±¾ÌáÊ¾ÁĞ±í£¨¿ÉÑ¡£©
+            fps: ÊÓÆµÖ¡ÂÊ
+            use_default_prompts: Èç¹ûÃ»ÓĞÌáÊ¾ÊÇ·ñÊ¹ÓÃÄ¬ÈÏÌáÊ¾
         
         Returns:
             (structure_score, anomalies):
-            - structure_score: ç»“æ„ç¨³å®šæ€§å¾—åˆ† (0-1)
-            - anomalies: ç»“æ„å¼‚å¸¸åˆ—è¡¨
+            - structure_score: ½á¹¹ÎÈ¶¨ĞÔµÃ·Ö (0-1)
+            - anomalies: ½á¹¹Òì³£ÁĞ±í
         """
-        print("æ­£åœ¨åˆ†æç»“æ„ç¨³å®šæ€§...")
+        print("ÕıÔÚ·ÖÎö½á¹¹ÎÈ¶¨ĞÔ...")
         
-        if text_prompts is None:
-            text_prompts = []
+        # ´¦ÀíÎÄ±¾ÌáÊ¾
+        if text_prompts is None or not text_prompts:
+            if use_default_prompts:
+                text_prompts = DEFAULT_TEXT_PROMPTS
+                print(f"??  Ê¹ÓÃÄ¬ÈÏÎÄ±¾ÌáÊ¾: {', '.join(text_prompts)}")
+            else:
+                print("??  ¾¯¸æ: Î´Ìá¹©ÎÄ±¾ÌáÊ¾£¬Ìø¹ıÊµÀı¼ì²â")
+                return 1.0, []
+        else:
+            print(f"??  Ê¹ÓÃ×Ô¶¨ÒåÎÄ±¾ÌáÊ¾: {', '.join(text_prompts)}")
         
-        # ç®€åŒ–å®ç°ï¼šå¦‚æœæ²¡æœ‰æ–‡æœ¬æç¤ºï¼Œè¿”å›é»˜è®¤å¾—åˆ†
-        if not text_prompts:
-            print("è­¦å‘Š: æœªæä¾›æ–‡æœ¬æç¤ºï¼Œæ— æ³•è¿›è¡Œå®ä¾‹æ£€æµ‹")
-            return 1.0, []
-        
-        # 1. æ£€æµ‹å®ä¾‹
-        print("æ­£åœ¨æ£€æµ‹å®ä¾‹...")
+        # 1. ¼ì²âÊµÀı
+        print("ÕıÔÚ¼ì²âÊµÀı...")
         detections = []
-        for i, frame in enumerate(tqdm(video_frames, desc="æ£€æµ‹å®ä¾‹")):
+        for i, frame in enumerate(tqdm(video_frames, desc="¼ì²âÊµÀı")):
             masks = self.detect_instances(frame, text_prompts)
             detections.append(masks)
         
-        # 2. è¿½è¸ªå®ä¾‹
-        print("æ­£åœ¨è¿½è¸ªå®ä¾‹...")
+        # 2. ×·×ÙÊµÀı
+        print("ÕıÔÚ×·×ÙÊµÀı...")
         tracked_instances = self.track_instances(video_frames, detections)
         
-        # 3. åˆ†æç»“æ„ç¨³å®šæ€§
-        print("æ­£åœ¨åˆ†æç»“æ„å®Œæ•´æ€§...")
+        # 3. ·ÖÎö½á¹¹ÎÈ¶¨ĞÔ
+        print("ÕıÔÚ·ÖÎö½á¹¹ÍêÕûĞÔ...")
         structure_score, anomalies = self._analyze_structure_stability(
             tracked_instances,
             fps=fps
         )
         
-        # 4. ä½¿ç”¨Co-TrackeréªŒè¯å¼‚å¸¸ï¼ˆå¦‚æœå¯ç”¨ï¼‰
+        # 4. Ê¹ÓÃCo-TrackerÑéÖ¤Òì³££¨Èç¹û¿ÉÓÃ£©
         if self.cotracker_validator is not None and anomalies:
-            print("æ­£åœ¨ä½¿ç”¨Co-TrackeréªŒè¯å¼‚å¸¸...")
+            print("ÕıÔÚÊ¹ÓÃCo-TrackerÑéÖ¤Òì³£...")
             anomalies = self._validate_anomalies_with_cotracker(
                 anomalies,
                 video_frames
             )
         
-        print(f"ç»“æ„ç¨³å®šæ€§å¾—åˆ†: {structure_score:.3f}")
-        print(f"æ£€æµ‹åˆ° {len(anomalies)} ä¸ªç»“æ„å¼‚å¸¸ï¼ˆå·²è¿‡æ»¤å‡é˜³æ€§ï¼‰")
+        print(f"½á¹¹ÎÈ¶¨ĞÔµÃ·Ö: {structure_score:.3f}")
+        print(f"¼ì²âµ½ {len(anomalies)} ¸ö½á¹¹Òì³££¨ÒÑ¹ıÂË¼ÙÑôĞÔ£©")
         
         return structure_score, anomalies
     
@@ -264,11 +279,11 @@ class InstanceTrackingAnalyzer:
         fps: float = 30.0
     ) -> Tuple[float, List[Dict]]:
         """
-        åˆ†æç»“æ„ç¨³å®šæ€§
+        ·ÖÎö½á¹¹ÎÈ¶¨ĞÔ
         
         Args:
-            tracked_instances: è¿½è¸ªç»“æœ
-            fps: è§†é¢‘å¸§ç‡
+            tracked_instances: ×·×Ù½á¹û
+            fps: ÊÓÆµÖ¡ÂÊ
         
         Returns:
             (structure_score, anomalies)
@@ -280,11 +295,11 @@ class InstanceTrackingAnalyzer:
         structure_scores = []
         
         for instance_id, track_info in tracked_instances.items():
-            # åˆ†ææ©ç é¢ç§¯å˜åŒ–
-            # åˆ†ææ©ç å½¢çŠ¶å˜åŒ–
-            # æ£€æµ‹æ¶ˆå¤±å¼‚å¸¸
+            # ·ÖÎöÑÚÂëÃæ»ı±ä»¯
+            # ·ÖÎöÑÚÂëĞÎ×´±ä»¯
+            # ¼ì²âÏûÊ§Òì³£
             
-            # ç®€åŒ–å®ç°ï¼šå‡è®¾æ‰€æœ‰å®ä¾‹éƒ½æ­£å¸¸
+            # ¼ò»¯ÊµÏÖ£º¼ÙÉèËùÓĞÊµÀı¶¼Õı³£
             structure_scores.append(1.0)
         
         base_score = float(np.mean(structure_scores)) if structure_scores else 1.0
@@ -297,30 +312,30 @@ class InstanceTrackingAnalyzer:
         video_frames: List[np.ndarray]
     ) -> List[Dict]:
         """
-        ä½¿ç”¨Co-TrackeréªŒè¯å¼‚å¸¸
+        Ê¹ÓÃCo-TrackerÑéÖ¤Òì³£
         
         Args:
-            anomalies: å¼‚å¸¸åˆ—è¡¨
-            video_frames: è§†é¢‘å¸§åºåˆ—
+            anomalies: Òì³£ÁĞ±í
+            video_frames: ÊÓÆµÖ¡ĞòÁĞ
         
         Returns:
-            éªŒè¯åçš„å¼‚å¸¸åˆ—è¡¨
+            ÑéÖ¤ºóµÄÒì³£ÁĞ±í
         """
         if self.cotracker_validator is None or not video_frames:
             return anomalies
         
-        # è½¬æ¢è§†é¢‘ä¸ºtensor
+        # ×ª»»ÊÓÆµÎªTensor
         try:
             frames_array = np.stack(video_frames)  # (T, H, W, 3)
             video_tensor = torch.from_numpy(frames_array).permute(0, 3, 1, 2).float()  # (T, C, H, W)
             video_tensor = video_tensor.unsqueeze(0) / 255.0  # (1, T, C, H, W)
             
-            # è·å–è§†é¢‘å°ºå¯¸
+            # »ñÈ¡ÊÓÆµ³ß´ç
             _, _, _, video_height, video_width = video_tensor.shape
             
             validated_anomalies = []
             for anomaly in anomalies:
-                # è·å–å¼‚å¸¸ä¿¡æ¯
+                # »ñÈ¡Òì³£ĞÅÏ¢
                 anomaly_type = anomaly.get('type', '').lower()
                 frame_id = anomaly.get('frame_id', 0)
                 location = anomaly.get('location', {})
@@ -330,7 +345,7 @@ class InstanceTrackingAnalyzer:
                     validated_anomalies.append(anomaly)
                     continue
                 
-                # æ ¹æ®å¼‚å¸¸ç±»å‹è¿›è¡ŒéªŒè¯
+                # ¸ù¾İÒì³£ÀàĞÍ½øĞĞÑéÖ¤
                 if 'disappear' in anomaly_type or 'vanish' in anomaly_type:
                     is_valid, validation_info = self.cotracker_validator.validate_disappearance(
                         video_tensor,
@@ -351,10 +366,10 @@ class InstanceTrackingAnalyzer:
                     validated_anomalies.append(anomaly)
                     continue
                 
-                # ä¿å­˜éªŒè¯ä¿¡æ¯
+                # ±£´æÑéÖ¤ĞÅÏ¢
                 anomaly['validation_info'] = validation_info
                 
-                # åªä¿ç•™æœ‰æ•ˆçš„å¼‚å¸¸
+                # Ö»±£ÁôÓĞĞ§µÄÒì³£
                 if is_valid:
                     validated_anomalies.append(anomaly)
                 else:
@@ -365,6 +380,6 @@ class InstanceTrackingAnalyzer:
             
         except Exception as e:
             raise RuntimeError(
-                f"Co-TrackeréªŒè¯å¤±è´¥: {e}\n"
-                f"è¯·æ£€æŸ¥Co-Trackeræ¨¡å‹æ˜¯å¦æ­£ç¡®åˆå§‹åŒ–"
+                f"Co-TrackerÑéÖ¤Ê§°Ü: {e}\n"
+                f"Çë¼ì²éCo-TrackerÄ£ĞÍÊÇ·ñÕıÈ·³õÊ¼»¯"
             )
