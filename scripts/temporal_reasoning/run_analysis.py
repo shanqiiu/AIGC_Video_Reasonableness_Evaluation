@@ -78,7 +78,8 @@ class TemporalReasoningRunner:
         result = self.analyzer.analyze(
             video_frames=video_frames,
             text_prompts=text_prompts,
-            fps=video_info['fps']
+            fps=video_info['fps'],
+            video_path=video_path  # 传入视频路径，用于可视化输出
         )
         
         # 添加视频信息
@@ -207,6 +208,32 @@ def parse_args():
         help='保存可视化结果'
     )
     
+    # 关键点可视化参数
+    parser.add_argument(
+        '--enable-keypoint-visualization',
+        action='store_true',
+        help='启用关键点可视化'
+    )
+    
+    parser.add_argument(
+        '--keypoint-visualization-dir',
+        type=str,
+        default="./vis_results",
+        help='关键点可视化输出目录'
+    )
+    
+    parser.add_argument(
+        '--show-face-keypoints',
+        action='store_true',
+        help='显示面部关键点（468个点）'
+    )
+    
+    parser.add_argument(
+        '--show-keypoint-visualization',
+        action='store_true',
+        help='显示关键点可视化GUI窗口（第一帧）'
+    )
+    
     return parser.parse_args()
 
 
@@ -250,6 +277,19 @@ def main():
     
     if args.save_visualizations:
         config.save_visualizations = True
+    
+    # 更新关键点可视化配置
+    if args.enable_keypoint_visualization:
+        config.keypoint.enable_visualization = True
+    
+    if args.keypoint_visualization_dir:
+        config.keypoint.visualization_output_dir = args.keypoint_visualization_dir
+    
+    if args.show_face_keypoints:
+        config.keypoint.show_face = True
+    
+    if args.show_keypoint_visualization:
+        config.keypoint.show_visualization = True
     
     # 设置输出路径
     if args.output:

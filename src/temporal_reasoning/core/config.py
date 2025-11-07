@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-时序合理性分析模块配置管理
+时序合理性分析模块配置管�?
 """
 
 import os
@@ -16,7 +16,7 @@ class RAFTConfig:
     model_type: str = "large"  # large or small
     use_gpu: bool = True
     batch_size: int = 1
-    motion_discontinuity_threshold: float = 0.3  # 运动突变阈值
+    motion_discontinuity_threshold: float = 0.3  # 运动突变阈�?
 
 
 @dataclass
@@ -41,7 +41,7 @@ class SAMConfig:
 
 @dataclass
 class TrackerConfig:
-    """追踪器配置"""
+    """追踪器配�?"""
     type: str = "deaot"  # deaot or cotracker
     model_path: Optional[str] = None
     use_gpu: bool = True
@@ -52,10 +52,20 @@ class TrackerConfig:
 
 @dataclass
 class KeypointConfig:
-    """关键点配置"""
+    """关键点配�?"""
     model_type: str = "mediapipe"  # mediapipe or mmpose
     model_path: Optional[str] = None
-    use_gpu: bool = False  # MediaPipe不支持GPU
+    use_gpu: bool = False  # MediaPipe��֧��GPU
+    
+    # ���ӻ�����
+    enable_visualization: bool = False  # �Ƿ����ÿ��ӻ�
+    visualization_output_dir: Optional[str] = None  # ���ӻ����Ŀ¼
+    show_face: bool = False  # �Ƿ���ʾ�沿�ؼ���
+    show_face_mesh: bool = False  # �Ƿ���ʾ�沿����
+    point_radius: int = 3  # �ؼ���뾶
+    line_thickness: int = 2  # �����ߴ�ϸ
+    save_visualization: bool = True  # �Ƿ񱣴���ӻ����
+    show_visualization: bool = False  # �Ƿ���ʾ���ӻ������GUI��
 
 
 @dataclass
@@ -68,18 +78,18 @@ class FusionConfig:
 
 @dataclass
 class ThresholdsConfig:
-    """阈值配置"""
+    """阈值配�?"""
     motion_discontinuity_threshold: float = 0.3
-    structure_disappearance_threshold: float = 0.3  # 掩码面积变化率
+    structure_disappearance_threshold: float = 0.3  # 掩码面积变化�?
     keypoint_displacement_threshold: int = 10  # 像素
 
 
 @dataclass
 class TemporalReasoningConfig:
-    """时序合理性分析配置"""
+    """时序合理性分析配�?"""
     device: str = "cuda:0"
     
-    # 子模块配置
+    # 子模块配�?
     raft: RAFTConfig = field(default_factory=RAFTConfig)
     grounding_dino: GroundingDINOConfig = field(default_factory=GroundingDINOConfig)
     sam: SAMConfig = field(default_factory=SAMConfig)
@@ -94,48 +104,48 @@ class TemporalReasoningConfig:
     save_detailed_reports: bool = True
     
     def __post_init__(self):
-        """初始化默认配置"""
+        """初始化默认配�?"""
         # 设置默认模型路径（基于项目结构）
         base_dir = Path(__file__).parent.parent.parent.parent
         third_party_dir = base_dir / "third_party"
         cache_dir = base_dir / ".cache"
         
-        # RAFT默认路径（权重在.cache，代码在third_party）
+        # RAFT默认路径（权重在.cache，代码在third_party�?
         if not self.raft.model_path:
-            # 从.cache查找RAFT权重
+            # �?.cache查找RAFT权重
             raft_cache_path = cache_dir / "raft-things.pth"
             if raft_cache_path.exists():
                 self.raft.model_path = str(raft_cache_path)
             else:
                 raise FileNotFoundError(
-                    f"RAFT模型文件未找到: {raft_cache_path}\n"
-                    f"请确保权重文件存在于 .cache 目录中"
+                    f"RAFT模型文件未找�?: {raft_cache_path}\n"
+                    f"请确保权重文件存在于 .cache 目录�?"
                 )
         
-        # Grounding DINO默认路径（权重在.cache，代码在third_party）
+        # Grounding DINO默认路径（权重在.cache，代码在third_party�?
         if not self.grounding_dino.model_path:
-            # Grounding DINO权重在.cache
+            # Grounding DINO权重�?.cache
             gdino_weight = cache_dir / "groundingdino_swinb_cogcoor.pth"
             if gdino_weight.exists():
                 self.grounding_dino.model_path = str(gdino_weight)
             else:
                 raise FileNotFoundError(
-                    f"Grounding DINO模型文件未找到: {gdino_weight}\n"
-                    f"请确保权重文件存在于 .cache 目录中"
+                    f"Grounding DINO模型文件未找�?: {gdino_weight}\n"
+                    f"请确保权重文件存在于 .cache 目录�?"
                 )
         
         # Grounding DINO配置文件路径
         if not self.grounding_dino.config_path:
             gdino_config = third_party_dir / "Grounded-SAM-2" / "grounding_dino" / "config" / "GroundingDINO_SwinB.py"
             if not gdino_config.exists():
-                # 尝试另一个路径
+                # 尝试另一个路�?
                 gdino_config = third_party_dir / "Grounded-Segment-Anything" / "GroundingDINO" / "groundingdino" / "config" / "GroundingDINO_SwinB.py"
             if gdino_config.exists():
                 self.grounding_dino.config_path = str(gdino_config)
             else:
                 raise FileNotFoundError(
-                    f"Grounding DINO配置文件未找到: {gdino_config}\n"
-                    f"请确保配置文件存在于 third_party 目录中"
+                    f"Grounding DINO配置文件未找�?: {gdino_config}\n"
+                    f"请确保配置文件存在于 third_party 目录�?"
                 )
         
         # BERT模型路径
@@ -145,13 +155,13 @@ class TemporalReasoningConfig:
                 self.grounding_dino.bert_path = str(bert_path)
             else:
                 raise FileNotFoundError(
-                    f"BERT模型文件未找到: {bert_path}\n"
-                    f"请确保BERT模型存在于 .cache/google-bert/bert-base-uncased 目录中"
+                    f"BERT模型文件未找�?: {bert_path}\n"
+                    f"请确保BERT模型存在�? .cache/google-bert/bert-base-uncased 目录�?"
                 )
         
-        # SAM默认路径（权重在.cache，代码在third_party）
+        # SAM默认路径（权重在.cache，代码在third_party�?
         if not self.sam.model_path:
-            # SAM2权重在.cache
+            # SAM2权重�?.cache
             sam2_weight = cache_dir / "sam2.1_hiera_large.pt"
             if sam2_weight.exists():
                 self.sam.model_path = str(sam2_weight)
@@ -162,8 +172,8 @@ class TemporalReasoningConfig:
                     self.sam.model_path = str(sam_weight)
                 else:
                     raise FileNotFoundError(
-                        f"SAM模型文件未找到: {sam2_weight} 或 {sam_weight}\n"
-                        f"请确保权重文件存在于 .cache 目录中"
+                        f"SAM模型文件未找�?: {sam2_weight} �? {sam_weight}\n"
+                        f"请确保权重文件存在于 .cache 目录�?"
                     )
         
         # SAM2配置文件路径
@@ -176,19 +186,19 @@ class TemporalReasoningConfig:
                 self.sam.config_path = str(sam2_config)
             else:
                 raise FileNotFoundError(
-                    f"SAM2配置文件未找到: {sam2_config}\n"
-                    f"请确保配置文件存在于 third_party/Grounded-SAM-2/sam2/configs 目录中"
+                    f"SAM2配置文件未找�?: {sam2_config}\n"
+                    f"请确保配置文件存在于 third_party/Grounded-SAM-2/sam2/configs 目录�?"
                 )
         
-        # Co-Tracker默认路径（权重在.cache，代码在third_party）
+        # Co-Tracker默认路径（权重在.cache，代码在third_party�?
         if not self.tracker.cotracker_checkpoint and self.tracker.enable_cotracker_validation:
             cotracker_weight = cache_dir / "scaled_offline.pth"
             if cotracker_weight.exists():
                 self.tracker.cotracker_checkpoint = str(cotracker_weight)
             else:
                 raise FileNotFoundError(
-                    f"Co-Tracker模型文件未找到: {cotracker_weight}\n"
-                    f"请确保权重文件存在于 .cache 目录中，或设置 tracker.enable_cotracker_validation=False 禁用验证"
+                    f"Co-Tracker模型文件未找�?: {cotracker_weight}\n"
+                    f"请确保权重文件存在于 .cache 目录中，或设�? tracker.enable_cotracker_validation=False 禁用验证"
                 )
         
         # 输出目录
@@ -219,7 +229,7 @@ class TemporalReasoningConfig:
     
     def update_from_dict(self, config_dict: Dict[str, Any]):
         """
-        从字典更新配置
+        从字典更新配�?
         
         Args:
             config_dict: 配置字典
