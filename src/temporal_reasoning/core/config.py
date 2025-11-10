@@ -37,6 +37,7 @@ class SAMConfig:
     config_path: str = ""  # 配置文件路径（SAM2 必填）
     model_type: str = "sam2_h"  # 可选 sam2_h / sam2_l / sam2_b
     use_gpu: bool = True
+    resolved_config_path: Optional[str] = field(default=None, init=False)
 
 
 @dataclass
@@ -172,6 +173,8 @@ class TemporalReasoningConfig:
                     f"请确认模型位于 .cache/google-bert/bert-base-uncased。"
                 )
         
+        sam_repo_root = third_party_dir / "Grounded-SAM-2" / "sam2"
+
         # SAM / SAM2 默认路径
         if self.sam.model_path:
             self.sam.model_path = self._resolve_path(self.sam.model_path)
@@ -189,20 +192,39 @@ class TemporalReasoningConfig:
                         f"请确认权重位于 .cache 目录。"
                     )
         
-        # SAM2 配置文件
+        # SAM2 配置文件（Hydra 需要相对路径）
         if self.sam.config_path:
-            self.sam.config_path = self._resolve_path(self.sam.config_path)
+            sam_config_value = self.sam.config_path
         elif self.sam.model_type.startswith("sam2"):
-            sam2_config = (third_party_dir / "Grounded-SAM-2" / "sam2" / "configs" / "sam2.1" / "sam2.1_hiera_l.yaml").resolve()
-            if not sam2_config.exists():
-                sam2_config = (third_party_dir / "Grounded-SAM-2" / "sam2" / "configs" / "sam2_hiera_l.yaml").resolve()
-            if sam2_config.exists():
-                self.sam.config_path = str(sam2_config)
+            sam_config_value = "configs/sam2.1/sam2.1_hiera_l.yaml"
+        else:
+            sam_config_value = ""
+
+        if sam_config_value:
+            config_path = Path(sam_config_value)
+            if config_path.is_absolute():
+                abs_config_path = config_path.expanduser().resolve()
+                try:
+                    rel_config_path = abs_config_path.relative_to(sam_repo_root)
+                except ValueError as exc:
+                    raise ValueError(
+                        f"SAM 配置文件必须位于 {sam_repo_root} 下，当前路径 {abs_config_path} 无法被 Hydra 使用。"
+                    ) from exc
             else:
+                rel_config_path = config_path
+                abs_config_path = (sam_repo_root / rel_config_path).expanduser().resolve()
+
+            if not abs_config_path.exists():
                 raise FileNotFoundError(
-                    f"未找到 SAM2 配置文件: {sam2_config}\n"
+                    f"未找到 SAM2 配置文件: {abs_config_path}\n"
                     f"请确认配置文件存在于 third_party/Grounded-SAM-2/sam2/configs。"
                 )
+
+            self.sam.config_path = str(rel_config_path).replace(os.sep, "/")
+            self.sam.resolved_config_path = str(abs_config_path)
+        else:
+            self.sam.config_path = ""
+            self.sam.resolved_config_path = None
         
         # Co-Tracker 默认路径
         if self.tracker.cotracker_checkpoint:
