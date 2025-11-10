@@ -16,7 +16,7 @@ if COTRACKER_ROOT.exists() and str(COTRACKER_ROOT) not in sys.path:
 
 from cotracker.predictor import CoTrackerPredictor  # type: ignore
 
-from tcs_utils import (  # type: ignore
+from .tcs_utils import (  # type: ignore
     get_appear_objects,
     get_disappear_objects,
     is_edge_emerge,

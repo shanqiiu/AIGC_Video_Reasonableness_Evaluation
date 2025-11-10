@@ -19,7 +19,7 @@ if SAM2_ROOT.exists():
 from sam2.build_sam import build_sam2, build_sam2_video_predictor  # type: ignore
 from sam2.sam2_image_predictor import SAM2ImagePredictor  # type: ignore
 
-from bench_utils.tcs_utils import load_model, get_grounding_output, transform_pil  # type: ignore
+from .tcs_utils import load_model, get_grounding_output, transform_pil  # type: ignore
 
 from .mask_manager import MaskDictionary
 

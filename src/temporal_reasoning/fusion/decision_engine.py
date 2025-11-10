@@ -3,7 +3,7 @@
 融合决策引擎
 """
 
-from typing import List, Dict, Tuple
+from typing import Dict, List, Optional, Tuple
 import numpy as np
 
 from .feature_alignment import align_anomalies_spatially_and_temporally
@@ -21,7 +21,7 @@ class FusionDecisionEngine:
         cotracker_validator = None
     ):
         """
-        初始化融合决策引擎
+        初始化融合决策引�?
         
         Args:
             config: FusionConfig配置对象
@@ -33,15 +33,17 @@ class FusionDecisionEngine:
             enable_cotracker_validation=(cotracker_validator is not None),
             cotracker_validator=cotracker_validator
         )
+        self._structure_context: Dict[str, float] = {}
     
     def fuse(
         self,
         motion_anomalies: List[Dict],
         structure_anomalies: List[Dict],
-        physiological_anomalies: List[Dict]
+        physiological_anomalies: List[Dict],
+        structure_context: Optional[Dict[str, float]] = None,
     ) -> List[Dict]:
         """
-        融合多模态异常
+        融合多模态异�?
         
         Args:
             motion_anomalies: 光流异常列表
@@ -51,6 +53,8 @@ class FusionDecisionEngine:
         Returns:
             融合后的异常列表
         """
+        self._structure_context = structure_context or {}
+
         # 1. 异常对齐
         aligned_anomalies = align_anomalies_spatially_and_temporally(
             motion_anomalies,
@@ -58,7 +62,7 @@ class FusionDecisionEngine:
             physiological_anomalies
         )
         
-        # 2. 多模态融合
+        # 2. 多模态融�?
         fused_anomalies = fuse_multimodal_anomalies(
             aligned_anomalies,
             multimodal_confidence_boost=self.config.multimodal_confidence_boost,
@@ -68,7 +72,7 @@ class FusionDecisionEngine:
         # 3. 时序验证
         validated_anomalies = self._validate_temporal_consistency(fused_anomalies)
         
-        # 4. 过滤假阳性（使用Co-Tracker验证）
+        # 4. 过滤假阳性（使用Co-Tracker验证�?
         # 注意：这里需要video_frames或video_tensor，但当前接口没有提供
         # 可以在上层调用时进行过滤
         # filtered_anomalies = self.anomaly_filter.filter_anomalies(
@@ -81,9 +85,9 @@ class FusionDecisionEngine:
     
     def _validate_temporal_consistency(self, anomalies: List[Dict]) -> List[Dict]:
         """
-        验证时序一致性
+        验证时序一致�?
         
-        过滤持续时间过短的异常
+        过滤持续时间过短的异�?
         
         Args:
             anomalies: 异常列表
@@ -107,11 +111,11 @@ class FusionDecisionEngine:
         frame_ids = sorted(frame_groups.keys())
         
         for i, frame_id in enumerate(frame_ids):
-            # 检查前后是否有连续帧
+            # 检查前后是否有连续�?
             has_prev = i > 0 and frame_ids[i-1] == frame_id - 1
             has_next = i < len(frame_ids) - 1 and frame_ids[i+1] == frame_id + 1
             
-            # 如果异常持续至少min_duration帧，则保留
+            # 如果异常持续至少min_duration帧，则保�?
             if has_prev or has_next or len(frame_groups[frame_id]) >= self.config.min_anomaly_duration_frames:
                 validated.extend(frame_groups[frame_id])
         
@@ -122,10 +126,11 @@ class FusionDecisionEngine:
         motion_score: float,
         structure_score: float,
         physiological_score: float,
-        fused_anomalies: List[Dict]
+        fused_anomalies: List[Dict],
+        structure_context: Optional[Dict[str, float]] = None,
     ) -> Tuple[float, float]:
         """
-        计算最终得分
+        计算最终得�?
         
         Args:
             motion_score: 运动得分
@@ -150,6 +155,15 @@ class FusionDecisionEngine:
         # 应用惩罚
         motion_penalty = min(0.5, motion_anomaly_count * 0.1)
         structure_penalty = min(0.5, structure_anomaly_count * 0.1)
+
+        context = structure_context or self._structure_context
+        vanish_score = context.get("vanish_score")
+        emerge_score = context.get("emerge_score")
+
+        if vanish_score is not None:
+            structure_penalty = max(structure_penalty, max(0.0, 1.0 - float(vanish_score)) * 0.5)
+        if emerge_score is not None:
+            structure_penalty = max(structure_penalty, max(0.0, 1.0 - float(emerge_score)) * 0.5)
         
         motion_reasonableness = max(0.0, motion_score * (1.0 - motion_penalty))
         structure_stability = max(0.0, structure_score * (1.0 - structure_penalty))

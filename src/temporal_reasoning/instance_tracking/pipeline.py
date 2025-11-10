@@ -4,8 +4,9 @@ import json
 import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Sequence
 
+import numpy as np
 import torch
 from tqdm import tqdm
 
@@ -20,6 +21,7 @@ from cotracker.utils.visualizer import read_video_from_path  # type: ignore
 from .detection import DetectionConfig, Sam2DetectionEngine
 from .evaluation import TemporalEventEvaluator
 from .mask_manager import MaskDictionary
+from .tcs_utils import get_appear_objects, get_disappear_objects
 from .types import ObjectInfo
 from .video_io import extract_frames_from_video
 
@@ -39,6 +41,15 @@ class TemporalCoherenceConfig:
     text_threshold: float = 0.35
     grid_size: int = 30
     iou_threshold: float = 0.75
+
+
+@dataclass
+class TemporalCoherenceResult:
+    coherence_score: float
+    vanish_score: float
+    emerge_score: float
+    anomalies: List[Dict[str, Any]]
+    metadata: Dict[str, Any]
 
 
 class TemporalCoherencePipeline:
@@ -78,31 +89,41 @@ class TemporalCoherencePipeline:
             grid_size=self.config.grid_size,
         )
 
-    def _build_text_prompt(self, meta_info: Dict) -> str:
-        subject = meta_info.get("subject_noun", "").strip()
-        if not subject:
-            return self.config.text_prompt
-        if subject.endswith("."):
-            return subject
-        return f"{subject}."
+    def _compose_text_prompt(
+        self,
+        text_prompts: Optional[Sequence[str]],
+        fallback: Optional[str] = None,
+    ) -> str:
+        prompts = [p.strip() for p in (text_prompts or []) if p and p.strip()]
+        prompt = ". ".join(prompts) if prompts else (fallback or self.config.text_prompt).strip()
+        if not prompt.endswith("."):
+            prompt = f"{prompt}."
+        return prompt
 
     def _prepare_tracking_result(self, video_object_data: List[Dict], step: int) -> List[Dict]:
         if not video_object_data:
             return []
         filtered = [item for idx, item in enumerate(video_object_data, start=1) if idx % (step + 1) != 0]
-        return filtered[::max(step, 1)]
+        return filtered[:: max(step, 1)]
 
     def _object_info_from_mask(self, mask, class_name: str, instance_id: int) -> ObjectInfo:
         obj = ObjectInfo(instance_id=instance_id, mask=mask, class_name=class_name)
         obj.update_box()
         return obj
 
-    def _process_single_video(self, meta_info: Dict) -> Tuple[float, float, float]:
-        video_path = meta_info["filepath"]
+    def evaluate_video(
+        self,
+        video_path: str,
+        text_prompts: Optional[Sequence[str]] = None,
+    ) -> TemporalCoherenceResult:
+        if self.event_evaluator is None:
+            raise RuntimeError("TemporalEventEvaluator is not initialized.")
+
         frames, _ = extract_frames_from_video(video_path)
         fps_value = read_video_fps(video_path)
         fps = max(1, int(fps_value) if fps_value else 24)
         step = max(1, fps - 1)
+        text_prompt = self._compose_text_prompt(text_prompts)
 
         inference_state = self.detection_engine.init_video_state(video_path)
         sam2_masks = MaskDictionary()
@@ -111,7 +132,7 @@ class TemporalCoherencePipeline:
 
         for start_frame_idx in range(0, len(frames), step):
             image = frames[start_frame_idx]
-            mask_dict = self.detection_engine.detect(image, self._build_text_prompt(meta_info))
+            mask_dict = self.detection_engine.detect(image, text_prompt)
 
             if not mask_dict.labels:
                 video_object_data.extend([{} for _ in range(step + 1)])
@@ -129,12 +150,14 @@ class TemporalCoherencePipeline:
             self.detection_engine.add_masks_to_video_state(inference_state, start_frame_idx, mask_dict)
 
             for out_frame_idx, out_obj_ids, out_mask_logits in self.detection_engine.propagate(
-                inference_state, step, start_frame_idx
+                inference_state,
+                step,
+                start_frame_idx,
             ):
                 frame_masks = MaskDictionary()
                 frame_data: Dict[int, Dict] = {}
                 for i, out_obj_id in enumerate(out_obj_ids):
-                    out_mask = (out_mask_logits[i] > 0.0)
+                    out_mask = out_mask_logits[i] > 0.0
                     class_name = mask_dict.get_class_name(out_obj_id) if out_obj_id in mask_dict.labels else ""
                     mask_2d = out_mask[0] if out_mask.ndim == 3 else out_mask
                     obj = self._object_info_from_mask(mask_2d, class_name, out_obj_id)
@@ -146,21 +169,48 @@ class TemporalCoherencePipeline:
         video_array = read_video_from_path(video_path)
         video_tensor = torch.from_numpy(video_array).permute(0, 3, 1, 2)[None].float()
         tracking_result = self._prepare_tracking_result(video_object_data, step)
-        if self.event_evaluator is None:
-            raise RuntimeError("TemporalEventEvaluator is not initialized.")
-        vanish_score, emerge_score = self.event_evaluator.score(video_tensor, tracking_result, objects_count)
+        disappear_objects = get_disappear_objects(tracking_result)
+        appear_objects = get_appear_objects(tracking_result)
+        vanish_score, emerge_score = self.event_evaluator.score(
+            video_tensor,
+            tracking_result,
+            objects_count,
+        )
         coherence_score = (vanish_score + emerge_score) / 2
-        return coherence_score, vanish_score, emerge_score
+
+        anomalies = self._build_structure_anomalies(
+            disappear_objects,
+            appear_objects,
+            vanish_score,
+            emerge_score,
+            fps=fps,
+        )
+
+        metadata = {
+            "objects_count": objects_count,
+            "tracking_result_length": len(tracking_result),
+            "step": step,
+        }
+        return TemporalCoherenceResult(
+            coherence_score=coherence_score,
+            vanish_score=vanish_score,
+            emerge_score=emerge_score,
+            anomalies=anomalies,
+            metadata=metadata,
+        )
 
     def process_meta_info(self, meta_infos: List[Dict]) -> List[Dict]:
         results = []
         for meta_info in tqdm(meta_infos, desc="Temporal coherence"):
             try:
-                coherence_score, vanish_score, emerge_score = self._process_single_video(meta_info)
+                subject = meta_info.get("subject_noun")
+                prompts = [subject] if subject else None
+                result = self.evaluate_video(meta_info["filepath"], prompts)
                 meta_info = dict(meta_info)
-                meta_info["temporal_coherence_score"] = coherence_score
-                meta_info["temporal_coherence_vanish"] = vanish_score
-                meta_info["temporal_coherence_emerge"] = emerge_score
+                meta_info["temporal_coherence_score"] = result.coherence_score
+                meta_info["temporal_coherence_vanish"] = result.vanish_score
+                meta_info["temporal_coherence_emerge"] = result.emerge_score
+                meta_info["temporal_coherence_objects_count"] = result.metadata.get("objects_count", 0)
             except Exception as exc:
                 meta_info = dict(meta_info)
                 meta_info["temporal_coherence_error"] = str(exc)
@@ -175,6 +225,71 @@ class TemporalCoherencePipeline:
         with open(path, "w", encoding="utf-8") as f:
             json.dump(processed, f, indent=4, ensure_ascii=False)
         return processed
+
+    def _build_structure_anomalies(
+        self,
+        disappear_objects: List[Dict],
+        appear_objects: List[Dict],
+        vanish_score: float,
+        emerge_score: float,
+        fps: int,
+    ) -> List[Dict[str, Any]]:
+        anomalies: List[Dict[str, Any]] = []
+
+        def _to_tensor_mask(mask: Any) -> Optional[torch.Tensor]:
+            if mask is None:
+                return None
+            if isinstance(mask, torch.Tensor):
+                return mask
+            mask_array = np.array(mask)
+            if mask_array.ndim == 2:
+                mask_array = mask_array.astype(np.float32)
+            return torch.from_numpy(mask_array)
+
+        vanish_confidence = max(0.0, min(1.0, 1.0 - vanish_score))
+        emerge_confidence = max(0.0, min(1.0, 1.0 - emerge_score))
+        fps_safe = max(fps, 1)
+
+        for obj in disappear_objects:
+            mask_tensor = _to_tensor_mask(obj.get("mask"))
+            frame_id = int(obj.get("last_frame", obj.get("first_appearance", 0)))
+            anomalies.append(
+                {
+                    "type": "structural_disappearance",
+                    "modality": "structure",
+                    "frame_id": frame_id,
+                    "timestamp": frame_id / fps_safe,
+                    "confidence": vanish_confidence,
+                    "description": "Object disappeared abruptly",
+                    "location": {"mask": mask_tensor},
+                    "metadata": {
+                        "object_id": obj.get("object_id"),
+                        "first_appearance": obj.get("first_appearance"),
+                        "last_frame": obj.get("last_frame"),
+                    },
+                }
+            )
+
+        for obj in appear_objects:
+            mask_tensor = _to_tensor_mask(obj.get("mask"))
+            frame_id = int(obj.get("first_appearance", 0))
+            anomalies.append(
+                {
+                    "type": "structural_appearance",
+                    "modality": "structure",
+                    "frame_id": frame_id,
+                    "timestamp": frame_id / fps_safe,
+                    "confidence": emerge_confidence,
+                    "description": "Object appeared unexpectedly",
+                    "location": {"mask": mask_tensor},
+                    "metadata": {
+                        "object_id": obj.get("object_id"),
+                        "first_appearance": obj.get("first_appearance"),
+                    },
+                }
+            )
+
+        return anomalies
 
 
 def read_video_fps(video_path: str) -> Optional[int]:
