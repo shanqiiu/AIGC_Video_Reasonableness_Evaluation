@@ -121,6 +121,9 @@ class TemporalReasoningAnalyzer:
             text_threshold=self.config.grounding_dino.text_threshold,
             grid_size=self.config.tracker.grid_size,
             iou_threshold=0.75,
+            enable_visualization=self.config.structure_visualization_enable,
+            visualization_output_dir=self.config.structure_visualization_output_dir,
+            visualization_max_frames=self.config.structure_visualization_max_frames,
         )
 
     def analyze(

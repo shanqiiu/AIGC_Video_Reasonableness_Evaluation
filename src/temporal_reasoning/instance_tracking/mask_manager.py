@@ -11,7 +11,7 @@ from .types import ObjectInfo
 def _prepare_mask(mask: torch.Tensor) -> torch.Tensor:
     if mask.ndim == 3 and mask.shape[0] == 1:
         mask = mask[0]
-    return mask.bool()
+    return mask.bool().cpu()
 
 
 def _compute_iou(mask_a: torch.Tensor, mask_b: torch.Tensor) -> float:
@@ -101,6 +101,7 @@ class MaskDictionary:
         cloned_labels: Dict[int, ObjectInfo] = {}
         for instance_id, obj in self.labels.items():
             mask = obj.mask.clone()
+            mask = mask.cpu()
             cloned_obj = ObjectInfo(
                 instance_id=instance_id,
                 mask=mask,

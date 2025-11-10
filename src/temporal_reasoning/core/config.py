@@ -17,6 +17,9 @@ class RAFTConfig:
     use_gpu: bool = True
     batch_size: int = 1
     motion_discontinuity_threshold: float = 0.3  # 运动突变判定阈值
+    enable_visualization: bool = False
+    visualization_output_dir: Optional[str] = None
+    visualization_max_frames: int = 30
 
 
 @dataclass
@@ -99,6 +102,9 @@ class TemporalReasoningConfig:
     fusion: FusionConfig = field(default_factory=FusionConfig)
     thresholds: ThresholdsConfig = field(default_factory=ThresholdsConfig)
     structure_prompts: Optional[List[str]] = None
+    structure_visualization_enable: bool = False
+    structure_visualization_output_dir: Optional[str] = None
+    structure_visualization_max_frames: int = 50
     
     # 输出配置
     output_dir: str = ""

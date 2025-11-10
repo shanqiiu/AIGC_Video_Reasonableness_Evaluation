@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence
 
+import cv2
 import numpy as np
 import torch
 from tqdm import tqdm
@@ -41,6 +42,9 @@ class TemporalCoherenceConfig:
     text_threshold: float = 0.35
     grid_size: int = 30
     iou_threshold: float = 0.75
+    enable_visualization: bool = False
+    visualization_output_dir: Optional[str] = None
+    visualization_max_frames: int = 50
 
 
 @dataclass
@@ -57,6 +61,19 @@ class TemporalCoherencePipeline:
     End-to-end pipeline that mirrors the logic in `temporal_coherence_score.py`
     while offering a reusable and testable interface.
     """
+
+    _PALETTE = np.array([
+        [255, 99, 71],
+        [135, 206, 250],
+        [144, 238, 144],
+        [255, 215, 0],
+        [216, 191, 216],
+        [255, 182, 193],
+        [64, 224, 208],
+        [255, 140, 0],
+        [173, 216, 230],
+        [189, 183, 107],
+    ], dtype=np.uint8)
 
     def __init__(self, config: TemporalCoherenceConfig):
         self.config = config
@@ -107,7 +124,8 @@ class TemporalCoherencePipeline:
         return filtered[:: max(step, 1)]
 
     def _object_info_from_mask(self, mask, class_name: str, instance_id: int) -> ObjectInfo:
-        obj = ObjectInfo(instance_id=instance_id, mask=mask, class_name=class_name)
+        mask_cpu = mask.detach().to("cpu").bool()
+        obj = ObjectInfo(instance_id=instance_id, mask=mask_cpu, class_name=class_name)
         obj.update_box()
         return obj
 
@@ -118,6 +136,15 @@ class TemporalCoherencePipeline:
     ) -> TemporalCoherenceResult:
         if self.event_evaluator is None:
             raise RuntimeError("TemporalEventEvaluator is not initialized.")
+
+        vis_dir: Optional[Path] = None
+        vis_counter = 0
+        max_visualizations = max(0, self.config.visualization_max_frames)
+        if self.config.enable_visualization and max_visualizations > 0:
+            vis_dir = self._get_visualization_dir(
+                self.config.visualization_output_dir,
+                video_path,
+            )
 
         frames, _ = extract_frames_from_video(video_path)
         fps_value = read_video_fps(video_path)
@@ -166,6 +193,16 @@ class TemporalCoherencePipeline:
                 sam2_masks = frame_masks.clone()
                 video_object_data.append(frame_data)
 
+                if vis_dir is not None and vis_counter < max_visualizations:
+                    if 0 <= out_frame_idx < len(frames):
+                        self._save_structure_visualization(
+                            frames[out_frame_idx],
+                            frame_masks,
+                            vis_dir,
+                            out_frame_idx,
+                        )
+                        vis_counter += 1
+
         video_array = read_video_from_path(video_path)
         video_tensor = torch.from_numpy(video_array).permute(0, 3, 1, 2)[None].float()
         tracking_result = self._prepare_tracking_result(video_object_data, step)
@@ -198,6 +235,67 @@ class TemporalCoherencePipeline:
             anomalies=anomalies,
             metadata=metadata,
         )
+
+    @staticmethod
+    def _get_visualization_dir(base_dir: Optional[str], video_path: str) -> Path:
+        if base_dir:
+            root = Path(base_dir).expanduser().resolve()
+        else:
+            root = Path(__file__).resolve().parents[3] / "outputs" / "structure_visualization"
+        root.mkdir(parents=True, exist_ok=True)
+        video_name = Path(video_path).stem if video_path else "video"
+        target = root / video_name
+        target.mkdir(parents=True, exist_ok=True)
+        return target
+
+    def _save_structure_visualization(
+        self,
+        frame_image,
+        frame_masks: MaskDictionary,
+        output_dir: Path,
+        frame_idx: int,
+    ) -> None:
+        if not frame_masks.labels:
+            return
+
+        frame_rgb = np.array(frame_image.convert("RGB"), dtype=np.uint8)
+        overlay = frame_rgb.copy()
+
+        palette = self._PALETTE
+        for color_idx, (instance_id, obj) in enumerate(frame_masks.labels.items()):
+            mask_tensor = obj.mask
+            if mask_tensor is None:
+                continue
+            mask_np = mask_tensor.cpu().numpy().astype(bool)
+            if mask_np.ndim == 3:
+                mask_np = mask_np[0]
+            color = palette[color_idx % len(palette)]
+            overlay[mask_np] = (
+                0.6 * overlay[mask_np] + 0.4 * color
+            ).astype(np.uint8)
+
+            if obj.x1 is not None and obj.y1 is not None and obj.x2 is not None and obj.y2 is not None:
+                cv2.rectangle(
+                    overlay,
+                    (int(obj.x1), int(obj.y1)),
+                    (int(obj.x2), int(obj.y2)),
+                    color.tolist(),
+                    2,
+                )
+                cv2.putText(
+                    overlay,
+                    str(instance_id),
+                    (int(obj.x1), max(0, int(obj.y1) - 5)),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.5,
+                    color.tolist(),
+                    1,
+                    cv2.LINE_AA,
+                )
+
+        blended = cv2.addWeighted(frame_rgb, 0.5, overlay, 0.5, 0.0)
+        save_path = output_dir / f"frame_{frame_idx:04d}.png"
+        cv2.imwrite(str(save_path), cv2.cvtColor(blended, cv2.COLOR_RGB2BGR))
 
     def process_meta_info(self, meta_infos: List[Dict]) -> List[Dict]:
         results = []
