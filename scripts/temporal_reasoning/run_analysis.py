@@ -314,6 +314,10 @@ def main():
     if args.output_dir:
         config.output_dir = args.output_dir
 
+    # 更新结构检测提示词（用于 SAM2 Grounding）
+    if args.prompts:
+        config.structure_prompts = args.prompts
+
     # 结构可视化配置
     if args.enable_structure_visualization:
         config.structure_visualization_enable = True
