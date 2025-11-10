@@ -84,7 +84,7 @@ class TemporalReasoningAnalyzer:
             print("=" * 50)
 
         except Exception as exc:
-            print(f"\n错误: 初始化失�?: {exc}")
+            print(f"\n错误：初始化失败：{exc}")
             raise
 
     def _build_temporal_coherence_config(self) -> TemporalCoherenceConfig:
@@ -138,7 +138,7 @@ class TemporalReasoningAnalyzer:
         video_path: Optional[str] = None,
     ) -> Dict:
         """
-        分析视频时序合理�?
+        分析视频时序合理性
 
         Args:
             video_frames: 视频帧序列，每帧为RGB图像 (H, W, 3)
@@ -153,12 +153,12 @@ class TemporalReasoningAnalyzer:
             self.initialize()
 
         if not video_frames:
-            raise ValueError("视频帧序列为�?")
+            raise ValueError("视频帧序列为空")
 
         fps = fps or 30.0
 
         print("\n" + "=" * 50)
-        print("开始分析视频时序合理�?...")
+        print("开始分析视频时序合理性...")
         print(f"视频帧数：{len(video_frames)}")
         print(f"视频帧率：{fps:.2f} fps")
         if text_prompts:
@@ -177,13 +177,13 @@ class TemporalReasoningAnalyzer:
         print("\n>>> 步骤2: 实例追踪 / 结构分析")
         structure_output = self._analyze_structure(video_path, text_prompts)
 
-        # 3. 关键点分�?
+        # 3. 关键点分析
         print("\n>>> 步骤3: 关键点分析")
         physiological_score, physiological_anomalies = self.keypoint_analyzer.analyze(
             video_frames, fps=fps, video_path=video_path
         )
 
-        # 4. 多模态融�?
+        # 4. 多模态融合
         print("\n>>> 步骤4: 多模态融合")
         fused_anomalies = self.fusion_engine.fuse(
             motion_anomalies,
@@ -196,7 +196,7 @@ class TemporalReasoningAnalyzer:
             },
         )
 
-        # 5. 计算最终得�?
+        # 5. 计算最终得分
         print("\n>>> 步骤5: 计算最终得分")
         final_motion_score, final_structure_score = self.fusion_engine.compute_final_scores(
             motion_score,
