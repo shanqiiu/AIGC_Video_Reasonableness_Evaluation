@@ -155,7 +155,7 @@ class TemporalCoherencePipeline:
         fps = max(1, int(fps_value) if fps_value else 24)
         step = max(1, fps - 1)
         text_prompt = self._compose_text_prompt(text_prompts)
-        print(f"[Structure] ʹ���ı� prompt: \"{text_prompt}\"")
+        print(f"[Structure] 使用文本 prompt: \"{text_prompt}\"")
 
         inference_state = self.detection_engine.init_video_state(video_path)
         sam2_masks = MaskDictionary()
@@ -167,8 +167,8 @@ class TemporalCoherencePipeline:
             mask_dict = self.detection_engine.detect(image, text_prompt)
             detected = bool(mask_dict.labels)
             print(
-                f"[Structure] ֡ {start_frame_idx:04d} ���{'����' if detected else 'δ����'} "
-                f"(����: {len(mask_dict.labels)})"
+                f"[Structure] 帧 {start_frame_idx:04d} {'检测到' if detected else '未检测到'} "
+                f"(目标数: {len(mask_dict.labels)})"
             )
 
             if not mask_dict.labels:
@@ -299,7 +299,7 @@ class TemporalCoherencePipeline:
         if not self.config.cotracker_visualization_enable:
             return
         if self.cotracker_model is None:
-            print("����: CoTracker ģ��δ��ʼ�����޷����ɿ��ӻ���")
+            print("警告：CoTracker 模型未初始化，无法生成可视化结果。")
             return
 
         output_dir = self._get_cotracker_visualization_dir(
@@ -321,7 +321,7 @@ class TemporalCoherencePipeline:
                 backward_tracking=True,
             )
         except Exception as exc:
-            print(f"����: ���� CoTracker ���ӻ�ʧ��: {exc}")
+            print(f"警告：生成 CoTracker 可视化失败：{exc}")
             return
 
         fps_value = self.config.cotracker_visualization_fps or fps
@@ -341,7 +341,7 @@ class TemporalCoherencePipeline:
                 save_video=True,
             )
         except Exception as exc:
-            print(f"����: ���� CoTracker ���ӻ���Ƶʧ��: {exc}")
+            print(f"警告：导出 CoTracker 可视化视频失败：{exc}")
 
     def _save_structure_visualization(
         self,
