@@ -49,6 +49,9 @@ class TemporalCoherenceConfig:
     cotracker_visualization_output_dir: Optional[str] = None
     cotracker_visualization_fps: int = 12
     cotracker_visualization_mode: str = "rainbow"
+    size_change_area_ratio_threshold: float = 3.0
+    size_change_height_ratio_threshold: float = 2.5
+    size_change_min_area: int = 200
 
 
 @dataclass
@@ -244,6 +247,12 @@ class TemporalCoherencePipeline:
             vanish_score,
             emerge_score,
             fps=fps,
+        )
+        anomalies.extend(
+            self._detect_shape_anomalies(
+                tracking_result,
+                fps=fps,
+            )
         )
 
         if self.config.cotracker_visualization_enable:
@@ -482,6 +491,89 @@ class TemporalCoherencePipeline:
                     },
                 }
             )
+
+        return anomalies
+
+    def _detect_shape_anomalies(
+        self,
+        tracking_result: List[Dict],
+        fps: int,
+    ) -> List[Dict[str, Any]]:
+        anomalies: List[Dict[str, Any]] = []
+        if not tracking_result:
+            return anomalies
+
+        prev_stats: Dict[int, Dict[str, float]] = {}
+        fps_safe = max(fps, 1)
+        area_ratio_threshold = max(1.0, self.config.size_change_area_ratio_threshold)
+        height_ratio_threshold = max(1.0, self.config.size_change_height_ratio_threshold)
+        min_area = max(0, self.config.size_change_min_area)
+
+        for frame_idx, frame_objects in enumerate(tracking_result):
+            if not frame_objects:
+                continue
+            for obj_id_str, obj_meta in frame_objects.items():
+                try:
+                    obj_id = int(obj_id_str)
+                except (TypeError, ValueError):
+                    obj_id = obj_meta.get("instance_id", obj_id_str)
+
+                mask_data = obj_meta.get("mask")
+                if mask_data is None:
+                    continue
+                mask_np = np.array(mask_data)
+                if mask_np.size == 0:
+                    continue
+                if mask_np.ndim == 3:
+                    mask_np = mask_np[0]
+                mask_bool = mask_np.astype(bool)
+                area = float(mask_bool.sum())
+                if area < min_area:
+                    prev_stats[obj_id] = {
+                        "area": area,
+                        "height": float(obj_meta.get("y2", 0) - obj_meta.get("y1", 0) + 1),
+                    }
+                    continue
+
+                bbox_height = 0.0
+                y1 = obj_meta.get("y1")
+                y2 = obj_meta.get("y2")
+                if y1 is not None and y2 is not None:
+                    bbox_height = float(max(1, int(y2) - int(y1) + 1))
+
+                prev = prev_stats.get(obj_id)
+                if prev:
+                    prev_area = max(prev["area"], 1.0)
+                    prev_height = max(prev["height"], 1.0)
+
+                    area_ratio = max(area / prev_area, prev_area / area)
+                    height_ratio = max(bbox_height / prev_height, prev_height / bbox_height) if prev_height > 0 else 1.0
+
+                    if area_ratio >= area_ratio_threshold or height_ratio >= height_ratio_threshold:
+                        anomalies.append(
+                            {
+                                "type": "structural_size_jump",
+                                "modality": "structure",
+                                "frame_id": frame_idx,
+                                "timestamp": frame_idx / fps_safe,
+                                "confidence": min(1.0, max(area_ratio / area_ratio_threshold, height_ratio / height_ratio_threshold)),
+                                "description": (
+                                    f"Object {obj_id} size changed abruptly "
+                                    f"(area_ratio={area_ratio:.2f}, height_ratio={height_ratio:.2f})"
+                                ),
+                                "metadata": {
+                                    "object_id": obj_id,
+                                    "area_ratio": area_ratio,
+                                    "height_ratio": height_ratio,
+                                    "current_area": area,
+                                    "previous_area": prev_area,
+                                    "current_height": bbox_height,
+                                    "previous_height": prev_height,
+                                },
+                            }
+                        )
+
+                prev_stats[obj_id] = {"area": area, "height": bbox_height}
 
         return anomalies
 
