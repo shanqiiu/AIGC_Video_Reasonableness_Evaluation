@@ -176,6 +176,19 @@ class TemporalCoherencePipeline:
                 self.detection_engine.video_predictor.reset_state(inference_state)
             self.detection_engine.add_masks_to_video_state(inference_state, start_frame_idx, mask_dict)
 
+            if (
+                vis_dir is not None
+                and vis_counter < max_visualizations
+                and mask_dict.labels
+            ):
+                self._save_structure_visualization(
+                    image,
+                    mask_dict,
+                    vis_dir,
+                    start_frame_idx,
+                )
+                vis_counter += 1
+
             for out_frame_idx, out_obj_ids, out_mask_logits in self.detection_engine.propagate(
                 inference_state,
                 step,
