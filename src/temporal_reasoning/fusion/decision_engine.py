@@ -21,7 +21,7 @@ class FusionDecisionEngine:
         cotracker_validator = None
     ):
         """
-        初始化融合决策引�?
+        初始化融合决策引�?
         
         Args:
             config: FusionConfig配置对象
@@ -43,7 +43,7 @@ class FusionDecisionEngine:
         structure_context: Optional[Dict[str, float]] = None,
     ) -> List[Dict]:
         """
-        融合多模态异�?
+        融合多模态异�?
         
         Args:
             motion_anomalies: 光流异常列表
@@ -62,7 +62,7 @@ class FusionDecisionEngine:
             physiological_anomalies
         )
         
-        # 2. 多模态融�?
+        # 2. 多模态融�?
         fused_anomalies = fuse_multimodal_anomalies(
             aligned_anomalies,
             multimodal_confidence_boost=self.config.multimodal_confidence_boost,
@@ -72,7 +72,7 @@ class FusionDecisionEngine:
         # 3. 时序验证
         validated_anomalies = self._validate_temporal_consistency(fused_anomalies)
         
-        # 4. 过滤假阳性（使用Co-Tracker验证�?
+        # 4. 过滤假阳性（使用Co-Tracker验证�?
         # 注意：这里需要video_frames或video_tensor，但当前接口没有提供
         # 可以在上层调用时进行过滤
         # filtered_anomalies = self.anomaly_filter.filter_anomalies(
@@ -85,9 +85,9 @@ class FusionDecisionEngine:
     
     def _validate_temporal_consistency(self, anomalies: List[Dict]) -> List[Dict]:
         """
-        验证时序一致�?
+        验证时序一致�?
         
-        过滤持续时间过短的异�?
+        过滤持续时间过短的异�?
         
         Args:
             anomalies: 异常列表
@@ -111,11 +111,11 @@ class FusionDecisionEngine:
         frame_ids = sorted(frame_groups.keys())
         
         for i, frame_id in enumerate(frame_ids):
-            # 检查前后是否有连续�?
+            # 检查前后是否有连续�?
             has_prev = i > 0 and frame_ids[i-1] == frame_id - 1
             has_next = i < len(frame_ids) - 1 and frame_ids[i+1] == frame_id + 1
             
-            # 如果异常持续至少min_duration帧，则保�?
+            # 如果异常持续至少min_duration帧，则保�?
             if has_prev or has_next or len(frame_groups[frame_id]) >= self.config.min_anomaly_duration_frames:
                 validated.extend(frame_groups[frame_id])
         
@@ -130,7 +130,7 @@ class FusionDecisionEngine:
         structure_context: Optional[Dict[str, float]] = None,
     ) -> Tuple[float, float]:
         """
-        计算最终得�?
+        计算最终得�?
         
         Args:
             motion_score: 运动得分

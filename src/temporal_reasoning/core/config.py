@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-鏃跺簭鍚堢悊鎬у垎鏋愭ā鍧楅厤缃锟�?
+时序合理性主流程的配置定义。
 """
 
 import os
@@ -11,20 +11,20 @@ from pathlib import Path
 
 @dataclass
 class RAFTConfig:
-    """RAFT鍏夋祦閰嶇疆"""
+    """RAFT 光流模型配置。"""
     model_path: str = ""
-    model_type: str = "large"  # large or small
+    model_type: str = "large"  # 支持 large 或 small
     use_gpu: bool = True
     batch_size: int = 1
-    motion_discontinuity_threshold: float = 0.3  # 杩愬姩绐佸彉闃堬�??
+    motion_discontinuity_threshold: float = 0.3  # 运动突变判定阈值
 
 
 @dataclass
 class GroundingDINOConfig:
-    """Grounding DINO閰嶇�?"""
-    model_path: str = ""  # 鏉冮噸鏂囦欢璺�?
-    config_path: str = ""  # 閰嶇疆鏂囦欢璺�?
-    bert_path: str = ""  # BERT妯″瀷璺緞
+    """Grounding DINO 检测模型配置。"""
+    model_path: str = ""  # 模型权重路径
+    config_path: str = ""  # 配置文件路径
+    bert_path: str = ""  # 本地 BERT 模型目录
     text_threshold: float = 0.25
     box_threshold: float = 0.3
     use_gpu: bool = True
@@ -32,45 +32,45 @@ class GroundingDINOConfig:
 
 @dataclass
 class SAMConfig:
-    """SAM閰嶇�?"""
-    model_path: str = ""  # 鏉冮噸鏂囦欢璺�?
-    config_path: str = ""  # 閰嶇疆鏂囦欢璺緞锛圫AM2闇€瑕侊�?
-    model_type: str = "sam2_h"  # sam2_h, sam2_l, sam2_b
+    """SAM / SAM2 分割模型配置。"""
+    model_path: str = ""  # 权重文件路径
+    config_path: str = ""  # 配置文件路径（SAM2 必填）
+    model_type: str = "sam2_h"  # 可选 sam2_h / sam2_l / sam2_b
     use_gpu: bool = True
 
 
 @dataclass
 class TrackerConfig:
-    """杩借釜鍣ㄩ厤锟�??"""
-    type: str = "deaot"  # deaot or cotracker
+    """跟踪 / 验证模块配置。"""
+    type: str = "deaot"  # 支持 deaot 或 cotracker
     model_path: Optional[str] = None
     use_gpu: bool = True
-    enable_cotracker_validation: bool = True  # 鏄惁鍚敤Co-Tracker楠岃�?
-    cotracker_checkpoint: Optional[str] = None  # Co-Tracker妯″瀷璺緞
-    grid_size: int = 30  # Co-Tracker缃戞牸澶у�?
+    enable_cotracker_validation: bool = True  # 是否启用 Co-Tracker 校验
+    cotracker_checkpoint: Optional[str] = None  # Co-Tracker 权重路径
+    grid_size: int = 30  # Co-Tracker 网格密度
 
 
 @dataclass
 class KeypointConfig:
-    """鍏抽敭鐐归厤锟�?"""
-    model_type: str = "mediapipe"  # mediapipe or mmpose
+    """关键点分析配置。"""
+    model_type: str = "mediapipe"  # 支持 mediapipe 或 mmpose
     model_path: Optional[str] = None
-    use_gpu: bool = False  # MediaPipe锟斤拷支锟斤拷GPU
+    use_gpu: bool = False  # MediaPipe 默认仅支持 CPU
     
-    # 锟斤拷锟接伙拷锟斤拷锟斤�?
-    enable_visualization: bool = False  # 锟角凤拷锟斤拷锟矫匡拷锟接伙�?
-    visualization_output_dir: Optional[str] = None  # 锟斤拷锟接伙拷锟斤拷锟侥柯�
-    show_face: bool = False  # 锟角凤拷锟斤拷示锟芥部锟截硷拷锟斤拷
-    show_face_mesh: bool = False  # 锟角凤拷锟斤拷示锟芥部锟斤拷锟斤�?
-    point_radius: int = 3  # 锟截硷拷锟斤拷刖�?
-    line_thickness: int = 2  # 锟斤拷锟斤拷锟竭达拷�?
-    save_visualization: bool = True  # 锟角否保达拷锟斤拷踊锟斤拷锟斤拷
-    show_visualization: bool = False  # 锟角凤拷锟斤拷示锟斤拷锟接伙拷锟斤拷锟斤拷锟紾UI锟斤�?
+    # 可选可视化配置
+    enable_visualization: bool = False  # 是否开启关键点可视化
+    visualization_output_dir: Optional[str] = None  # 可视化结果输出目录
+    show_face: bool = False  # 是否绘制人脸关键点
+    show_face_mesh: bool = False  # 是否绘制人脸网格
+    point_radius: int = 3  # 关键点绘制半径
+    line_thickness: int = 2  # 关键点连线粗细
+    save_visualization: bool = True  # 是否保存可视化结果
+    show_visualization: bool = False  # 是否弹窗展示可视化
 
 
 @dataclass
 class FusionConfig:
-    """铻嶅悎閰嶇疆"""
+    """多模态融合与打分配置。"""
     multimodal_confidence_boost: float = 1.2
     min_anomaly_duration_frames: int = 3
     single_modality_confidence_threshold: float = 0.8
@@ -78,18 +78,18 @@ class FusionConfig:
 
 @dataclass
 class ThresholdsConfig:
-    """闃堝€奸厤锟�??"""
+    """通用阈值配置。"""
     motion_discontinuity_threshold: float = 0.3
-    structure_disappearance_threshold: float = 0.3  # 鎺╃爜闈㈢Н鍙樺寲锟�?
-    keypoint_displacement_threshold: int = 10  # 鍍忕�?
+    structure_disappearance_threshold: float = 0.3  # 结构消失判断阈值
+    keypoint_displacement_threshold: int = 10  # 关键点位移阈值（像素）
 
 
 @dataclass
 class TemporalReasoningConfig:
-    """鏃跺簭鍚堢悊鎬у垎鏋愰厤锟�??"""
+    """时序合理性主流程配置。"""
     device: str = "cuda:0"
     
-    # 瀛愭ā鍧楅厤锟�??
+    # 子模块配置
     raft: RAFTConfig = field(default_factory=RAFTConfig)
     grounding_dino: GroundingDINOConfig = field(default_factory=GroundingDINOConfig)
     sam: SAMConfig = field(default_factory=SAMConfig)
@@ -99,125 +99,125 @@ class TemporalReasoningConfig:
     thresholds: ThresholdsConfig = field(default_factory=ThresholdsConfig)
     structure_prompts: Optional[List[str]] = None
     
-    # 杈撳嚭閰嶇疆
+    # 输出配置
     output_dir: str = ""
     save_visualizations: bool = True
     save_detailed_reports: bool = True
     
     def __post_init__(self):
-        """鍒濆鍖栭粯璁ら厤锟�??"""
-        # 璁剧疆榛樿妯″瀷璺緞锛堝熀浜庨」鐩粨鏋勶�?
+        """初始化默认路径与依赖。"""
+        # 推导默认目录结构
         base_dir = Path(__file__).parent.parent.parent.parent
         third_party_dir = base_dir / "third_party"
         cache_dir = base_dir / ".cache"
         
-        # RAFT榛樿璺緞锛堟潈閲嶅湪.cache锛屼唬鐮佸湪third_party锟�?
+        # RAFT 默认路径（权重：.cache，代码：third_party）
         if not self.raft.model_path:
-            # 锟�?.cache鏌ユ壘RAFT鏉冮�?
+            # 优先查找 .cache
             raft_cache_path = cache_dir / "raft-things.pth"
             if raft_cache_path.exists():
                 self.raft.model_path = str(raft_cache_path)
             else:
                 raise FileNotFoundError(
-                    f"RAFT妯″瀷鏂囦欢鏈壘锟�??: {raft_cache_path}\n"
-                    f"璇风‘淇濇潈閲嶆枃浠跺瓨鍦ㄤ�? .cache 鐩綍锟�??"
+                    f"未找到 RAFT 模型权重: {raft_cache_path}\n"
+                    f"请确认权重位于 .cache 目录。"
                 )
         
-        # Grounding DINO榛樿璺緞锛堟潈閲嶅湪.cache锛屼唬鐮佸湪third_party锟�?
+        # Grounding DINO 默认路径
         if not self.grounding_dino.model_path:
-            # Grounding DINO鏉冮噸锟�??.cache
+            # 默认查找 .cache
             gdino_weight = cache_dir / "groundingdino_swinb_cogcoor.pth"
             if gdino_weight.exists():
                 self.grounding_dino.model_path = str(gdino_weight)
             else:
                 raise FileNotFoundError(
-                    f"Grounding DINO妯″瀷鏂囦欢鏈壘锟�??: {gdino_weight}\n"
-                    f"璇风‘淇濇潈閲嶆枃浠跺瓨鍦ㄤ�? .cache 鐩綍锟�??"
+                    f"未找到 Grounding DINO 权重: {gdino_weight}\n"
+                    f"请确认权重位于 .cache 目录。"
                 )
         
-        # Grounding DINO閰嶇疆鏂囦欢璺�?
+        # Grounding DINO 配置文件
         if not self.grounding_dino.config_path:
             gdino_config = third_party_dir / "Grounded-SAM-2" / "grounding_dino" / "config" / "GroundingDINO_SwinB.py"
             if not gdino_config.exists():
-                # 灏濊瘯鍙︿竴涓矾锟�??
+                # 兼容旧项目目录
                 gdino_config = third_party_dir / "Grounded-Segment-Anything" / "GroundingDINO" / "groundingdino" / "config" / "GroundingDINO_SwinB.py"
             if gdino_config.exists():
                 self.grounding_dino.config_path = str(gdino_config)
             else:
                 raise FileNotFoundError(
-                    f"Grounding DINO閰嶇疆鏂囦欢鏈壘锟�??: {gdino_config}\n"
-                    f"璇风‘淇濋厤缃枃浠跺瓨鍦ㄤ�? third_party 鐩綍锟�??"
+                    f"未找到 Grounding DINO 配置文件: {gdino_config}\n"
+                    f"请确认配置文件存在于 third_party 目录。"
                 )
         
-        # BERT妯″瀷璺緞
+        # BERT 模型路径
         if not self.grounding_dino.bert_path:
             bert_path = cache_dir / "google-bert" / "bert-base-uncased"
             if bert_path.exists():
                 self.grounding_dino.bert_path = str(bert_path)
             else:
                 raise FileNotFoundError(
-                    f"BERT妯″瀷鏂囦欢鏈壘锟�??: {bert_path}\n"
-                    f"璇风‘淇滲ERT妯″瀷瀛樺湪锟�?? .cache/google-bert/bert-base-uncased 鐩綍锟�??"
+                    f"未找到 BERT 模型文件: {bert_path}\n"
+                    f"请确认模型位于 .cache/google-bert/bert-base-uncased。"
                 )
         
-        # SAM榛樿璺緞锛堟潈閲嶅湪.cache锛屼唬鐮佸湪third_party锟�?
+        # SAM / SAM2 默认路径
         if not self.sam.model_path:
-            # SAM2鏉冮噸锟�??.cache
+            # 优先使用 SAM2 权重
             sam2_weight = cache_dir / "sam2.1_hiera_large.pt"
             if sam2_weight.exists():
                 self.sam.model_path = str(sam2_weight)
             else:
-                # 濡傛�?.cache涓病鏈塖AM2锛屽皾璇曟棫鐗圫AM鏉冮�?
+                # 兼容传统 SAM 权重
                 sam_weight = cache_dir / "sam_vit_h_4b8939.pth"
                 if sam_weight.exists():
                     self.sam.model_path = str(sam_weight)
                 else:
                     raise FileNotFoundError(
-                        f"SAM妯″瀷鏂囦欢鏈壘锟�??: {sam2_weight} 锟�? {sam_weight}\n"
-                        f"璇风‘淇濇潈閲嶆枃浠跺瓨鍦ㄤ�? .cache 鐩綍锟�??"
+                        f"未找到 SAM 权重: {sam2_weight} 或 {sam_weight}\n"
+                        f"请确认权重位于 .cache 目录。"
                     )
         
-        # SAM2閰嶇疆鏂囦欢璺�?
+        # SAM2 配置文件
         if not self.sam.config_path and self.sam.model_type.startswith("sam2"):
             sam2_config = third_party_dir / "Grounded-SAM-2" / "sam2" / "configs" / "sam2.1" / "sam2.1_hiera_l.yaml"
             if not sam2_config.exists():
-                # 灏濊瘯鍏朵粬璺�?
+                # 兼容旧路径
                 sam2_config = third_party_dir / "Grounded-SAM-2" / "sam2" / "configs" / "sam2_hiera_l.yaml"
             if sam2_config.exists():
                 self.sam.config_path = str(sam2_config)
             else:
                 raise FileNotFoundError(
-                    f"SAM2閰嶇疆鏂囦欢鏈壘锟�??: {sam2_config}\n"
-                    f"璇风‘淇濋厤缃枃浠跺瓨鍦ㄤ�? third_party/Grounded-SAM-2/sam2/configs 鐩綍锟�??"
+                    f"未找到 SAM2 配置文件: {sam2_config}\n"
+                    f"请确认配置文件存在于 third_party/Grounded-SAM-2/sam2/configs。"
                 )
         
-        # Co-Tracker榛樿璺緞锛堟潈閲嶅湪.cache锛屼唬鐮佸湪third_party锟�?
+        # Co-Tracker 默认路径
         if not self.tracker.cotracker_checkpoint and self.tracker.enable_cotracker_validation:
             cotracker_weight = cache_dir / "scaled_offline.pth"
             if cotracker_weight.exists():
                 self.tracker.cotracker_checkpoint = str(cotracker_weight)
             else:
                 raise FileNotFoundError(
-                    f"Co-Tracker妯″瀷鏂囦欢鏈壘锟�??: {cotracker_weight}\n"
-                    f"璇风‘淇濇潈閲嶆枃浠跺瓨鍦ㄤ�? .cache 鐩綍涓紝鎴栬锟�?? tracker.enable_cotracker_validation=False 绂佺敤楠岃瘉"
+                    f"未找到 Co-Tracker 权重: {cotracker_weight}\n"
+                    f"请将权重放置在 .cache 目录，或将 tracker.enable_cotracker_validation 设为 False。"
                 )
         
-        # 杈撳嚭鐩綍
+        # 输出目录
         if not self.output_dir:
             self.output_dir = str(base_dir / "outputs" / "temporal_reasoning")
         
-        # 纭繚杈撳嚭鐩綍瀛樺�?
+        # 确保输出目录存在
         os.makedirs(self.output_dir, exist_ok=True)
     
     def get_model_path(self, model_name: str) -> str:
         """
-        鑾峰彇妯″瀷璺緞
+        获取指定子模块的模型路径。
         
         Args:
-            model_name: 妯″瀷鍚嶇�?
+            model_name: 模型名称
         
         Returns:
-            妯″瀷璺緞
+            模型路径字符串，若未配置则返回空字符串
         """
         path_map = {
             'raft': self.raft.model_path,
@@ -230,10 +230,10 @@ class TemporalReasoningConfig:
     
     def update_from_dict(self, config_dict: Dict[str, Any]):
         """
-        浠庡瓧鍏告洿鏂伴厤锟�??
+        用传入字典更新配置。
         
         Args:
-            config_dict: 閰嶇疆瀛楀吀
+            config_dict: 配置字典
         """
         if 'raft' in config_dict:
             for key, value in config_dict['raft'].items():
@@ -263,7 +263,7 @@ class TemporalReasoningConfig:
             for key, value in config_dict['thresholds'].items():
                 setattr(self.thresholds, key, value)
         
-        # 鏇存柊鍏朵粬閰嶇�?
+        # 鏇存柊鍏朵粬閰嶇�?
         for key, value in config_dict.items():
             if key not in ['raft', 'grounding_dino', 'sam', 'tracker', 'keypoint', 'fusion', 'thresholds']:
                 if hasattr(self, key):
@@ -272,13 +272,13 @@ class TemporalReasoningConfig:
 
 def load_config_from_yaml(config_path: str) -> TemporalReasoningConfig:
     """
-    浠嶻AML鏂囦欢鍔犺浇閰嶇�?
+    从 YAML 文件加载配置。
     
     Args:
-        config_path: YAML閰嶇疆鏂囦欢璺�?
+        config_path: YAML 配置文件路径
     
     Returns:
-        閰嶇疆瀵硅�?
+        TemporalReasoningConfig 实例
     """
     try:
         import yaml
@@ -293,17 +293,17 @@ def load_config_from_yaml(config_path: str) -> TemporalReasoningConfig:
         
         return config
     except ImportError:
-        raise ImportError("璇峰畨瑁卲yyaml: pip install pyyaml")
+        raise ImportError("请先安装 pyyaml：pip install pyyaml")
     except Exception as e:
-        raise ValueError(f"鍔犺浇閰嶇疆鏂囦欢澶辫触: {e}")
+        raise ValueError(f"加载配置文件失败: {e}")
 
 
 def get_default_config() -> TemporalReasoningConfig:
     """
-    鑾峰彇榛樿閰嶇�?
+    获取默认配置。
     
     Returns:
-        榛樿閰嶇疆瀵硅�?
+        TemporalReasoningConfig 实例
     """
     return TemporalReasoningConfig()
 
