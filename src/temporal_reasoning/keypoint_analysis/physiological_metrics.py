@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
-ÉúÀí¶¯×÷Ö¸±ê¼ÆËãÄ£¿é
-Ìá¹©Õ£ÑÛ¡¢×ìĞÍ¡¢ÊÖÊÆµÈÉúÀí¶¯×÷µÄ¾ßÌå¼ÆËã·½·¨
+ç”Ÿç†åŠ¨ä½œæŒ‡æ ‡è®¡ç®—æ¨¡å—
+æä¾›çœ¨çœ¼ã€å˜´å‹ã€æ‰‹åŠ¿ç­‰ç”Ÿç†åŠ¨ä½œçš„å…·ä½“è®¡ç®—æ–¹æ³•
 """
 
 import numpy as np
@@ -9,76 +9,76 @@ from typing import Dict, Tuple, List, Optional
 
 
 class PhysiologicalMetrics:
-    """ÉúÀí¶¯×÷Ö¸±ê¼ÆËãÀà"""
+    """ç”Ÿç†åŠ¨ä½œæŒ‡æ ‡è®¡ç®—ç±»"""
     
-    # MediaPipe Ãæ²¿¹Ø¼üµãË÷Òı
+    # MediaPipe é¢éƒ¨å…³é”®ç‚¹ç´¢å¼•
     FACE_LANDMARKS = {
-        # ×óÑÛ
+        # å·¦çœ¼
         'left_eye': {
-            'vertical1': (159, 145),  # ÉÏÏÂÑÛíúÖĞĞÄ
-            'vertical2': (158, 144),  # ×ó²à
-            'horizontal': (33, 133)    # ×óÓÒÑÛ½Ç
+            'vertical1': (159, 145),  # ä¸Šä¸‹çœ¼ç‘ä¸­å¿ƒ
+            'vertical2': (158, 144),  # å·¦ä¾§
+            'horizontal': (33, 133)    # å·¦å³çœ¼è§’
         },
-        # ÓÒÑÛ
+        # å³çœ¼
         'right_eye': {
             'vertical1': (386, 374),
             'vertical2': (385, 373),
             'horizontal': (362, 263)
         },
-        # ×ì²¿
+        # å˜´éƒ¨
         'mouth': {
-            'top': 13,      # ÉÏ´½ÖĞĞÄ
-            'bottom': 14,   # ÏÂ´½ÖĞĞÄ
-            'left': 78,     # ×ó×ì½Ç
-            'right': 308    # ÓÒ×ì½Ç
+            'top': 13,      # ä¸Šå”‡ä¸­å¿ƒ
+            'bottom': 14,   # ä¸‹å”‡ä¸­å¿ƒ
+            'left': 78,     # å·¦å˜´è§’
+            'right': 308    # å³å˜´è§’
         }
     }
     
-    # ·ÖÎö²ÎÊı
+    # åˆ†æå‚æ•°
     PARAMS = {
-        # Õ£ÑÛ²ÎÊı
-        'ear_threshold': 0.25,         # EARãĞÖµ
-        'min_blink_frames': 2,         # ×îÉÙ±ÕÑÛÖ¡Êı
-        'max_blink_frames_ratio': 0.5, # ×î¶à±ÕÑÛÖ¡Êı±ÈÀı£¨Ãë£©
-        'normal_blink_rate_min': 5/60, # ×îĞ¡Õ£ÑÛÆµÂÊ£¨´Î/Ãë£©
-        'normal_blink_rate_max': 30/60,# ×î´óÕ£ÑÛÆµÂÊ£¨´Î/Ãë£©
+        # çœ¨çœ¼å‚æ•°
+        'ear_threshold': 0.25,         # EARé˜ˆå€¼
+        'min_blink_frames': 2,         # æœ€å°‘é—­çœ¼å¸§æ•°
+        'max_blink_frames_ratio': 0.5, # æœ€å¤šé—­çœ¼å¸§æ•°æ¯”ä¾‹ï¼ˆç§’ï¼‰
+        'normal_blink_rate_min': 5/60, # æœ€å°çœ¨çœ¼é¢‘ç‡ï¼ˆæ¬¡/ç§’ï¼‰
+        'normal_blink_rate_max': 30/60,# æœ€å¤§çœ¨çœ¼é¢‘ç‡ï¼ˆæ¬¡/ç§’ï¼‰
         
-        # ×ìĞÍ²ÎÊı
-        'mar_threshold': 0.5,          # ×ì²¿¿ªºÏãĞÖµ
-        'mar_jump_threshold': 0.3,     # MARÌøÔ¾ãĞÖµ
-        'max_open_duration_s': 3.0,    # ×î´ó³ÖĞøÕÅ×ìÊ±¼ä£¨Ãë£©
+        # å˜´å‹å‚æ•°
+        'mar_threshold': 0.5,          # å˜´éƒ¨å¼€åˆé˜ˆå€¼
+        'mar_jump_threshold': 0.3,     # MARè·³è·ƒé˜ˆå€¼
+        'max_open_duration_s': 3.0,    # æœ€å¤§æŒç»­å¼ å˜´æ—¶é—´ï¼ˆç§’ï¼‰
         
-        # ÊÖÊÆ²ÎÊı
-        'velocity_threshold': 0.3,     # ËÙ¶ÈÍ»±äãĞÖµ
-        'jitter_threshold': 0.05,      # ¶¶¶¯ãĞÖµ
-        'window_size': 5,              # »¬¶¯´°¿Ú´óĞ¡
+        # æ‰‹åŠ¿å‚æ•°
+        'velocity_threshold': 0.3,     # é€Ÿåº¦çªå˜é˜ˆå€¼
+        'jitter_threshold': 0.05,      # æŠ–åŠ¨é˜ˆå€¼
+        'window_size': 5,              # æ»‘åŠ¨çª—å£å¤§å°
     }
     
     @staticmethod
     def compute_eye_aspect_ratio(face_landmarks: np.ndarray, eye_indices: dict) -> Optional[float]:
         """
-        ¼ÆËãÑÛ¾¦×İºá±È£¨EAR - Eye Aspect Ratio£©
+        è®¡ç®—çœ¼ç›çºµæ¨ªæ¯”ï¼ˆEAR - Eye Aspect Ratioï¼‰
         
         Args:
-            face_landmarks: Ãæ²¿¹Ø¼üµãÊı×é (468, 3)
-            eye_indices: ÑÛ¾¦¹Ø¼üµãË÷Òı×Öµä
+            face_landmarks: é¢éƒ¨å…³é”®ç‚¹æ•°ç»„ (468, 3)
+            eye_indices: çœ¼ç›å…³é”®ç‚¹ç´¢å¼•å­—å…¸
         
         Returns:
-            EARÖµ£¬·¶Î§Ô¼[0, 0.4]£¬ÖµÔ½Ğ¡ÑÛ¾¦Ô½±ÕºÏ
+            EARå€¼ï¼ŒèŒƒå›´çº¦[0, 0.4]ï¼Œå€¼è¶Šå°çœ¼ç›è¶Šé—­åˆ
         """
         try:
             v1_top, v1_bottom = eye_indices['vertical1']
             v2_top, v2_bottom = eye_indices['vertical2']
             h_left, h_right = eye_indices['horizontal']
             
-            # ¼ÆËã´¹Ö±¾àÀë
+            # è®¡ç®—å‚ç›´è·ç¦»
             vertical1 = np.linalg.norm(face_landmarks[v1_top] - face_landmarks[v1_bottom])
             vertical2 = np.linalg.norm(face_landmarks[v2_top] - face_landmarks[v2_bottom])
             
-            # ¼ÆËãË®Æ½¾àÀë
+            # è®¡ç®—æ°´å¹³è·ç¦»
             horizontal = np.linalg.norm(face_landmarks[h_left] - face_landmarks[h_right])
             
-            # ¼ÆËãEAR
+            # è®¡ç®—EAR
             if horizontal > 0:
                 ear = (vertical1 + vertical2) / (2.0 * horizontal)
                 return float(ear)
@@ -89,14 +89,14 @@ class PhysiologicalMetrics:
     @staticmethod
     def compute_mouth_aspect_ratio(face_landmarks: np.ndarray, mouth_indices: dict) -> Optional[float]:
         """
-        ¼ÆËã×ì²¿×İºá±È£¨MAR - Mouth Aspect Ratio£©
+        è®¡ç®—å˜´éƒ¨çºµæ¨ªæ¯”ï¼ˆMAR - Mouth Aspect Ratioï¼‰
         
         Args:
-            face_landmarks: Ãæ²¿¹Ø¼üµãÊı×é (468, 3)
-            mouth_indices: ×ì²¿¹Ø¼üµãË÷Òı×Öµä
+            face_landmarks: é¢éƒ¨å…³é”®ç‚¹æ•°ç»„ (468, 3)
+            mouth_indices: å˜´éƒ¨å…³é”®ç‚¹ç´¢å¼•å­—å…¸
         
         Returns:
-            MARÖµ£¬ÖµÔ½´ó×ì°ÍÕÅ¿ªÔ½´ó
+            MARå€¼ï¼Œå€¼è¶Šå¤§å˜´å·´å¼ å¼€è¶Šå¤§
         """
         try:
             top = mouth_indices['top']
@@ -104,11 +104,11 @@ class PhysiologicalMetrics:
             left = mouth_indices['left']
             right = mouth_indices['right']
             
-            # ¼ÆËã´¹Ö±ºÍË®Æ½¾àÀë
+            # è®¡ç®—å‚ç›´å’Œæ°´å¹³è·ç¦»
             vertical = np.linalg.norm(face_landmarks[top] - face_landmarks[bottom])
             horizontal = np.linalg.norm(face_landmarks[left] - face_landmarks[right])
             
-            # ¼ÆËãMAR
+            # è®¡ç®—MAR
             if horizontal > 0:
                 mar = vertical / horizontal
                 return float(mar)
@@ -123,15 +123,15 @@ class PhysiologicalMetrics:
         params: Optional[Dict] = None
     ) -> List[Dict]:
         """
-        ¼ì²âÕ£ÑÛÊÂ¼ş
+        æ£€æµ‹çœ¨çœ¼äº‹ä»¶
         
         Args:
-            ear_sequence: EARÖµĞòÁĞ
-            fps: ÊÓÆµÖ¡ÂÊ
-            params: ²ÎÊı×Öµä£¨¿ÉÑ¡£©
+            ear_sequence: EARå€¼åºåˆ—
+            fps: è§†é¢‘å¸§ç‡
+            params: å‚æ•°å­—å…¸ï¼ˆå¯é€‰ï¼‰
         
         Returns:
-            Õ£ÑÛÊÂ¼şÁĞ±í
+            çœ¨çœ¼äº‹ä»¶åˆ—è¡¨
         """
         if params is None:
             params = PhysiologicalMetrics.PARAMS
@@ -149,15 +149,15 @@ class PhysiologicalMetrics:
                 continue
             
             if not is_closed and ear < ear_threshold:
-                # ¿ªÊ¼±ÕÑÛ
+                # å¼€å§‹é—­çœ¼
                 is_closed = True
                 blink_start = frame_idx
             elif is_closed and ear >= ear_threshold:
-                # ÕöÑÛ
+                # ççœ¼
                 is_closed = False
                 blink_duration = frame_idx - blink_start
                 
-                # ÓĞĞ§Õ£ÑÛ
+                # æœ‰æ•ˆçœ¨çœ¼
                 if min_blink_frames <= blink_duration <= max_blink_frames:
                     blinks.append({
                         'start': blink_start,
@@ -174,14 +174,14 @@ class PhysiologicalMetrics:
         threshold: float
     ) -> List[int]:
         """
-        ¼ì²âĞòÁĞÖĞµÄÌøÔ¾£¨²»Á¬Ğøµã£©
+        æ£€æµ‹åºåˆ—ä¸­çš„è·³è·ƒï¼ˆä¸è¿ç»­ç‚¹ï¼‰
         
         Args:
-            sequence: ÊıÖµĞòÁĞ
-            threshold: ÌøÔ¾ãĞÖµ
+            sequence: æ•°å€¼åºåˆ—
+            threshold: è·³è·ƒé˜ˆå€¼
         
         Returns:
-            ÌøÔ¾µãµÄË÷ÒıÁĞ±í
+            è·³è·ƒç‚¹çš„ç´¢å¼•åˆ—è¡¨
         """
         jumps = []
         
@@ -201,14 +201,14 @@ class PhysiologicalMetrics:
         fps: float
     ) -> List[Tuple[int, Optional[float]]]:
         """
-        ¼ÆËãÊÖ²¿ÔË¶¯ËÙ¶È
+        è®¡ç®—æ‰‹éƒ¨è¿åŠ¨é€Ÿåº¦
         
         Args:
-            hand_positions: ÊÖ²¿Î»ÖÃĞòÁĞ [(frame_idx, position), ...]
-            fps: ÊÓÆµÖ¡ÂÊ
+            hand_positions: æ‰‹éƒ¨ä½ç½®åºåˆ— [(frame_idx, position), ...]
+            fps: è§†é¢‘å¸§ç‡
         
         Returns:
-            ËÙ¶ÈĞòÁĞ [(frame_idx, velocity), ...]
+            é€Ÿåº¦åºåˆ— [(frame_idx, velocity), ...]
         """
         velocities = []
         
@@ -232,14 +232,14 @@ class PhysiologicalMetrics:
         window_size: int = 5
     ) -> List[float]:
         """
-        ¼ÆËãÎ»ÖÃĞòÁĞµÄ¶¶¶¯³Ì¶È
+        è®¡ç®—ä½ç½®åºåˆ—çš„æŠ–åŠ¨ç¨‹åº¦
         
         Args:
-            positions: Î»ÖÃĞòÁĞ
-            window_size: »¬¶¯´°¿Ú´óĞ¡
+            positions: ä½ç½®åºåˆ—
+            window_size: æ»‘åŠ¨çª—å£å¤§å°
         
         Returns:
-            ¶¶¶¯ÖµĞòÁĞ
+            æŠ–åŠ¨å€¼åºåˆ—
         """
         jitters = []
         
@@ -257,7 +257,7 @@ class PhysiologicalMetrics:
 
 
 class AnomalyBuilder:
-    """Òì³£ÊÂ¼ş¹¹½¨Æ÷"""
+    """å¼‚å¸¸äº‹ä»¶æ„å»ºå™¨"""
     
     @staticmethod
     def build_blink_anomaly(
@@ -266,7 +266,7 @@ class AnomalyBuilder:
         fps: float,
         **kwargs
     ) -> Dict:
-        """¹¹½¨Õ£ÑÛÏà¹ØÒì³£"""
+        """æ„å»ºçœ¨çœ¼ç›¸å…³å¼‚å¸¸"""
         severity_map = {
             'abnormal_blink_duration': 'medium',
             'low_blink_rate': 'low',
@@ -295,7 +295,7 @@ class AnomalyBuilder:
         fps: float,
         **kwargs
     ) -> Dict:
-        """¹¹½¨×ìĞÍÏà¹ØÒì³£"""
+        """æ„å»ºå˜´å‹ç›¸å…³å¼‚å¸¸"""
         severity_map = {
             'mouth_discontinuity': 'medium',
             'prolonged_mouth_opening': 'low'
@@ -323,7 +323,7 @@ class AnomalyBuilder:
         fps: float,
         **kwargs
     ) -> Dict:
-        """¹¹½¨ÊÖÊÆÏà¹ØÒì³£"""
+        """æ„å»ºæ‰‹åŠ¿ç›¸å…³å¼‚å¸¸"""
         severity_map = {
             'hand_velocity_jump': 'medium',
             'hand_jitter': 'low',

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
-Ê±ĞòºÏÀíĞÔ·ÖÎöÖ´ĞĞ½Å±¾
-Ö§³Ö²ÎÊı»¯ÅäÖÃ
+æ—¶åºåˆç†æ€§åˆ†ææ‰§è¡Œè„šæœ¬
+æ”¯æŒå‚æ•°åŒ–é…ç½®
 """
 
 import os
@@ -11,7 +11,7 @@ import json
 from pathlib import Path
 from typing import Optional, List
 
-# Ìí¼ÓÏîÄ¿¸ùÄ¿Â¼µ½Â·¾¶
+# æ·»åŠ é¡¹ç›®æ ¹ç›®å½•åˆ°è·¯å¾„
 current_file = os.path.abspath(__file__)
 project_root = os.path.abspath(os.path.join(os.path.dirname(current_file), '..', '..'))
 if project_root not in sys.path:
@@ -27,20 +27,20 @@ from src.temporal_reasoning.utils.video_utils import load_video_frames, get_vide
 
 
 class TemporalReasoningRunner:
-    """Ê±ĞòºÏÀíĞÔ·ÖÎöÔËĞĞÆ÷"""
+    """æ—¶åºåˆç†æ€§åˆ†æè¿è¡Œå™¨"""
     
     def __init__(self, config: Optional[TemporalReasoningConfig] = None):
         """
-        ³õÊ¼»¯ÔËĞĞÆ÷
+        åˆå§‹åŒ–è¿è¡Œå™¨
         
         Args:
-            config: ÅäÖÃ¶ÔÏó£¬Èç¹ûÎªNoneÔòÊ¹ÓÃÄ¬ÈÏÅäÖÃ
+            config: é…ç½®å¯¹è±¡ï¼Œå¦‚æœä¸ºNoneåˆ™ä½¿ç”¨é»˜è®¤é…ç½®
         """
         self.config = config or get_default_config()
         self.analyzer = None
     
     def initialize(self):
-        """³õÊ¼»¯·ÖÎöÆ÷"""
+        """åˆå§‹åŒ–åˆ†æå™¨"""
         self.analyzer = TemporalReasoningAnalyzer(self.config)
         self.analyzer.initialize()
     
@@ -51,38 +51,38 @@ class TemporalReasoningRunner:
         output_path: Optional[str] = None
     ) -> dict:
         """
-        ÔËĞĞ·ÖÎö
+        è¿è¡Œåˆ†æ
         
         Args:
-            video_path: ÊÓÆµÎÄ¼şÂ·¾¶
-            text_prompts: ¿ÉÑ¡ÎÄ±¾ÌáÊ¾ÁĞ±í
-            output_path: Êä³ö½á¹ûÎÄ¼şÂ·¾¶
+            video_path: è§†é¢‘æ–‡ä»¶è·¯å¾„
+            text_prompts: å¯é€‰æ–‡æœ¬æç¤ºåˆ—è¡¨
+            output_path: è¾“å‡ºç»“æœæ–‡ä»¶è·¯å¾„
         
         Returns:
-            ·ÖÎö½á¹û×Öµä
+            åˆ†æç»“æœå­—å…¸
         """
         if self.analyzer is None:
             self.initialize()
         
-        # ¼ÓÔØÊÓÆµ
-        print(f"ÕıÔÚ¼ÓÔØÊÓÆµ: {video_path}")
+        # åŠ è½½è§†é¢‘
+        print(f"æ­£åœ¨åŠ è½½è§†é¢‘: {video_path}")
         video_info = get_video_info(video_path)
-        print(f"ÊÓÆµĞÅÏ¢: {video_info['width']}x{video_info['height']}, "
-              f"{video_info['frame_count']}Ö¡, {video_info['fps']:.2f}fps")
+        print(f"è§†é¢‘ä¿¡æ¯: {video_info['width']}x{video_info['height']}, "
+              f"{video_info['frame_count']}å¸§, {video_info['fps']:.2f}fps")
         
-        # ¼ÓÔØÊÓÆµÖ¡
+        # åŠ è½½è§†é¢‘å¸§
         video_frames = load_video_frames(video_path)
-        print(f"ÒÑ¼ÓÔØ {len(video_frames)} Ö¡")
+        print(f"å·²åŠ è½½ {len(video_frames)} å¸§")
         
-        # Ö´ĞĞ·ÖÎö
+        # æ‰§è¡Œåˆ†æ
         result = self.analyzer.analyze(
             video_frames=video_frames,
             text_prompts=text_prompts,
             fps=video_info['fps'],
-            video_path=video_path  # ´«ÈëÊÓÆµÂ·¾¶£¬ÓÃÓÚ¿ÉÊÓ»¯Êä³ö
+            video_path=video_path  # ä¼ å…¥è§†é¢‘è·¯å¾„ï¼Œç”¨äºå¯è§†åŒ–è¾“å‡º
         )
         
-        # Ìí¼ÓÊÓÆµĞÅÏ¢
+        # æ·»åŠ è§†é¢‘ä¿¡æ¯
         result['video_info'] = {
             'path': video_path,
             'width': video_info['width'],
@@ -92,7 +92,7 @@ class TemporalReasoningRunner:
             'duration': video_info['duration']
         }
         
-        # ±£´æ½á¹û
+        # ä¿å­˜ç»“æœ
         if output_path:
             self._save_results(result, output_path)
         
@@ -100,65 +100,65 @@ class TemporalReasoningRunner:
     
     def _save_results(self, result: dict, output_path: str):
         """
-        ±£´æ·ÖÎö½á¹û
+        ä¿å­˜åˆ†æç»“æœ
         
         Args:
-            result: ·ÖÎö½á¹û×Öµä
-            output_path: Êä³öÎÄ¼şÂ·¾¶
+            result: åˆ†æç»“æœå­—å…¸
+            output_path: è¾“å‡ºæ–‡ä»¶è·¯å¾„
         """
-        # È·±£Êä³öÄ¿Â¼´æÔÚ
+        # ç¡®ä¿è¾“å‡ºç›®å½•å­˜åœ¨
         output_dir = os.path.dirname(output_path)
         if output_dir:
             os.makedirs(output_dir, exist_ok=True)
         
-        # ±£´æJSON½á¹û
+        # ä¿å­˜JSONç»“æœ
         with open(output_path, 'w', encoding='utf-8') as f:
             json.dump(result, f, indent=2, ensure_ascii=False)
         
-        print(f"\n½á¹ûÒÑ±£´æµ½: {output_path}")
+        print(f"\nç»“æœå·²ä¿å­˜åˆ°: {output_path}")
 
 
 def parse_args():
-    """½âÎöÃüÁîĞĞ²ÎÊı"""
+    """è§£æå‘½ä»¤è¡Œå‚æ•°"""
     parser = argparse.ArgumentParser(
-        description='Ê±ĞòºÏÀíĞÔ·ÖÎö¹¤¾ß',
+        description='æ—¶åºåˆç†æ€§åˆ†æå·¥å…·',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
-Ê¾ÀıÓÃ·¨:
-  # »ù±¾Ê¹ÓÃ£¨ÎŞÎÄ±¾ÌáÊ¾£¬Ê¹ÓÃÄ¬ÈÏ£©
+ç¤ºä¾‹ç”¨æ³•:
+  # åŸºæœ¬ä½¿ç”¨ï¼ˆæ— æ–‡æœ¬æç¤ºï¼Œä½¿ç”¨é»˜è®¤ï¼‰
   python run_analysis.py --video path/to/video.mp4
   
-  # Ö¸¶¨ÎÄ±¾ÌáÊ¾
+  # æŒ‡å®šæ–‡æœ¬æç¤º
   python run_analysis.py --video path/to/video.mp4 --prompts "person" "car"
   
-  # Ê¹ÓÃÅäÖÃÎÄ¼ş
+  # ä½¿ç”¨é…ç½®æ–‡ä»¶
   python run_analysis.py --video path/to/video.mp4 --config config.yaml
   
-  # Ö¸¶¨Êä³öÂ·¾¶
+  # æŒ‡å®šè¾“å‡ºè·¯å¾„
   python run_analysis.py --video path/to/video.mp4 --output results.json
   
-  # ÆôÓÃ¹Ø¼üµã¿ÉÊÓ»¯
+  # å¯ç”¨å…³é”®ç‚¹å¯è§†åŒ–
   python run_analysis.py --video path/to/video.mp4 --enable-keypoint-visualization
   
-  # Ö¸¶¨Éè±¸
+  # æŒ‡å®šè®¾å¤‡
   python run_analysis.py --video path/to/video.mp4 --device cuda:0
         """
     )
     
-    # ±ØĞè²ÎÊı
+    # å¿…éœ€å‚æ•°
     parser.add_argument(
         '--video',
         type=str,
         required=True,
-        help='ÊÓÆµÎÄ¼şÂ·¾¶'
+        help='è§†é¢‘æ–‡ä»¶è·¯å¾„'
     )
     
-    # ¿ÉÑ¡²ÎÊı
+    # å¯é€‰å‚æ•°
     parser.add_argument(
         '--config',
         type=str,
         default=None,
-        help='ÅäÖÃÎÄ¼şÂ·¾¶£¨YAML¸ñÊ½£©'
+        help='é…ç½®æ–‡ä»¶è·¯å¾„ï¼ˆYAMLæ ¼å¼ï¼‰'
     )
     
     parser.add_argument(
@@ -166,28 +166,28 @@ def parse_args():
         type=str,
         nargs='+',
         default=None,
-        help='ÎÄ±¾ÌáÊ¾ÁĞ±í£¨Èç: --prompts "person" "car"£©¡£Èç¹ûÎ´Ö¸¶¨£¬½«Ê¹ÓÃÄ¬ÈÏÌáÊ¾: person, face, hand, body, object'
+        help='æ–‡æœ¬æç¤ºåˆ—è¡¨ï¼ˆå¦‚: --prompts "person" "car"ï¼‰ã€‚å¦‚æœæœªæŒ‡å®šï¼Œå°†ä½¿ç”¨é»˜è®¤æç¤º: person, face, hand, body, object'
     )
     
     parser.add_argument(
         '--output',
         type=str,
         default=None,
-        help='Êä³ö½á¹ûÎÄ¼şÂ·¾¶£¨JSON¸ñÊ½£©'
+        help='è¾“å‡ºç»“æœæ–‡ä»¶è·¯å¾„ï¼ˆJSONæ ¼å¼ï¼‰'
     )
     
     parser.add_argument(
         '--device',
         type=str,
         default=None,
-        help='¼ÆËãÉè±¸£¨Èç: cuda:0, cpu£©'
+        help='è®¡ç®—è®¾å¤‡ï¼ˆå¦‚: cuda:0, cpuï¼‰'
     )
     
     parser.add_argument(
         '--raft-model',
         type=str,
         default=None,
-        help='RAFTÄ£ĞÍÂ·¾¶'
+        help='RAFTæ¨¡å‹è·¯å¾„'
     )
     
     parser.add_argument(
@@ -195,76 +195,76 @@ def parse_args():
         type=str,
         choices=['large', 'small'],
         default=None,
-        help='RAFTÄ£ĞÍÀàĞÍ'
+        help='RAFTæ¨¡å‹ç±»å‹'
     )
     
     parser.add_argument(
         '--output-dir',
         type=str,
         default=None,
-        help='Êä³öÄ¿Â¼'
+        help='è¾“å‡ºç›®å½•'
     )
     
     parser.add_argument(
         '--save-visualizations',
         action='store_true',
-        help='±£´æ¿ÉÊÓ»¯½á¹û'
+        help='ä¿å­˜å¯è§†åŒ–ç»“æœ'
     )
     
-    # ¹Ø¼üµã¿ÉÊÓ»¯²ÎÊı
+    # å…³é”®ç‚¹å¯è§†åŒ–å‚æ•°
     parser.add_argument(
         '--enable-keypoint-visualization',
         action='store_true',
-        help='ÆôÓÃ¹Ø¼üµã¿ÉÊÓ»¯'
+        help='å¯ç”¨å…³é”®ç‚¹å¯è§†åŒ–'
     )
     
     parser.add_argument(
         '--keypoint-visualization-dir',
         type=str,
         default=None,
-        help='¹Ø¼üµã¿ÉÊÓ»¯Êä³öÄ¿Â¼'
+        help='å…³é”®ç‚¹å¯è§†åŒ–è¾“å‡ºç›®å½•'
     )
     
     parser.add_argument(
         '--show-face-keypoints',
         action='store_true',
-        help='ÏÔÊ¾Ãæ²¿¹Ø¼üµã£¨468¸öµã£©'
+        help='æ˜¾ç¤ºé¢éƒ¨å…³é”®ç‚¹ï¼ˆ468ä¸ªç‚¹ï¼‰'
     )
     
     parser.add_argument(
         '--show-keypoint-visualization',
         action='store_true',
-        help='ÏÔÊ¾¹Ø¼üµã¿ÉÊÓ»¯GUI´°¿Ú£¨µÚÒ»Ö¡£©'
+        help='æ˜¾ç¤ºå…³é”®ç‚¹å¯è§†åŒ–GUIçª—å£ï¼ˆç¬¬ä¸€å¸§ï¼‰'
     )
     
     return parser.parse_args()
 
 
 def main():
-    """Ö÷º¯Êı"""
+    """ä¸»å‡½æ•°"""
     args = parse_args()
     
-    # ¼ì²éÊÓÆµÎÄ¼şÊÇ·ñ´æÔÚ
+    # æ£€æŸ¥è§†é¢‘æ–‡ä»¶æ˜¯å¦å­˜åœ¨
     if not os.path.exists(args.video):
-        print(f"´íÎó: ÊÓÆµÎÄ¼ş²»´æÔÚ: {args.video}")
+        print(f"é”™è¯¯: è§†é¢‘æ–‡ä»¶ä¸å­˜åœ¨: {args.video}")
         sys.exit(1)
     
-    # ¼ÓÔØÅäÖÃ
+    # åŠ è½½é…ç½®
     if args.config:
         if not os.path.exists(args.config):
-            print(f"´íÎó: ÅäÖÃÎÄ¼ş²»´æÔÚ: {args.config}")
+            print(f"é”™è¯¯: é…ç½®æ–‡ä»¶ä¸å­˜åœ¨: {args.config}")
             sys.exit(1)
         try:
             config = load_config_from_yaml(args.config)
-            print(f"ÒÑ¼ÓÔØÅäÖÃÎÄ¼ş: {args.config}")
+            print(f"å·²åŠ è½½é…ç½®æ–‡ä»¶: {args.config}")
         except Exception as e:
-            print(f"´íÎó: ¼ÓÔØÅäÖÃÎÄ¼şÊ§°Ü: {e}")
+            print(f"é”™è¯¯: åŠ è½½é…ç½®æ–‡ä»¶å¤±è´¥: {e}")
             sys.exit(1)
     else:
         config = get_default_config()
-        print("Ê¹ÓÃÄ¬ÈÏÅäÖÃ")
+        print("ä½¿ç”¨é»˜è®¤é…ç½®")
     
-    # ¸üĞÂÅäÖÃ£¨ÃüÁîĞĞ²ÎÊıÓÅÏÈ¼¶¸ü¸ß£©
+    # æ›´æ–°é…ç½®ï¼ˆå‘½ä»¤è¡Œå‚æ•°ä¼˜å…ˆçº§æ›´é«˜ï¼‰
     if args.device:
         config.device = args.device
         config.raft.use_gpu = "cuda" in args.device
@@ -281,7 +281,7 @@ def main():
     if args.save_visualizations:
         config.save_visualizations = True
     
-    # ¸üĞÂ¹Ø¼üµã¿ÉÊÓ»¯ÅäÖÃ
+    # æ›´æ–°å…³é”®ç‚¹å¯è§†åŒ–é…ç½®
     if args.enable_keypoint_visualization:
         config.keypoint.enable_visualization = True
     
@@ -294,46 +294,46 @@ def main():
     if args.show_keypoint_visualization:
         config.keypoint.show_visualization = True
     
-    # ÉèÖÃÊä³öÂ·¾¶
+    # è®¾ç½®è¾“å‡ºè·¯å¾„
     if args.output:
         output_path = args.output
     else:
-        # Ä¬ÈÏÊä³öÂ·¾¶
+        # é»˜è®¤è¾“å‡ºè·¯å¾„
         video_name = Path(args.video).stem
         output_dir = config.output_dir or "outputs/temporal_reasoning"
         os.makedirs(output_dir, exist_ok=True)
         output_path = os.path.join(output_dir, f"{video_name}_result.json")
     
-    # ´´½¨ÔËĞĞÆ÷
+    # åˆ›å»ºè¿è¡Œå™¨
     runner = TemporalReasoningRunner(config)
     
     try:
-        # ÔËĞĞ·ÖÎö
+        # è¿è¡Œåˆ†æ
         result = runner.run(
             video_path=args.video,
             text_prompts=args.prompts,
             output_path=output_path
         )
         
-        # ´òÓ¡ÕªÒª
+        # æ‰“å°æ‘˜è¦
         print("\n" + "=" * 50)
-        print("·ÖÎöÕªÒª")
+        print("åˆ†ææ‘˜è¦")
         print("=" * 50)
-        print(f"ÔË¶¯ºÏÀíĞÔµÃ·Ö: {result['motion_reasonableness_score']:.3f}")
-        print(f"½á¹¹ÎÈ¶¨ĞÔµÃ·Ö: {result['structure_stability_score']:.3f}")
-        print(f"Òì³£ÊıÁ¿: {len(result['anomalies'])}")
+        print(f"è¿åŠ¨åˆç†æ€§å¾—åˆ†: {result['motion_reasonableness_score']:.3f}")
+        print(f"ç»“æ„ç¨³å®šæ€§å¾—åˆ†: {result['structure_stability_score']:.3f}")
+        print(f"å¼‚å¸¸æ•°é‡: {len(result['anomalies'])}")
         
         if result['anomalies']:
-            print("\nÒì³£ÁĞ±í:")
+            print("\nå¼‚å¸¸åˆ—è¡¨:")
             for i, anomaly in enumerate(result['anomalies'], 1):
                 print(f"  {i}. [{anomaly['severity']}] {anomaly['type']} "
-                      f"({anomaly['timestamp']}, ÖÃĞÅ¶È: {anomaly['confidence']:.2f})")
-                print(f"     ÃèÊö: {anomaly['description']}")
+                      f"({anomaly['timestamp']}, ç½®ä¿¡åº¦: {anomaly['confidence']:.2f})")
+                print(f"     æè¿°: {anomaly['description']}")
         
         print("=" * 50)
         
     except Exception as e:
-        print(f"\n´íÎó: ·ÖÎöÊ§°Ü: {e}")
+        print(f"\né”™è¯¯: åˆ†æå¤±è´¥: {e}")
         import traceback
         traceback.print_exc()
         sys.exit(1)

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
-¹Ø¼üµã·ÖÎöÆ÷ÍêÕûÊµÏÖÊ¾Àı
-Õ¹Ê¾ÈçºÎÔÚ KeypointAnalyzer ÖĞÊµÏÖÕ£ÑÛ¡¢×ìĞÍ¡¢ÊÖÊÆ·ÖÎö
+å…³é”®ç‚¹åˆ†æå™¨å®Œæ•´å®ç°ç¤ºä¾‹
+å±•ç¤ºå¦‚ä½•åœ¨ KeypointAnalyzer ä¸­å®ç°çœ¨çœ¼ã€å˜´å‹ã€æ‰‹åŠ¿åˆ†æ
 """
 
 import numpy as np
@@ -15,21 +15,21 @@ from ..core.config import KeypointConfig
 
 
 class KeypointAnalyzer:
-    """¹Ø¼üµã·ÖÎöÆ÷£¨°üº¬ÍêÕûÖ¸±êÊµÏÖ£©"""
+    """å…³é”®ç‚¹åˆ†æå™¨ï¼ˆåŒ…å«å®Œæ•´æŒ‡æ ‡å®ç°ï¼‰"""
     
     def __init__(self, config: KeypointConfig):
         """
-        ³õÊ¼»¯¹Ø¼üµã·ÖÎöÆ÷
+        åˆå§‹åŒ–å…³é”®ç‚¹åˆ†æå™¨
         
         Args:
-            config: KeypointConfigÅäÖÃ¶ÔÏó
+            config: KeypointConfigé…ç½®å¯¹è±¡
         """
         self.config = config
         self.extractor = None
         self.visualizer = None
         self.metrics = PhysiologicalMetrics()
         
-        # ³õÊ¼»¯¿ÉÊÓ»¯Æ÷£¨Èç¹ûÆôÓÃ£©
+        # åˆå§‹åŒ–å¯è§†åŒ–å™¨ï¼ˆå¦‚æœå¯ç”¨ï¼‰
         if self.config.enable_visualization:
             from .keypoint_visualizer import KeypointVisualizer
             self.visualizer = KeypointVisualizer(
@@ -40,8 +40,8 @@ class KeypointAnalyzer:
             )
     
     def initialize(self):
-        """³õÊ¼»¯¹Ø¼üµãÌáÈ¡Æ÷"""
-        print("ÕıÔÚ³õÊ¼»¯¹Ø¼üµã·ÖÎöÆ÷...")
+        """åˆå§‹åŒ–å…³é”®ç‚¹æå–å™¨"""
+        print("æ­£åœ¨åˆå§‹åŒ–å…³é”®ç‚¹åˆ†æå™¨...")
         try:
             if self.config.model_type == "mediapipe":
                 import os
@@ -51,20 +51,20 @@ class KeypointAnalyzer:
                 cache_dir = project_root / ".cache"
                 cache_dir = str(cache_dir.absolute())
                 
-                print(f"»º´æÄ¿Â¼: {cache_dir}")
-                print(f"MediaPipeÄ£ĞÍ»º´æÄ¿Â¼: {cache_dir}/mediapipe/")
+                print(f"ç¼“å­˜ç›®å½•: {cache_dir}")
+                print(f"MediaPipeæ¨¡å‹ç¼“å­˜ç›®å½•: {cache_dir}/mediapipe/")
                 
                 self.extractor = MediaPipeKeypointExtractor(
                     model_path=None,
                     cache_dir=cache_dir
                 )
             else:
-                print(f"¾¯¸æ: ²»Ö§³ÖµÄ¹Ø¼üµãÄ£ĞÍÀàĞÍ: {self.config.model_type}")
+                print(f"è­¦å‘Š: ä¸æ”¯æŒçš„å…³é”®ç‚¹æ¨¡å‹ç±»å‹: {self.config.model_type}")
                 self.extractor = MediaPipeKeypointExtractor(cache_dir=".cache")
             
-            print("¹Ø¼üµã·ÖÎöÆ÷³õÊ¼»¯Íê³É£¡")
+            print("å…³é”®ç‚¹åˆ†æå™¨åˆå§‹åŒ–å®Œæˆï¼")
         except Exception as e:
-            print(f"´íÎó: ¹Ø¼üµã·ÖÎöÆ÷³õÊ¼»¯Ê§°Ü: {e}")
+            print(f"é”™è¯¯: å…³é”®ç‚¹åˆ†æå™¨åˆå§‹åŒ–å¤±è´¥: {e}")
             import traceback
             traceback.print_exc()
     
@@ -75,12 +75,12 @@ class KeypointAnalyzer:
         video_path: str = None
     ) -> Tuple[float, List[Dict]]:
         """
-        ·ÖÎöÊÓÆµÉúÀí¶¯×÷×ÔÈ»ĞÔ
+        åˆ†æè§†é¢‘ç”Ÿç†åŠ¨ä½œè‡ªç„¶æ€§
         
         Args:
-            video_frames: ÊÓÆµÖ¡ĞòÁĞ
-            fps: ÊÓÆµÖ¡ÂÊ
-            video_path: ÊÓÆµÂ·¾¶£¨ÓÃÓÚ¿ÉÊÓ»¯Êä³ö£¬¿ÉÑ¡£©
+            video_frames: è§†é¢‘å¸§åºåˆ—
+            fps: è§†é¢‘å¸§ç‡
+            video_path: è§†é¢‘è·¯å¾„ï¼ˆç”¨äºå¯è§†åŒ–è¾“å‡ºï¼Œå¯é€‰ï¼‰
         
         Returns:
             (physiological_score, anomalies)
@@ -91,18 +91,18 @@ class KeypointAnalyzer:
         if hasattr(self.extractor, 'reset_timestamp'):
             self.extractor.reset_timestamp()
         
-        print("ÕıÔÚ·ÖÎöÉúÀí¶¯×÷×ÔÈ»ĞÔ...")
+        print("æ­£åœ¨åˆ†æç”Ÿç†åŠ¨ä½œè‡ªç„¶æ€§...")
         
-        # 1. ÌáÈ¡¹Ø¼üµãĞòÁĞ
-        print("ÕıÔÚÌáÈ¡¹Ø¼üµã...")
+        # 1. æå–å…³é”®ç‚¹åºåˆ—
+        print("æ­£åœ¨æå–å…³é”®ç‚¹...")
         keypoint_sequences = []
         visualized_frames = []
         
-        for frame_idx, frame in enumerate(tqdm(video_frames, desc="ÌáÈ¡¹Ø¼üµã")):
+        for frame_idx, frame in enumerate(tqdm(video_frames, desc="æå–å…³é”®ç‚¹")):
             keypoints = self.extractor.extract_keypoints(frame, fps=fps)
             keypoint_sequences.append(keypoints)
             
-            # Èç¹ûÆôÓÃ¿ÉÊÓ»¯£¬´¦Àí¿ÉÊÓ»¯
+            # å¦‚æœå¯ç”¨å¯è§†åŒ–ï¼Œå¤„ç†å¯è§†åŒ–
             if self.config.enable_visualization and self.visualizer is not None:
                 import cv2
                 frame_bgr = frame.copy()
@@ -118,19 +118,19 @@ class KeypointAnalyzer:
                 )
                 visualized_frames.append(vis_frame)
         
-        # ±£´æ¿ÉÊÓ»¯½á¹û£¨Èç¹ûÆôÓÃ£©
+        # ä¿å­˜å¯è§†åŒ–ç»“æœï¼ˆå¦‚æœå¯ç”¨ï¼‰
         if self.config.enable_visualization and self.visualizer is not None and visualized_frames:
             self._save_visualization(visualized_frames, fps, video_path)
         
-        # 2. ·ÖÎöÉúÀí¶¯×÷
-        print("ÕıÔÚ·ÖÎöÉúÀí¶¯×÷...")
+        # 2. åˆ†æç”Ÿç†åŠ¨ä½œ
+        print("æ­£åœ¨åˆ†æç”Ÿç†åŠ¨ä½œ...")
         physiological_score, anomalies = self._analyze_physiological_actions(
             keypoint_sequences,
             fps=fps
         )
         
-        print(f"ÉúÀí¶¯×÷×ÔÈ»ĞÔµÃ·Ö: {physiological_score:.3f}")
-        print(f"¼ì²âµ½ {len(anomalies)} ¸öÉúÀíÒì³£")
+        print(f"ç”Ÿç†åŠ¨ä½œè‡ªç„¶æ€§å¾—åˆ†: {physiological_score:.3f}")
+        print(f"æ£€æµ‹åˆ° {len(anomalies)} ä¸ªç”Ÿç†å¼‚å¸¸")
         
         return physiological_score, anomalies
     
@@ -139,32 +139,32 @@ class KeypointAnalyzer:
         keypoint_sequences: List[Dict],
         fps: float = 30.0
     ) -> Tuple[float, List[Dict]]:
-        """·ÖÎöÉúÀí¶¯×÷"""
+        """åˆ†æç”Ÿç†åŠ¨ä½œ"""
         if not keypoint_sequences:
             return 1.0, []
         
         anomalies = []
         action_scores = []
         
-        # ·ÖÎöÕ£ÑÛ
+        # åˆ†æçœ¨çœ¼
         blink_score, blink_anomalies = self._analyze_blink_pattern(keypoint_sequences, fps)
         action_scores.append(blink_score)
         anomalies.extend(blink_anomalies)
-        print(f"  - Õ£ÑÛ·ÖÎö: µÃ·Ö={blink_score:.3f}, Òì³£={len(blink_anomalies)}")
+        print(f"  - çœ¨çœ¼åˆ†æ: å¾—åˆ†={blink_score:.3f}, å¼‚å¸¸={len(blink_anomalies)}")
         
-        # ·ÖÎö×ìĞÍ
+        # åˆ†æå˜´å‹
         mouth_score, mouth_anomalies = self._analyze_mouth_pattern(keypoint_sequences, fps)
         action_scores.append(mouth_score)
         anomalies.extend(mouth_anomalies)
-        print(f"  - ×ìĞÍ·ÖÎö: µÃ·Ö={mouth_score:.3f}, Òì³£={len(mouth_anomalies)}")
+        print(f"  - å˜´å‹åˆ†æ: å¾—åˆ†={mouth_score:.3f}, å¼‚å¸¸={len(mouth_anomalies)}")
         
-        # ·ÖÎöÊÖÊÆ
+        # åˆ†ææ‰‹åŠ¿
         gesture_score, gesture_anomalies = self._analyze_hand_gesture(keypoint_sequences, fps)
         action_scores.append(gesture_score)
         anomalies.extend(gesture_anomalies)
-        print(f"  - ÊÖÊÆ·ÖÎö: µÃ·Ö={gesture_score:.3f}, Òì³£={len(gesture_anomalies)}")
+        print(f"  - æ‰‹åŠ¿åˆ†æ: å¾—åˆ†={gesture_score:.3f}, å¼‚å¸¸={len(gesture_anomalies)}")
         
-        # ¼ÆËã×ÛºÏµÃ·Ö
+        # è®¡ç®—ç»¼åˆå¾—åˆ†
         physiological_score = float(np.mean(action_scores)) if action_scores else 1.0
         
         return physiological_score, anomalies
@@ -174,7 +174,7 @@ class KeypointAnalyzer:
         keypoint_sequences: List[Dict],
         fps: float
     ) -> Tuple[float, List[Dict]]:
-        """·ÖÎöÕ£ÑÛÄ£Ê½"""
+        """åˆ†æçœ¨çœ¼æ¨¡å¼"""
         if not keypoint_sequences:
             return 1.0, []
         
@@ -182,7 +182,7 @@ class KeypointAnalyzer:
         anomalies = []
         ear_sequence = []
         
-        # ¼ÆËãÃ¿Ö¡µÄEAR
+        # è®¡ç®—æ¯å¸§çš„EAR
         for frame_idx, keypoints in enumerate(keypoint_sequences):
             if keypoints['face'] is None:
                 ear_sequence.append(None)
@@ -190,7 +190,7 @@ class KeypointAnalyzer:
             
             face = keypoints['face']
             
-            # ¼ÆËã×óÑÛºÍÓÒÑÛµÄEAR
+            # è®¡ç®—å·¦çœ¼å’Œå³çœ¼çš„EAR
             left_ear = self.metrics.compute_eye_aspect_ratio(
                 face, self.metrics.FACE_LANDMARKS['left_eye']
             )
@@ -198,7 +198,7 @@ class KeypointAnalyzer:
                 face, self.metrics.FACE_LANDMARKS['right_eye']
             )
             
-            # Æ½¾ùEAR
+            # å¹³å‡EAR
             if left_ear is not None and right_ear is not None:
                 avg_ear = (left_ear + right_ear) / 2.0
             else:
@@ -206,21 +206,21 @@ class KeypointAnalyzer:
             
             ear_sequence.append(avg_ear)
         
-        # ¼ì²âÕ£ÑÛÊÂ¼ş
+        # æ£€æµ‹çœ¨çœ¼äº‹ä»¶
         blinks = self.metrics.detect_blinks(ear_sequence, fps, params)
         
-        # ¼ÆËãÕ£ÑÛÆµÂÊ
+        # è®¡ç®—çœ¨çœ¼é¢‘ç‡
         video_duration = len(keypoint_sequences) / fps
         blink_rate = len(blinks) / video_duration if video_duration > 0 else 0
         
-        # ¼ì²âÒì³£Õ£ÑÛÆµÂÊ
+        # æ£€æµ‹å¼‚å¸¸çœ¨çœ¼é¢‘ç‡
         if blink_rate < params['normal_blink_rate_min']:
             anomaly = AnomalyBuilder.build_blink_anomaly(
                 'low_blink_rate',
                 0,
                 fps,
                 blink_rate=blink_rate * 60,
-                description=f"Õ£ÑÛÆµÂÊ¹ıµÍ: {blink_rate * 60:.1f}´Î/·ÖÖÓ"
+                description=f"çœ¨çœ¼é¢‘ç‡è¿‡ä½: {blink_rate * 60:.1f}æ¬¡/åˆ†é’Ÿ"
             )
             anomalies.append(anomaly)
         elif blink_rate > params['normal_blink_rate_max']:
@@ -229,11 +229,11 @@ class KeypointAnalyzer:
                 0,
                 fps,
                 blink_rate=blink_rate * 60,
-                description=f"Õ£ÑÛÆµÂÊ¹ı¸ß: {blink_rate * 60:.1f}´Î/·ÖÖÓ"
+                description=f"çœ¨çœ¼é¢‘ç‡è¿‡é«˜: {blink_rate * 60:.1f}æ¬¡/åˆ†é’Ÿ"
             )
             anomalies.append(anomaly)
         
-        # ¼ì²âÕ£ÑÛ³ÖĞøÊ±¼ä¹ı³¤
+        # æ£€æµ‹çœ¨çœ¼æŒç»­æ—¶é—´è¿‡é•¿
         for blink in blinks:
             if blink['duration_ms'] > params['max_blink_frames_ratio'] * 1000:
                 anomaly = AnomalyBuilder.build_blink_anomaly(
@@ -241,11 +241,11 @@ class KeypointAnalyzer:
                     blink['start'],
                     fps,
                     duration_ms=blink['duration_ms'],
-                    description=f"Õ£ÑÛ³ÖĞøÊ±¼ä¹ı³¤: {blink['duration_ms']:.0f}ms"
+                    description=f"çœ¨çœ¼æŒç»­æ—¶é—´è¿‡é•¿: {blink['duration_ms']:.0f}ms"
                 )
                 anomalies.append(anomaly)
         
-        # ¼ÆËãµÃ·Ö
+        # è®¡ç®—å¾—åˆ†
         if not anomalies:
             score = 1.0
         else:
@@ -259,7 +259,7 @@ class KeypointAnalyzer:
         keypoint_sequences: List[Dict],
         fps: float
     ) -> Tuple[float, List[Dict]]:
-        """·ÖÎö×ìĞÍÄ£Ê½"""
+        """åˆ†æå˜´å‹æ¨¡å¼"""
         if not keypoint_sequences:
             return 1.0, []
         
@@ -267,7 +267,7 @@ class KeypointAnalyzer:
         anomalies = []
         mar_sequence = []
         
-        # ¼ÆËãÃ¿Ö¡µÄMAR
+        # è®¡ç®—æ¯å¸§çš„MAR
         for frame_idx, keypoints in enumerate(keypoint_sequences):
             if keypoints['face'] is None:
                 mar_sequence.append(None)
@@ -279,7 +279,7 @@ class KeypointAnalyzer:
             )
             mar_sequence.append(mar)
         
-        # ¼ì²âMARÌøÔ¾£¨²»Á¬Ğø£©
+        # æ£€æµ‹MARè·³è·ƒï¼ˆä¸è¿ç»­ï¼‰
         jumps = self.metrics.detect_sequence_jumps(
             mar_sequence,
             params['mar_jump_threshold']
@@ -292,11 +292,11 @@ class KeypointAnalyzer:
                 frame_idx,
                 fps,
                 mar_jump=mar_diff,
-                description=f"×ìĞÍ±ä»¯²»Á¬Ğø: MARÌøÔ¾ {mar_diff:.2f}"
+                description=f"å˜´å‹å˜åŒ–ä¸è¿ç»­: MARè·³è·ƒ {mar_diff:.2f}"
             )
             anomalies.append(anomaly)
         
-        # ¼ì²â³ÖĞøÕÅ×ì
+        # æ£€æµ‹æŒç»­å¼ å˜´
         open_start = -1
         for frame_idx, mar in enumerate(mar_sequence):
             if mar is None:
@@ -315,12 +315,12 @@ class KeypointAnalyzer:
                             open_start,
                             fps,
                             duration_s=duration_s,
-                            description=f"×ì²¿³ÖĞøÕÅ¿ª: {duration_s:.1f}Ãë"
+                            description=f"å˜´éƒ¨æŒç»­å¼ å¼€: {duration_s:.1f}ç§’"
                         )
                         anomalies.append(anomaly)
                     open_start = -1
         
-        # ¼ÆËãµÃ·Ö
+        # è®¡ç®—å¾—åˆ†
         if not anomalies:
             score = 1.0
         else:
@@ -334,29 +334,29 @@ class KeypointAnalyzer:
         keypoint_sequences: List[Dict],
         fps: float
     ) -> Tuple[float, List[Dict]]:
-        """·ÖÎöÊÖÊÆÄ£Ê½"""
+        """åˆ†ææ‰‹åŠ¿æ¨¡å¼"""
         if not keypoint_sequences:
             return 1.0, []
         
         params = self.metrics.PARAMS
         anomalies = []
         
-        # ·ÖÎö×óÊÖºÍÓÒÊÖ
+        # åˆ†æå·¦æ‰‹å’Œå³æ‰‹
         for hand_type in ['left_hand', 'right_hand']:
             hand_positions = []
             
-            # ÌáÈ¡ÊÖÍóÎ»ÖÃ£¨Ë÷Òı0£©
+            # æå–æ‰‹è…•ä½ç½®ï¼ˆç´¢å¼•0ï¼‰
             for frame_idx, keypoints in enumerate(keypoint_sequences):
                 if keypoints[hand_type] is not None:
-                    wrist_pos = keypoints[hand_type][0][:2]  # Ö»È¡x, y
+                    wrist_pos = keypoints[hand_type][0][:2]  # åªå–x, y
                     hand_positions.append((frame_idx, wrist_pos))
                 else:
                     hand_positions.append((frame_idx, None))
             
-            # ¼ÆËãËÙ¶È
+            # è®¡ç®—é€Ÿåº¦
             velocities = self.metrics.compute_hand_velocity(hand_positions, fps)
             
-            # ¼ì²âËÙ¶ÈÌøÔ¾
+            # æ£€æµ‹é€Ÿåº¦è·³è·ƒ
             vel_jumps = []
             for i in range(1, len(velocities)):
                 frame_idx1, vel1 = velocities[i-1]
@@ -374,11 +374,11 @@ class KeypointAnalyzer:
                     frame_idx,
                     fps,
                     velocity_jump=vel_diff,
-                    description=f"{hand_type}ÔË¶¯ËÙ¶ÈÍ»±ä: {vel_diff:.2f}"
+                    description=f"{hand_type}è¿åŠ¨é€Ÿåº¦çªå˜: {vel_diff:.2f}"
                 )
                 anomalies.append(anomaly)
             
-            # ¼ì²âÊÖ²¿¶¶¶¯
+            # æ£€æµ‹æ‰‹éƒ¨æŠ–åŠ¨
             valid_positions = [pos for _, pos in hand_positions if pos is not None]
             if len(valid_positions) > params['window_size']:
                 jitters = self.metrics.compute_jitter(
@@ -396,11 +396,11 @@ class KeypointAnalyzer:
                                 frame_idx,
                                 fps,
                                 jitter_std=jitter_val,
-                                description=f"{hand_type}¶¶¶¯¹ı´ó: std={jitter_val:.3f}"
+                                description=f"{hand_type}æŠ–åŠ¨è¿‡å¤§: std={jitter_val:.3f}"
                             )
                             anomalies.append(anomaly)
         
-        # ¼ÆËãµÃ·Ö
+        # è®¡ç®—å¾—åˆ†
         if not anomalies:
             score = 1.0
         else:
@@ -415,11 +415,11 @@ class KeypointAnalyzer:
         fps: float,
         video_path: str = None
     ):
-        """±£´æ¿ÉÊÓ»¯½á¹û"""
+        """ä¿å­˜å¯è§†åŒ–ç»“æœ"""
         if not self.config.save_visualization:
             return
         
-        # È·¶¨Êä³öÄ¿Â¼
+        # ç¡®å®šè¾“å‡ºç›®å½•
         if self.config.visualization_output_dir:
             output_dir = Path(self.config.visualization_output_dir)
         else:
@@ -428,7 +428,7 @@ class KeypointAnalyzer:
         
         output_dir.mkdir(parents=True, exist_ok=True)
         
-        # Éú³ÉÊä³öÎÄ¼şÃû
+        # ç”Ÿæˆè¾“å‡ºæ–‡ä»¶å
         if video_path:
             video_name = Path(video_path).stem
             output_path = output_dir / f"{video_name}_keypoints.mp4"
@@ -437,16 +437,16 @@ class KeypointAnalyzer:
             timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
             output_path = output_dir / f"keypoints_{timestamp}.mp4"
         
-        # ±£´æÊÓÆµ
+        # ä¿å­˜è§†é¢‘
         if visualized_frames:
             import cv2
             h, w = visualized_frames[0].shape[:2]
             fourcc = cv2.VideoWriter_fourcc(*'mp4v')
             out = cv2.VideoWriter(str(output_path), fourcc, fps, (w, h))
             
-            for frame in tqdm(visualized_frames, desc="±£´æ¿ÉÊÓ»¯½á¹û"):
+            for frame in tqdm(visualized_frames, desc="ä¿å­˜å¯è§†åŒ–ç»“æœ"):
                 out.write(frame)
             
             out.release()
-            print(f"¿ÉÊÓ»¯½á¹ûÒÑ±£´æµ½: {output_path}")
+            print(f"å¯è§†åŒ–ç»“æœå·²ä¿å­˜åˆ°: {output_path}")
 
