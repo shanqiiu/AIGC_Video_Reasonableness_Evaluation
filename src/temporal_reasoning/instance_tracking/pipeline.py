@@ -155,7 +155,7 @@ class TemporalCoherencePipeline:
         fps = max(1, int(fps_value) if fps_value else 24)
         step = max(1, fps - 1)
         text_prompt = self._compose_text_prompt(text_prompts)
-        print(f"[Structure] Ê¹ÓÃÎÄ±¾ prompt: \"{text_prompt}\"")
+        print(f"[Structure] Ê¹ï¿½ï¿½ï¿½Ä±ï¿½ prompt: \"{text_prompt}\"")
 
         inference_state = self.detection_engine.init_video_state(video_path)
         sam2_masks = MaskDictionary()
@@ -167,8 +167,8 @@ class TemporalCoherencePipeline:
             mask_dict = self.detection_engine.detect(image, text_prompt)
             detected = bool(mask_dict.labels)
             print(
-                f"[Structure] Ö¡ {start_frame_idx:04d} ¼ì²â{'ÃüÖÐ' if detected else 'Î´ÃüÖÐ'} "
-                f"(ÊýÁ¿: {len(mask_dict.labels)})"
+                f"[Structure] Ö¡ {start_frame_idx:04d} ï¿½ï¿½ï¿½{'ï¿½ï¿½ï¿½ï¿½' if detected else 'Î´ï¿½ï¿½ï¿½ï¿½'} "
+                f"(ï¿½ï¿½ï¿½ï¿½: {len(mask_dict.labels)})"
             )
 
             if not mask_dict.labels:
@@ -299,7 +299,7 @@ class TemporalCoherencePipeline:
         if not self.config.cotracker_visualization_enable:
             return
         if self.cotracker_model is None:
-            print("¾¯¸æ: CoTracker Ä£ÐÍÎ´³õÊ¼»¯£¬ÎÞ·¨Éú³É¿ÉÊÓ»¯¡£")
+            print("ï¿½ï¿½ï¿½ï¿½: CoTracker Ä£ï¿½ï¿½Î´ï¿½ï¿½Ê¼ï¿½ï¿½ï¿½ï¿½ï¿½Þ·ï¿½ï¿½ï¿½ï¿½É¿ï¿½ï¿½Ó»ï¿½ï¿½ï¿½")
             return
 
         output_dir = self._get_cotracker_visualization_dir(
@@ -321,7 +321,7 @@ class TemporalCoherencePipeline:
                 backward_tracking=True,
             )
         except Exception as exc:
-            print(f"¾¯¸æ: Éú³É CoTracker ¿ÉÊÓ»¯Ê§°Ü: {exc}")
+            print(f"ï¿½ï¿½ï¿½ï¿½: ï¿½ï¿½ï¿½ï¿½ CoTracker ï¿½ï¿½ï¿½Ó»ï¿½Ê§ï¿½ï¿½: {exc}")
             return
 
         fps_value = self.config.cotracker_visualization_fps or fps
@@ -341,7 +341,7 @@ class TemporalCoherencePipeline:
                 save_video=True,
             )
         except Exception as exc:
-            print(f"¾¯¸æ: ±£´æ CoTracker ¿ÉÊÓ»¯ÊÓÆµÊ§°Ü: {exc}")
+            print(f"ï¿½ï¿½ï¿½ï¿½: ï¿½ï¿½ï¿½ï¿½ CoTracker ï¿½ï¿½ï¿½Ó»ï¿½ï¿½ï¿½ÆµÊ§ï¿½ï¿½: {exc}")
 
     def _save_structure_visualization(
         self,
@@ -377,9 +377,10 @@ class TemporalCoherencePipeline:
                     color.tolist(),
                     2,
                 )
+                label_text = f"{instance_id}:{obj.class_name}" if obj.class_name else str(instance_id)
                 cv2.putText(
                     overlay,
-                    str(instance_id),
+                    label_text,
                     (int(obj.x1), max(0, int(obj.y1) - 5)),
                     cv2.FONT_HERSHEY_SIMPLEX,
                     0.5,
