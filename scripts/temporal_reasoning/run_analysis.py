@@ -205,34 +205,70 @@ def parse_args():
         help='输出目录'
     )
     
+    # 结构可视化参数
     parser.add_argument(
-        '--save-visualizations',
+        '--enable_structure_visualization',
         action='store_true',
-        help='保存可视化结果'
+        help='启用结构分支可视化（SAM2 分割 overlay）'
+    )
+
+    parser.add_argument(
+        '--structure_visualization_dir',
+        type=str,
+        default=None,
+        help='结构可视化输出目录'
+    )
+
+    parser.add_argument(
+        '--structure_visualization_max_frames',
+        type=int,
+        default=None,
+        help='结构可视化最多保存的帧数'
+    )
+
+    # 光流可视化参数
+    parser.add_argument(
+        '--enable_motion_visualization',
+        action='store_true',
+        help='启用光流可视化'
+    )
+
+    parser.add_argument(
+        '--motion_visualization_dir',
+        type=str,
+        default=None,
+        help='光流可视化输出目录'
+    )
+
+    parser.add_argument(
+        '--motion_visualization_max_frames',
+        type=int,
+        default=None,
+        help='光流可视化最多保存的帧数'
     )
     
     # 关键点可视化参数
     parser.add_argument(
-        '--enable-keypoint-visualization',
+        '--enable_keypoint_visualization',
         action='store_true',
         help='启用关键点可视化'
     )
     
     parser.add_argument(
-        '--keypoint-visualization-dir',
+        '--keypoint_visualization_dir',
         type=str,
         default=None,
         help='关键点可视化输出目录'
     )
     
     parser.add_argument(
-        '--show-face-keypoints',
+        '--show_face_keypoints',
         action='store_true',
         help='显示面部关键点（468个点）'
     )
     
     parser.add_argument(
-        '--show-keypoint-visualization',
+        '--show_keypoint_visualization',
         action='store_true',
         help='显示关键点可视化GUI窗口（第一帧）'
     )
@@ -277,9 +313,22 @@ def main():
     
     if args.output_dir:
         config.output_dir = args.output_dir
-    
-    if args.save_visualizations:
-        config.save_visualizations = True
+
+    # 结构可视化配置
+    if args.enable_structure_visualization:
+        config.structure_visualization_enable = True
+    if args.structure_visualization_dir:
+        config.structure_visualization_output_dir = args.structure_visualization_dir
+    if args.structure_visualization_max_frames is not None:
+        config.structure_visualization_max_frames = max(0, args.structure_visualization_max_frames)
+
+    # 光流可视化配置
+    if args.enable_motion_visualization:
+        config.raft.enable_visualization = True
+    if args.motion_visualization_dir:
+        config.raft.visualization_output_dir = args.motion_visualization_dir
+    if args.motion_visualization_max_frames is not None:
+        config.raft.visualization_max_frames = max(0, args.motion_visualization_max_frames)
     
     # 更新关键点可视化配置
     if args.enable_keypoint_visualization:
