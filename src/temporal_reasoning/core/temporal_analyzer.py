@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Ê±ĞòºÏÀíĞÔ·ÖÎöÆ÷Ö÷Àà
+æ—¶åºåˆç†æ€§åˆ†æå™¨ä¸»ç±»
 """
 
 from __future__ import annotations
@@ -30,15 +30,15 @@ class StructureAnalysisOutput:
 
 class TemporalReasoningAnalyzer:
     """
-    Ê±ĞòºÏÀíĞÔ·ÖÎöÆ÷
+    æ—¶åºåˆç†æ€§åˆ†æå™¨
     """
 
     def __init__(self, config: TemporalReasoningConfig):
         """
-        ³õÊ¼»¯·ÖÎöÆ÷
+        åˆå§‹åŒ–åˆ†æå™¨
 
         Args:
-            config: ÅäÖÃ¶ÔÏó
+            config: é…ç½®å¯¹è±¡
         """
         self.config = config
         self.motion_analyzer: Optional[MotionFlowAnalyzer] = None
@@ -48,47 +48,47 @@ class TemporalReasoningAnalyzer:
         self._initialized = False
 
     def initialize(self):
-        """³õÊ¼»¯ËùÓĞ×ÓÄ£¿é"""
+        """åˆå§‹åŒ–æ‰€æœ‰å­æ¨¡å—"""
         if self._initialized:
-            print("·ÖÎöÆ÷ÒÑ³õÊ¼»¯")
+            print("åˆ†æå™¨å·²åˆå§‹åŒ–")
             return
 
         print("=" * 50)
-        print("ÕıÔÚ³õÊ¼»¯Ê±ĞòºÏÀíĞÔ·ÖÎöÆ÷...")
+        print("æ­£åœ¨åˆå§‹åŒ–æ—¶åºåˆç†æ€§åˆ†æå™¨...")
         print("=" * 50)
 
         try:
-            # 1. ¹âÁ÷·ÖÎöÆ÷
-            print("\n[1/4] ³õÊ¼»¯¹âÁ÷·ÖÎöÆ÷...")
+            # 1. å…‰æµåˆ†æå™¨
+            print("\n[1/4] åˆå§‹åŒ–å…‰æµåˆ†æå™¨...")
             self.motion_analyzer = MotionFlowAnalyzer(self.config.raft)
             self.motion_analyzer.initialize()
 
-            # 2. ½á¹¹Ò»ÖÂĞÔ·ÖÎö¹ÜÏß
-            print("\n[2/4] ³õÊ¼»¯ÊµÀı×·×Ù/½á¹¹·ÖÎö¹ÜÏß...")
+            # 2. ç»“æ„ä¸€è‡´æ€§åˆ†æç®¡çº¿
+            print("\n[2/4] åˆå§‹åŒ–å®ä¾‹è¿½è¸ª/ç»“æ„åˆ†æç®¡çº¿...")
             coherence_config = self._build_temporal_coherence_config()
             self.structure_pipeline = TemporalCoherencePipeline(coherence_config)
             self.structure_pipeline.initialize()
 
-            # 3. ¹Ø¼üµã·ÖÎöÆ÷
-            print("\n[3/4] ³õÊ¼»¯¹Ø¼üµã·ÖÎöÆ÷...")
+            # 3. å…³é”®ç‚¹åˆ†æå™¨
+            print("\n[3/4] åˆå§‹åŒ–å…³é”®ç‚¹åˆ†æå™¨...")
             self.keypoint_analyzer = KeypointAnalyzer(self.config.keypoint)
             self.keypoint_analyzer.initialize()
 
-            # 4. ÈÚºÏ¾ö²ßÒıÇæ
-            print("\n[4/4] ³õÊ¼»¯ÈÚºÏ¾ö²ßÒıÇæ...")
+            # 4. èåˆå†³ç­–å¼•æ“
+            print("\n[4/4] åˆå§‹åŒ–èåˆå†³ç­–å¼•æ“...")
             self.fusion_engine = FusionDecisionEngine(self.config.fusion, cotracker_validator=None)
 
             self._initialized = True
             print("\n" + "=" * 50)
-            print("Ê±ĞòºÏÀíĞÔ·ÖÎöÆ÷³õÊ¼»¯Íê³É£¡")
+            print("æ—¶åºåˆç†æ€§åˆ†æå™¨åˆå§‹åŒ–å®Œæˆï¼")
             print("=" * 50)
 
         except Exception as exc:
-            print(f"\n´íÎó: ³õÊ¼»¯Ê§°Ü: {exc}")
+            print(f"\né”™è¯¯: åˆå§‹åŒ–å¤±è´¥: {exc}")
             raise
 
     def _build_temporal_coherence_config(self) -> TemporalCoherenceConfig:
-        """¹¹Ôì½á¹¹·ÖÎö¹ÜÏßµÄÅäÖÃ¡£"""
+        """æ„é€ ç»“æ„åˆ†æç®¡çº¿çš„é…ç½®ã€‚"""
         meta_info_path = Path(self.config.output_dir) / "temporal_coherence_meta.json"
         cotracker_checkpoint = (
             self.config.tracker.cotracker_checkpoint
@@ -131,53 +131,53 @@ class TemporalReasoningAnalyzer:
         video_path: Optional[str] = None,
     ) -> Dict:
         """
-        ·ÖÎöÊÓÆµÊ±ĞòºÏÀíĞÔ
+        åˆ†æè§†é¢‘æ—¶åºåˆç†æ€§
 
         Args:
-            video_frames: ÊÓÆµÖ¡ĞòÁĞ£¬Ã¿Ö¡ÎªRGBÍ¼Ïñ (H, W, 3)
-            text_prompts: ÎÄ±¾ÌáÊ¾ÁĞ±í
-            fps: ÊÓÆµÖ¡ÂÊ
-            video_path: Ô­Ê¼ÊÓÆµÂ·¾¶£¨½á¹¹·ÖÎöĞèÒª£©
+            video_frames: è§†é¢‘å¸§åºåˆ—ï¼Œæ¯å¸§ä¸ºRGBå›¾åƒ (H, W, 3)
+            text_prompts: æ–‡æœ¬æç¤ºåˆ—è¡¨
+            fps: è§†é¢‘å¸§ç‡
+            video_path: åŸå§‹è§†é¢‘è·¯å¾„ï¼ˆç»“æ„åˆ†æéœ€è¦ï¼‰
 
         Returns:
-            ·ÖÎö½á¹û×Öµä
+            åˆ†æç»“æœå­—å…¸
         """
         if not self._initialized:
             self.initialize()
 
         if not video_frames:
-            raise ValueError("ÊÓÆµÖ¡ĞòÁĞÎª¿Õ")
+            raise ValueError("è§†é¢‘å¸§åºåˆ—ä¸ºç©º")
 
         fps = fps or 30.0
 
         print("\n" + "=" * 50)
-        print("¿ªÊ¼·ÖÎöÊÓÆµÊ±ĞòºÏÀíĞÔ...")
-        print(f"ÊÓÆµÖ¡Êı: {len(video_frames)}")
-        print(f"ÊÓÆµÖ¡ÂÊ: {fps:.2f} fps")
+        print("å¼€å§‹åˆ†æè§†é¢‘æ—¶åºåˆç†æ€§...")
+        print(f"è§†é¢‘å¸§æ•°: {len(video_frames)}")
+        print(f"è§†é¢‘å¸§ç‡: {fps:.2f} fps")
         if text_prompts:
-            print(f"ÎÄ±¾ÌáÊ¾: {', '.join(text_prompts)}")
+            print(f"æ–‡æœ¬æç¤º: {', '.join(text_prompts)}")
         print("=" * 50)
 
-        # 1. ¹âÁ÷·ÖÎö
-        print("\n>>> ²½Öè1: ¹âÁ÷·ÖÎö")
+        # 1. å…‰æµåˆ†æ
+        print("\n>>> æ­¥éª¤1: å…‰æµåˆ†æ")
         if hasattr(self.config, "thresholds"):
             self.motion_analyzer.config.motion_discontinuity_threshold = (
                 self.config.thresholds.motion_discontinuity_threshold
             )
         motion_score, motion_anomalies = self.motion_analyzer.analyze(video_frames, fps=fps)
 
-        # 2. ½á¹¹·ÖÎö
-        print("\n>>> ²½Öè2: ÊµÀı×·×Ù / ½á¹¹·ÖÎö")
+        # 2. ç»“æ„åˆ†æ
+        print("\n>>> æ­¥éª¤2: å®ä¾‹è¿½è¸ª / ç»“æ„åˆ†æ")
         structure_output = self._analyze_structure(video_path, text_prompts)
 
-        # 3. ¹Ø¼üµã·ÖÎö
-        print("\n>>> ²½Öè3: ¹Ø¼üµã·ÖÎö")
+        # 3. å…³é”®ç‚¹åˆ†æ
+        print("\n>>> æ­¥éª¤3: å…³é”®ç‚¹åˆ†æ")
         physiological_score, physiological_anomalies = self.keypoint_analyzer.analyze(
             video_frames, fps=fps, video_path=video_path
         )
 
-        # 4. ¶àÄ£Ì¬ÈÚºÏ
-        print("\n>>> ²½Öè4: ¶àÄ£Ì¬ÈÚºÏ")
+        # 4. å¤šæ¨¡æ€èåˆ
+        print("\n>>> æ­¥éª¤4: å¤šæ¨¡æ€èåˆ")
         fused_anomalies = self.fusion_engine.fuse(
             motion_anomalies,
             structure_output.anomalies,
@@ -189,8 +189,8 @@ class TemporalReasoningAnalyzer:
             },
         )
 
-        # 5. ¼ÆËã×îÖÕµÃ·Ö
-        print("\n>>> ²½Öè5: ¼ÆËã×îÖÕµÃ·Ö")
+        # 5. è®¡ç®—æœ€ç»ˆå¾—åˆ†
+        print("\n>>> æ­¥éª¤5: è®¡ç®—æœ€ç»ˆå¾—åˆ†")
         final_motion_score, final_structure_score = self.fusion_engine.compute_final_scores(
             motion_score,
             structure_output.score,
@@ -227,11 +227,11 @@ class TemporalReasoningAnalyzer:
         }
 
         print("\n" + "=" * 50)
-        print("·ÖÎöÍê³É")
+        print("åˆ†æå®Œæˆ")
         print("=" * 50)
-        print(f"ÔË¶¯ºÏÀíĞÔµÃ·Ö: {final_motion_score:.3f}")
-        print(f"½á¹¹ÎÈ¶¨ĞÔµÃ·Ö: {final_structure_score:.3f}")
-        print(f"¼ì²âµ½ {len(fused_anomalies)} ¸öÈÚºÏÒì³£")
+        print(f"è¿åŠ¨åˆç†æ€§å¾—åˆ†: {final_motion_score:.3f}")
+        print(f"ç»“æ„ç¨³å®šæ€§å¾—åˆ†: {final_structure_score:.3f}")
+        print(f"æ£€æµ‹åˆ° {len(fused_anomalies)} ä¸ªèåˆå¼‚å¸¸")
         print("=" * 50)
 
         return result
@@ -242,7 +242,7 @@ class TemporalReasoningAnalyzer:
         text_prompts: Optional[Sequence[str]],
     ) -> StructureAnalysisOutput:
         if self.structure_pipeline is None:
-            print("¾¯¸æ: ½á¹¹·ÖÎö¹ÜÏßÎ´³õÊ¼»¯£¬·µ»ØÄ¬ÈÏ½á¹û¡£")
+            print("è­¦å‘Š: ç»“æ„åˆ†æç®¡çº¿æœªåˆå§‹åŒ–ï¼Œè¿”å›é»˜è®¤ç»“æœã€‚")
             return StructureAnalysisOutput(
                 score=1.0,
                 vanish_score=1.0,
@@ -252,7 +252,7 @@ class TemporalReasoningAnalyzer:
             )
 
         if not video_path:
-            print("¾¯¸æ: Î´Ìá¹©ÊÓÆµÂ·¾¶£¬ÎŞ·¨Ö´ĞĞ½á¹¹Ò»ÖÂĞÔ·ÖÎö¡£")
+            print("è­¦å‘Š: æœªæä¾›è§†é¢‘è·¯å¾„ï¼Œæ— æ³•æ‰§è¡Œç»“æ„ä¸€è‡´æ€§åˆ†æã€‚")
             return StructureAnalysisOutput(
                 score=1.0,
                 vanish_score=1.0,
@@ -271,7 +271,7 @@ class TemporalReasoningAnalyzer:
                 metadata=result.metadata,
             )
         except Exception as exc:
-            print(f"¾¯¸æ: ½á¹¹·ÖÎöÊ§°Ü£¬½«Ê¹ÓÃÄ¬ÈÏµÃ·Ö¡£ÏêÇé: {exc}")
+            print(f"è­¦å‘Š: ç»“æ„åˆ†æå¤±è´¥ï¼Œå°†ä½¿ç”¨é»˜è®¤å¾—åˆ†ã€‚è¯¦æƒ…: {exc}")
             return StructureAnalysisOutput(
                 score=1.0,
                 vanish_score=1.0,
