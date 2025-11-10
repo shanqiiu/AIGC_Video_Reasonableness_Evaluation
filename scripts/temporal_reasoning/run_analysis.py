@@ -316,6 +316,7 @@ def main():
 
     # 更新结构检测提示词（用于 SAM2 Grounding）
     if args.prompts:
+        print(f"[CLI] 传入结构检测 prompt: {', '.join(args.prompts)}")
         config.structure_prompts = args.prompts
 
     # 结构可视化配置

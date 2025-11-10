@@ -151,6 +151,7 @@ class TemporalCoherencePipeline:
         fps = max(1, int(fps_value) if fps_value else 24)
         step = max(1, fps - 1)
         text_prompt = self._compose_text_prompt(text_prompts)
+        print(f"[Structure] 使用文本 prompt: \"{text_prompt}\"")
 
         inference_state = self.detection_engine.init_video_state(video_path)
         sam2_masks = MaskDictionary()
@@ -160,6 +161,11 @@ class TemporalCoherencePipeline:
         for start_frame_idx in range(0, len(frames), step):
             image = frames[start_frame_idx]
             mask_dict = self.detection_engine.detect(image, text_prompt)
+            detected = bool(mask_dict.labels)
+            print(
+                f"[Structure] 帧 {start_frame_idx:04d} 检测{'命中' if detected else '未命中'} "
+                f"(数量: {len(mask_dict.labels)})"
+            )
 
             if not mask_dict.labels:
                 video_object_data.extend([{} for _ in range(step + 1)])
