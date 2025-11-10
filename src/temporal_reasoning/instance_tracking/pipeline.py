@@ -48,7 +48,7 @@ class TemporalCoherenceConfig:
     cotracker_visualization_enable: bool = False
     cotracker_visualization_output_dir: Optional[str] = None
     cotracker_visualization_fps: int = 12
-    cotracker_visualization_mode: str = "rainbow"
+    cotracker_visualization_mode: str = "grayscale"
     size_change_area_ratio_threshold: float = 3.0
     size_change_height_ratio_threshold: float = 2.5
     size_change_min_area: int = 200
@@ -366,6 +366,7 @@ class TemporalCoherencePipeline:
         overlay = frame_rgb.copy()
 
         palette = self._PALETTE
+        fill_color = np.array([0, 0, 0], dtype=np.uint8)
         for color_idx, (instance_id, obj) in enumerate(frame_masks.labels.items()):
             mask_tensor = obj.mask
             if mask_tensor is None:
@@ -373,17 +374,15 @@ class TemporalCoherencePipeline:
             mask_np = mask_tensor.cpu().numpy().astype(bool)
             if mask_np.ndim == 3:
                 mask_np = mask_np[0]
-            color = palette[color_idx % len(palette)]
-            overlay[mask_np] = (
-                0.6 * overlay[mask_np] + 0.4 * color
-            ).astype(np.uint8)
+            overlay[mask_np] = fill_color
+            border_color = palette[color_idx % len(palette)]
 
             if obj.x1 is not None and obj.y1 is not None and obj.x2 is not None and obj.y2 is not None:
                 cv2.rectangle(
                     overlay,
                     (int(obj.x1), int(obj.y1)),
                     (int(obj.x2), int(obj.y2)),
-                    color.tolist(),
+                    border_color.tolist(),
                     2,
                 )
                 label_text = f"{instance_id}:{obj.class_name}" if obj.class_name else str(instance_id)
@@ -393,7 +392,7 @@ class TemporalCoherencePipeline:
                     (int(obj.x1), max(0, int(obj.y1) - 5)),
                     cv2.FONT_HERSHEY_SIMPLEX,
                     0.5,
-                    color.tolist(),
+                    border_color.tolist(),
                     1,
                     cv2.LINE_AA,
                 )
