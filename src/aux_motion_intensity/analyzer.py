@@ -1,6 +1,6 @@
 """
-Motion Intensity Analyzer
-High-level API to compute motion_intensity [0,1] and scene_type from frames.
+运动强度分析器
+针对帧序列计算 motion_intensity（0~1）以及场景类型 scene_type。
 """
 
 from typing import Dict, List, Optional, Tuple
@@ -36,13 +36,13 @@ class MotionIntensityAnalyzer:
 
     def analyze_frames(self, frames: List[np.ndarray], camera_matrix: Optional[np.ndarray] = None) -> Dict:
         if len(frames) < 2:
-            raise ValueError('至少需�?2帧图�?')
+            raise ValueError('至少需要 2 帧图像作为输入')
         if camera_matrix is None:
             camera_matrix = self.estimate_camera_matrix(frames[0].shape)
         flows: List[np.ndarray] = []
         from tqdm import tqdm
-        print(f"Processing {len(frames)} frames, computing {len(frames) - 1} flow pairs...")
-        for i in tqdm(range(len(frames) - 1), desc='Computing optical flow', leave=False, unit='pair'):
+        print(f"正在处理 {len(frames)} 帧图像，需要计算 {len(frames) - 1} 组光流...")
+        for i in tqdm(range(len(frames) - 1), desc='计算光流', leave=False, unit='对'):
             flow = self.predictor.predict_flow(frames[i], frames[i + 1])
             if flow.shape[0] == 2:
                 flow = flow.transpose(1, 2, 0)

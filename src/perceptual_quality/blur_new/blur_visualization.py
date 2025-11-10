@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
-ÊÓÆµÄ£ºı¼ì²â¿ÉÊÓ»¯¹¤¾ß
-Ìá¹©Ä£ºı¼ì²â½á¹ûµÄ¿ÉÊÓ»¯Õ¹Ê¾¹¦ÄÜ
+è§†é¢‘æ¨¡ç³Šæ£€æµ‹å¯è§†åŒ–å·¥å…·
+æä¾›æ¨¡ç³Šæ£€æµ‹è¿‡ç¨‹çš„å›¾è¡¨å±•ç¤ºä¸æŠ¥å‘Šç”ŸæˆåŠŸèƒ½ã€‚
 """
 
 import os
@@ -18,23 +18,23 @@ from matplotlib.patches import Patch
 
 
 class BlurVisualization:
-    """Ä£ºı¼ì²â½á¹û¿ÉÊÓ»¯¹¤¾ß"""
+    """æ¨¡ç³Šæ£€æµ‹ç»“æœçš„å¯è§†åŒ–è¾…åŠ©ç±»ã€‚"""
     
     def __init__(self, output_dir: str = "./blur_visualization_results"):
         """
-        ³õÊ¼»¯¿ÉÊÓ»¯¹¤¾ß
+        åˆå§‹åŒ–å¯è§†åŒ–å·¥å…·ã€‚
         
         Args:
-            output_dir: Êä³öÄ¿Â¼Â·¾¶
+            output_dir: å¯è§†åŒ–è¾“å‡ºç›®å½•
         """
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
         
-        # ÉèÖÃ matplotlib ×ÖÌå£¨Ê¹ÓÃÄ¬ÈÏÓ¢ÎÄ×ÖÌå£©
+        # é…ç½® matplotlib å­—ä½“ï¼ˆé»˜è®¤è‹±æ–‡å­—ä½“ï¼Œä¸å‡ºç°ä¹±ç ï¼‰
         plt.rcParams['font.sans-serif'] = ['DejaVu Sans']
         plt.rcParams['axes.unicode_minus'] = False
         
-        # ÉèÖÃ seaborn ÑùÊ½
+        # è®¾ç½® seaborn æ ·å¼
         sns.set_style("whitegrid")
         sns.set_palette("husl")
     
@@ -47,26 +47,26 @@ class BlurVisualization:
         save_path: Optional[str] = None
     ) -> str:
         """
-        ¿ÉÊÓ»¯ÖÊÁ¿·ÖÊı±ä»¯
+        å¯è§†åŒ–è´¨é‡åˆ†æ•°éšå¸§å˜åŒ–çš„æ›²çº¿ä¸åˆ†å¸ƒã€‚
         
         Args:
-            video_path: ÊÓÆµÂ·¾¶
-            quality_scores: ÖÊÁ¿·ÖÊıÁĞ±í
-            blur_frames: Ä£ºıÖ¡Ë÷ÒıÁĞ±í
-            threshold: ¼ì²âãĞÖµ
-            save_path: ±£´æÂ·¾¶
+            video_path: è§†é¢‘è·¯å¾„
+            quality_scores: è´¨é‡åˆ†æ•°åˆ—è¡¨
+            blur_frames: æ£€æµ‹åˆ°çš„æ¨¡ç³Šå¸§ç´¢å¼•
+            threshold: æ£€æµ‹é˜ˆå€¼
+            save_path: ä¿å­˜è·¯å¾„ï¼Œé»˜è®¤è¾“å‡ºç›®å½•
             
         Returns:
-            ±£´æµÄÎÄ¼şÂ·¾¶
+            ç”Ÿæˆå›¾åƒçš„ä¿å­˜è·¯å¾„
         """
         if save_path is None:
             video_name = os.path.splitext(os.path.basename(video_path))[0]
             save_path = str(self.output_dir / f"{video_name}_quality_scores.png")
         
-        # ´´½¨Í¼ĞÎ
+        # ç»˜åˆ¶å›¾è¡¨
         fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(15, 10))
         
-        # »æÖÆÖÊÁ¿·ÖÊıÇúÏß
+        # è´¨é‡åˆ†æ•°æŠ˜çº¿å›¾
         frame_indices = list(range(len(quality_scores)))
         ax1.plot(
             frame_indices, quality_scores, 'b-', linewidth=2,
@@ -77,7 +77,7 @@ class BlurVisualization:
             label=f'Detection Threshold ({threshold:.3f})'
         )
         
-        # ±ê¼ÇÄ£ºıÖ¡
+        # ï¿½ï¿½ï¿½Ä£ï¿½ï¿½Ö¡
         if blur_frames:
             blur_scores = [quality_scores[i] for i in blur_frames if i < len(quality_scores)]
             valid_blur_frames = [i for i in blur_frames if i < len(quality_scores)]
@@ -95,7 +95,7 @@ class BlurVisualization:
         ax1.legend()
         ax1.grid(True, alpha=0.3)
         
-        # »æÖÆÖÊÁ¿·ÖÊı·Ö²¼Ö±·½Í¼
+        # è´¨é‡åˆ†æ•°ç›´æ–¹å›¾
         ax2.hist(
             quality_scores, bins=30, alpha=0.7, color='skyblue',
             edgecolor='black'
@@ -130,29 +130,29 @@ class BlurVisualization:
         save_path: Optional[str] = None
     ) -> str:
         """
-        ¿ÉÊÓ»¯Ä£ºıÖ¡
+        å¯è§†åŒ–éƒ¨åˆ†æ¨¡ç³Šå¸§çš„å›¾åƒå†…å®¹ã€‚
         
         Args:
-            video_path: ÊÓÆµÂ·¾¶
-            blur_frames: Ä£ºıÖ¡Ë÷ÒıÁĞ±í
-            num_samples: ÏÔÊ¾Ñù±¾ÊıÁ¿
-            save_path: ±£´æÂ·¾¶
+            video_path: è§†é¢‘è·¯å¾„
+            blur_frames: æ¨¡ç³Šå¸§ç´¢å¼•åˆ—è¡¨
+            num_samples: é‡‡æ ·å±•ç¤ºæ•°é‡
+            save_path: ä¿å­˜è·¯å¾„
             
         Returns:
-            ±£´æµÄÎÄ¼şÂ·¾¶
+            ç”Ÿæˆå›¾åƒçš„ä¿å­˜è·¯å¾„
         """
         if save_path is None:
             video_name = os.path.splitext(os.path.basename(video_path))[0]
             save_path = str(self.output_dir / f"{video_name}_blur_frames.png")
         
-        # ¶ÁÈ¡ÊÓÆµ
+        # è¯»å–è§†é¢‘
         cap = cv2.VideoCapture(video_path)
         if not cap.isOpened():
-            print(f"ÎŞ·¨¶ÁÈ¡ÊÓÆµ: {video_path}")
+            print(f"æ— æ³•è¯»å–è§†é¢‘: {video_path}")
             return ""
         
         frames = []
-        # ¶ÁÈ¡ËùÓĞÖ¡
+        # è¯»å–å…¨éƒ¨å¸§
         while True:
             ret, frame = cap.read()
             if not ret:
@@ -162,10 +162,10 @@ class BlurVisualization:
         cap.release()
         
         if not frames:
-            print("ÎŞ·¨¶ÁÈ¡ÊÓÆµÖ¡")
+            print("æ— æ³•è·å–è§†é¢‘å¸§")
             return ""
         
-        # Ñ¡ÔñÒªÏÔÊ¾µÄÄ£ºıÖ¡
+        # ç­›é€‰éœ€è¦å±•ç¤ºçš„æ¨¡ç³Šå¸§
         if len(blur_frames) > num_samples:
             selected_indices = np.linspace(
                 0, len(blur_frames) - 1, num_samples, dtype=int
@@ -174,7 +174,7 @@ class BlurVisualization:
         else:
             selected_blur_frames = blur_frames
         
-        # ´´½¨×ÓÍ¼
+        # ç»˜åˆ¶å±•ç¤ºå›¾
         cols = 3
         rows = (len(selected_blur_frames) + cols - 1) // cols
         
@@ -195,7 +195,7 @@ class BlurVisualization:
             else:
                 axes[row, col].axis('off')
         
-        # Òş²Ø¶àÓàµÄ×ÓÍ¼
+        # å…³æ‰æ— éœ€ä½¿ç”¨çš„å­å›¾
         for i in range(len(selected_blur_frames), rows * cols):
             row = i // cols
             col = i % cols
@@ -217,21 +217,21 @@ class BlurVisualization:
         save_path: Optional[str] = None
     ) -> str:
         """
-        ¿ÉÊÓ»¯ÅúÁ¿¼ì²â½á¹û
+        å¯¹æ‰¹é‡æ£€æµ‹ç»“æœè¿›è¡Œå¯è§†åŒ–åˆ†æã€‚
         
         Args:
-            results: ¼ì²â½á¹ûÁĞ±í
-            save_path: ±£´æÂ·¾¶
+            results: æ£€æµ‹ç»“æœåˆ—è¡¨
+            save_path: ä¿å­˜è·¯å¾„
             
         Returns:
-            ±£´æµÄÎÄ¼şÂ·¾¶
+            ç”Ÿæˆå›¾åƒçš„ä¿å­˜è·¯å¾„
         """
         if save_path is None:
             save_path = str(
                 self.output_dir / "batch_results_visualization.png"
             )
         
-        # ÌáÈ¡Êı¾İ
+        # æå–æ•°æ®
         video_names = [
             os.path.basename(r.get('video_path', '')) for r in results
         ]
@@ -239,10 +239,10 @@ class BlurVisualization:
         blur_detected = [r.get('blur_detected', False) for r in results]
         blur_ratios = [r.get('blur_ratio', 0.0) for r in results]
         
-        # ´´½¨Í¼ĞÎ
+        # ç»˜åˆ¶å›¾è¡¨
         fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(20, 15))
         
-        # 1. ÖÃĞÅ¶È·Ö²¼
+        # 1. ç½®ä¿¡åº¦åˆ†å¸ƒ
         ax1.hist(
             confidences, bins=20, alpha=0.7, color='skyblue',
             edgecolor='black'
@@ -252,7 +252,7 @@ class BlurVisualization:
         ax1.set_title('Confidence Distribution')
         ax1.grid(True, alpha=0.3)
         
-        # 2. Ä£ºı±ÈÀı·Ö²¼
+        # 2. æ¨¡ç³Šæ¯”ä¾‹åˆ†å¸ƒ
         ax2.hist(
             blur_ratios, bins=20, alpha=0.7, color='lightcoral',
             edgecolor='black'
@@ -262,7 +262,7 @@ class BlurVisualization:
         ax2.set_title('Blur Ratio Distribution')
         ax2.grid(True, alpha=0.3)
         
-        # 3. ÖÃĞÅ¶È vs Ä£ºı±ÈÀıÉ¢µãÍ¼
+        # 3. ç½®ä¿¡åº¦ vs æ¨¡ç³Šæ¯”ä¾‹æ•£ç‚¹å›¾
         scatter_colors = ['red' if detected else 'blue' for detected in blur_detected]
         ax3.scatter(
             confidences, blur_ratios, c=scatter_colors, alpha=0.6, s=50
@@ -272,14 +272,14 @@ class BlurVisualization:
         ax3.set_title('Confidence vs Blur Ratio')
         ax3.grid(True, alpha=0.3)
         
-        # Ìí¼ÓÍ¼Àı
+        # æ•£ç‚¹å›¾å›¾ä¾‹
         legend_elements = [
             Patch(facecolor='red', label='Blur Detected'),
             Patch(facecolor='blue', label='No Blur Detected')
         ]
         ax3.legend(handles=legend_elements)
         
-        # 4. ¼ì²â½á¹ûÍ³¼Æ±ıÍ¼
+        # 4. æ£€æµ‹ç»“æœç»Ÿè®¡é¥¼å›¾
         blur_count = sum(blur_detected)
         no_blur_count = len(blur_detected) - blur_count
         
@@ -305,14 +305,14 @@ class BlurVisualization:
         save_path: Optional[str] = None
     ) -> str:
         """
-        ´´½¨¼ì²â±¨¸æ
+        ç”Ÿæˆå•ä¸ªè§†é¢‘çš„æ¨¡ç³Šæ£€æµ‹æŠ¥å‘Šå›¾ã€‚
         
         Args:
-            result: µ¥¸öÊÓÆµµÄ¼ì²â½á¹û
-            save_path: ±£´æÂ·¾¶
+            result: æ£€æµ‹ç»“æœå­—å…¸
+            save_path: ä¿å­˜è·¯å¾„
             
         Returns:
-            ±£´æµÄÎÄ¼şÂ·¾¶
+            ç”Ÿæˆå›¾åƒçš„ä¿å­˜è·¯å¾„
         """
         if save_path is None:
             video_name = os.path.splitext(
@@ -322,24 +322,24 @@ class BlurVisualization:
                 self.output_dir / f"{video_name}_detection_report.png"
             )
         
-        # ´´½¨Í¼ĞÎ
+        # åˆ›å»ºç”»å¸ƒ
         fig = plt.figure(figsize=(16, 12))
         
-        # Ö÷±êÌâ
+        # æ€»æ ‡é¢˜
         fig.suptitle(
             f'Video Blur Detection Report - {os.path.basename(result.get("video_path", ""))}',
             fontsize=20, fontweight='bold'
         )
         
-        # ´´½¨Íø¸ñ²¼¾Ö
+        # å®šä¹‰å­å›¾å¸ƒå±€
         gs = fig.add_gridspec(3, 3, hspace=0.3, wspace=0.3)
         
-        # 1. ¼ì²â½á¹û¸ÅÀÀ
+        # 1. ç»“æœæ¦‚è§ˆ
         ax1 = fig.add_subplot(gs[0, 0])
         blur_detected = result.get('blur_detected', False)
         confidence = result.get('confidence', 0.0)
         
-        # ´´½¨½á¹ûÖ¸Ê¾Æ÷
+        # ç»“æœæŒ‡ç¤º
         result_color = 'red' if blur_detected else 'green'
         result_text = "Blur Detected" if blur_detected else "No Blur Detected"
         ax1.text(
@@ -353,21 +353,21 @@ class BlurVisualization:
         ax1.set_ylim(0, 1)
         ax1.axis('off')
         
-        # 2. ÖÃĞÅ¶ÈÏÔÊ¾
+        # 2. ç½®ä¿¡åº¦
         ax2 = fig.add_subplot(gs[0, 1])
         ax2.bar(['Confidence'], [confidence], color='skyblue', alpha=0.7)
         ax2.set_ylabel('Confidence')
         ax2.set_ylim(0, 1)
         ax2.set_title('Detection Confidence')
         
-        # 3. Ä£ºıÑÏÖØ³Ì¶È
+        # 3. æ¨¡ç³Šä¸¥é‡ç¨‹åº¦
         ax3 = fig.add_subplot(gs[0, 2])
         severity = result.get('blur_severity', 'Unknown')
         severity_colors = {
-            'ÎŞÄ£ºı': 'green',
-            'ÇáÎ¢Ä£ºı': 'yellow',
-            'ÖĞµÈÄ£ºı': 'orange',
-            'ÑÏÖØÄ£ºı': 'red'
+            'æ— æ¨¡ç³Š': 'green',
+            'è½»å¾®æ¨¡ç³Š': 'yellow',
+            'ä¸­ç­‰æ¨¡ç³Š': 'orange',
+            'ä¸¥é‡æ¨¡ç³Š': 'red'
         }
         severity_color = severity_colors.get(severity, 'gray')
         
@@ -382,7 +382,7 @@ class BlurVisualization:
         ax3.set_ylim(0, 1)
         ax3.axis('off')
         
-        # 4. ¹Ø¼üÖ¸±ê
+        # 4. å…³é”®æŒ‡æ ‡
         ax4 = fig.add_subplot(gs[1, :])
         metrics = {
             'Blur Ratio': result.get('blur_ratio', 0.0),
@@ -399,7 +399,7 @@ class BlurVisualization:
         ax4.set_title('Key Detection Metrics')
         ax4.tick_params(axis='x', rotation=45)
         
-        # Ìí¼ÓÊıÖµ±êÇ©
+        # ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Öµï¿½ï¿½Ç©
         for bar, value in zip(bars, metrics.values()):
             ax4.text(
                 bar.get_x() + bar.get_width() / 2,
@@ -408,11 +408,11 @@ class BlurVisualization:
                 ha='center', va='bottom'
             )
         
-        # 5. ½¨Òé
+        # 5. å»ºè®®
         ax5 = fig.add_subplot(gs[2, :])
         recommendations = result.get('recommendations', [])
         if recommendations:
-            rec_text = '\n'.join([f'? {rec}' for rec in recommendations])
+            rec_text = '\n'.join([f'â€¢ {rec}' for rec in recommendations])
         else:
             rec_text = 'No specific recommendations'
         

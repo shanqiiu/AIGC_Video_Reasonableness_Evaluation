@@ -8,30 +8,30 @@ import numpy as np
 
 def calculate_motion_degree(keypoints, video_width, video_height):
     """
-    Calculate the normalized motion amplitude for each batch sample
+    计算每个样本的归一化运动幅度。
     
-    Parameters:
-    keypoints: torch.Tensor, shape [batch_size, 49, 792, 2]
-    video_width: int, width of the video
-    video_height: int, height of the video
+    Args:
+        keypoints: torch.Tensor，形状 [batch_size, 49, 792, 2]，跟踪点坐标
+        video_width: int，视频宽度
+        video_height: int，视频高度
     
     Returns:
-    motion_amplitudes: torch.Tensor, shape [batch_size], containing the normalized motion amplitude for each batch sample
+        torch.Tensor: 形状 [batch_size]，表示各样本的归一化运动幅度
     """
 
-    # Calculate the length of the video diagonal
+    # 计算视频对角线长度，用于归一化
     diagonal = torch.sqrt(torch.tensor(video_width**2 + video_height**2, dtype=torch.float32))
     
-    # Compute the Euclidean distance between adjacent frames
+    # 计算相邻帧之间的欧氏距离
     distances = torch.norm(keypoints[:, 1:] - keypoints[:, :-1], dim=3)  # shape [batch_size, 48, 792]
     
-    # Normalize the distances by the diagonal length to eliminate resolution effects
+    # 用对角线长度归一化距离，消除分辨率影响
     normalized_distances = distances / diagonal
     
-    # Sum the normalized distances to get the total normalized motion distance for each keypoint
+    # 求和得到每个轨迹点的归一化运动距离
     total_normalized_distances = torch.sum(normalized_distances, dim=1)  # shape [batch_size, 792]
     
-    # Compute the normalized motion amplitude for each batch sample (mean of total normalized motion distance for all points)
+    # 对所有轨迹点取平均，得到每个样本的运动幅度
     motion_amplitudes = torch.mean(total_normalized_distances, dim=1)  # shape [batch_size]
     
     return motion_amplitudes

@@ -1,5 +1,5 @@
 """
-Unified dynamics scorer migrated from AIGC_detector/unified_dynamics_scorer.py
+统一动态评分器，迁移自 AIGC_detector/unified_dynamics_scorer.py。
 """
 
 from typing import Dict, List, Optional

@@ -1,5 +1,5 @@
 """
-ÅúÁ¿´¦Àí½Ó¿Ú - ÓÃÓÚ´¦Àí¶à¸öÊÓÆµ
+æ‰¹é‡åˆ†ææ¥å£ â€”â€” é¢å‘å¤šè§†é¢‘çš„å¯æ„ŸçŸ¥å¹…åº¦è¯„åˆ†æµç¨‹ã€‚
 """
 
 import json
@@ -14,25 +14,25 @@ def batch_analyze_videos(analyzer: PASAnalyzer,
                         meta_info_list: List[Dict],
                         output_path: Optional[str] = None) -> List[Dict]:
     """
-    ÅúÁ¿·ÖÎöÊÓÆµ
+    éå†å…ƒä¿¡æ¯åˆ—è¡¨ï¼Œå¯¹æ¯ä¸ªè§†é¢‘è¿›è¡Œå¯æ„ŸçŸ¥å¹…åº¦åˆ†æã€‚
     
     Args:
-        analyzer: PASAnalyzerÊµÀı
-        meta_info_list: ÔªĞÅÏ¢ÁĞ±í£¬Ã¿¸öÔªËØ°üº¬ 'filepath' ºÍ 'subject_noun'
-        output_path: Êä³öJSONÎÄ¼şÂ·¾¶£¨¿ÉÑ¡£©
+        analyzer: PASAnalyzer å®ä¾‹
+        meta_info_list: å…ƒæ•°æ®åˆ—è¡¨ï¼Œæ¯é¡¹éœ€åŒ…å« 'filepath' ä¸å¯é€‰çš„ 'subject_noun'
+        output_path: å¯é€‰ï¼Œåˆ†æç»“æœå†™å›çš„ JSON è·¯å¾„
         
     Returns:
-        ½á¹ûÁĞ±í
+        List[Dict]: æ¯ä¸ªè§†é¢‘çš„åˆ†æç»“æœ
     """
     results = []
     
-    for meta_info in tqdm(meta_info_list, desc="PAS Analysis"):
+    for meta_info in tqdm(meta_info_list, desc="PAS åˆ†æ"):
         result = analyzer.analyze_video(
             video_path=meta_info['filepath'],
             subject_noun=meta_info.get('subject_noun', 'person')
         )
         
-        # ½«½á¹ûÌí¼Óµ½ÔªĞÅÏ¢ÖĞ
+        # å°†åˆ†æç»“æœåˆå¹¶å›å…ƒä¿¡æ¯
         meta_info['perceptible_amplitude_score'] = result
         
         results.append({
@@ -41,12 +41,12 @@ def batch_analyze_videos(analyzer: PASAnalyzer,
             'result': result
         })
     
-    # ±£´æ½á¹û
+    # å¯é€‰åœ°å†™å›ç»“æœæ–‡ä»¶
     if output_path:
         os.makedirs(os.path.dirname(output_path) if os.path.dirname(output_path) else '.', exist_ok=True)
         with open(output_path, 'w', encoding='utf-8') as f:
             json.dump(meta_info_list, f, indent=4, ensure_ascii=False)
-        print(f"Results saved to {output_path}")
+        print(f"åˆ†æç»“æœå·²ä¿å­˜è‡³ {output_path}")
     
     return results
 

@@ -1,5 +1,5 @@
 """
-Camera motion compensation migrated from AIGC_detector/dynamic_motion_compensation/camera_compensation.py
+相机运动补偿模块，迁移自 AIGC_detector/dynamic_motion_compensation/camera_compensation.py。
 """
 
 from collections import deque

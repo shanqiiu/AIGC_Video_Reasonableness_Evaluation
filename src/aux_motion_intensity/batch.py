@@ -1,5 +1,5 @@
 """
-Batch processing utilities for motion intensity, refactored from AIGC_detector/video_processor.
+运动强度批处理工具，改写自 AIGC_detector/video_processor。
 """
 
 from __future__ import annotations
@@ -21,7 +21,7 @@ def load_video_frames(video_path: str, max_frames: Optional[int] = None, frame_s
     frames: List[np.ndarray] = []
     frame_count = 0
     total = int(cap.get(cv2.CAP_PROP_FRAME_COUNT)) or None
-    with tqdm(total=total, desc=f"Loading {os.path.basename(video_path)}", unit="f", leave=False) as pbar:
+    with tqdm(total=total, desc=f"加载 {os.path.basename(video_path)}", unit="帧", leave=False) as pbar:
         while True:
             ret, frame = cap.read()
             if not ret:
@@ -30,7 +30,7 @@ def load_video_frames(video_path: str, max_frames: Optional[int] = None, frame_s
                 frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                 frames.append(frame_rgb)
                 if max_frames and len(frames) >= max_frames:
-                    # advance bar to end if known
+                    # 若已知总帧数，则直接将进度条推进到尾部
                     if total is not None:
                         pbar.update(max(0, total - pbar.n))
                     break
@@ -47,15 +47,15 @@ def analyze_single_video(analyzer: MotionIntensityAnalyzer,
                          max_frames: Optional[int] = None,
                          frame_skip: int = 1) -> Dict:
     video_name = os.path.splitext(os.path.basename(video_path))[0]
-    print(f"Loading video: {video_name}...")
+    print(f"正在加载视频：{video_name}...")
     frames = load_video_frames(video_path, max_frames=max_frames, frame_skip=frame_skip)
-    print(f"Loaded {len(frames)} frames")
+    print(f"已载入 {len(frames)} 帧")
     if len(frames) < 2:
         return {
             'video_name': video_name,
             'video_path': video_path,
             'status': 'failed',
-            'error': '视频帧不�?'
+            'error': '视频帧不足'
         }
     camera_matrix = analyzer.estimate_camera_matrix(frames[0].shape, camera_fov)
     result = analyzer.analyze_frames(frames, camera_matrix)
@@ -92,7 +92,7 @@ def batch_analyze_videos(analyzer: MotionIntensityAnalyzer,
     if output_dir:
         per_video_dir = os.path.join(output_dir, 'motion_intensity')
         os.makedirs(per_video_dir, exist_ok=True)
-    for vp in tqdm(video_files, desc='Analyzing videos', unit='vid'):
+    for vp in tqdm(video_files, desc='分析视频', unit='段'):
         try:
             rec = analyze_single_video(
                 analyzer,
@@ -104,7 +104,7 @@ def batch_analyze_videos(analyzer: MotionIntensityAnalyzer,
             )
             results.append(rec)
         except Exception as e:
-            print(f"\nError processing {vp}: {e}")
+            print(f"\n处理 {vp} 时发生错误: {e}")
             import traceback
             traceback.print_exc()
             results.append({

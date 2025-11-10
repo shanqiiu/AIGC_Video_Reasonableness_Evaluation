@@ -1,161 +1,177 @@
-# AIÉú³ÉÊÓÆµºÏÀíÐÔÆÀ¹À×îÖÕ·½°¸
+# AIGC Video Reasonableness Evaluation
 
-> **°æ±¾**£º1.0
-> **ÈÕÆÚ**£º2025Äê10ÔÂ30ÈÕ
-> **Ä¿±ê**£º½ö»ùÓÚÒ»¶ÎAIÉú³ÉÊÓÆµ£¬×Ô¶¯ÆÀ¹ÀÆäºÏÀíÐÔ£¬Êä³ö½á¹¹»¯±¨¸æ£¬²¢Ìá¹©¶¯Ì¬³Ì¶ÈµÈ¸¨ÖúÔªÐÅÏ¢¡£
+ä¸€å¥—é’ˆå¯¹ **AIGCï¼ˆç”Ÿæˆå¼è§†é¢‘ï¼‰åˆç†æ€§æ ¡éªŒ** çš„å¤šæ¨¡æ€åˆ†æžæ¡†æž¶ï¼Œæ¶µç›–ç»“æž„æ—¶åºä¸€è‡´æ€§ã€è¿åŠ¨å¼ºåº¦ã€åœºæ™¯çœŸå®žåº¦ã€æ„ŸçŸ¥è´¨é‡ç­‰å¤šä¸ªç»´åº¦ï¼Œå¹¶æä¾›ç»Ÿä¸€çš„è„šæœ¬ã€é…ç½®ä¸Žå¯è§†åŒ–èƒ½åŠ›ï¼Œä¾¿äºŽå¿«é€Ÿæž„å»ºè‡ªåŠ¨åŒ–è¯„æµ‹æµæ°´çº¿ã€‚
 
 ---
 
-## Ò»¡¢×ÜÌå¼Ü¹¹
+## åŠŸèƒ½æ¦‚è§ˆ
 
-ÏµÍ³ÓÉ **ËÄ´óºËÐÄÆÀ¹ÀÄ£¿é + Ò»¸ö¸¨Öú·ÖÎöÄ£¿é** ×é³É£º
-
-```
-[ÊäÈëÊÓÆµ]
-     ¡ý
-©°©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©´
-©¦ ¸¨ÖúÄ£¿é£º¶¯Ì¬³Ì¶È·ÖÎö ©¦ ¡û Êä³ö¶¯Ì¬¶È·ÖÊý£¨²»¼ÆÈë×Ü·Ö£©
-©¸©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¼
-     ¡ý
-©°©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©´
-©¦ Ä£¿é1£ºÊ±ÐòºÏÀíÐÔ·ÖÎö ©¦ ¡û ¹âÁ÷¡¢ÊµÀý·Ö¸î¡¢¹Ø¼üµã×·×Ù
-©¸©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¼
-     ¡ý
-©°©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©´
-©¦ Ä£¿é2£º³¡¾°ÕæÊµ¸ÐÆÀ¹À ©¦ ¡û Ç°¾°-±³¾°½âñî¡¢ÎïÌå½»»¥·ÖÎö
-©¸©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¼
-     ¡ý
-©°©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©´
-©¦ Ä£¿é3£ºAI¸ÐÖªÖÊÁ¿ÆÀ¹À ©¦ ¡û Î±Ó°¼ì²â£¨ÉÁË¸¡¢Ä£ºý¡¢É«²ÊÆ¯ÒÆµÈ£©
-©¸©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¼
-     ¡ý
-©°©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©´
-©¦ Ä£¿é4£ºVLM³£Ê¶ÍÆÀí     ©¦ ¡û ¶àÄ£Ì¬´óÄ£ÐÍÁãÑù±¾ÅÐ¶Ï
-©¸©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¼
-     ¡ý
-©°©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©´
-©¦ ÈÚºÏÆÀ¹ÀÒýÇæ           ©¦ ¡û ½öÈÚºÏÄ£¿é1¨C4£¬Éú³ÉºÏÀíÐÔÆÀ·ÖÓë±¨¸æ
-©¸©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¼
-     ¡ý
-[ºÏÀíÐÔ±¨¸æ + ¶¯Ì¬¶ÈÔªÐÅÏ¢]
-```
+- ðŸ§  **Temporal Reasoning**ï¼šåŸºäºŽå…‰æµã€å®žä¾‹è·Ÿè¸ªã€å…³é”®ç‚¹ç­‰ä¿¡æ¯è¯„ä¼°è§†é¢‘åœ¨æ—¶é—´å°ºåº¦ä¸Šçš„ç»“æž„åˆç†æ€§ï¼Œæ”¯æŒå¯è§†åŒ–å¯¼å‡ºã€‚
+- ðŸ“ˆ **Aux Motion Intensity**ï¼šè¡¡é‡ä¸»ä½“/èƒŒæ™¯è¿åŠ¨å¼ºåº¦ä¸Žåœºæ™¯ç±»åˆ«ï¼Œæ”¯æŒ RAFT / CoTracker / SAM2 ç­‰å¤šç§ç»„åˆã€‚
+- ðŸ‘ï¸ **Perceptual Quality**ï¼šå€ŸåŠ© Q-Align è§†é¢‘è´¨é‡æ¨¡åž‹ï¼Œå¯¹æ¨¡ç³Šç­‰æ„ŸçŸ¥ç¼ºé™·è¿›è¡Œæ£€æµ‹ä¸ŽæŠ¥å‘Šç”Ÿæˆã€‚
+- ðŸŽ¬ **Scene Realism & VLM Reasoning**ï¼šé¢å‘åœºæ™¯çœŸå®žæ€§ã€è·¨æ¨¡æ€ä¸€è‡´æ€§ç­‰ç»´åº¦çš„æ‰©å±•èƒ½åŠ›ï¼ˆè„šæœ¬/æ¨¡å—åŒ–æŽ¥å£é¢„ç•™ï¼‰ã€‚
+- ðŸ› ï¸ **ç»Ÿä¸€å·¥å…·é“¾**ï¼šè„šæœ¬åŒ–çš„æ•°æ®å‡†å¤‡ã€æ‰¹é‡æ‰§è¡Œã€å¯è§†åŒ–ä¸Žç»“æžœæ±‡æ€»ï¼›æ¨¡å—åŒ–é…ç½®ï¼Œæ˜“äºŽé›†æˆåˆ°ç”Ÿäº§/ç ”ç©¶æµç¨‹ã€‚
 
 ---
 
-## ¶þ¡¢Ä£¿éÏêÏ¸ËµÃ÷
+## ç›®å½•ç»“æž„
 
-### 2.1 ¸¨ÖúÄ£¿é£º¶¯Ì¬³Ì¶È·ÖÎö£¨Motion Intensity Analyzer£©
+```
+AIGC_Video_Reasonableness_Evaluation
+â”œâ”€ data/                   # ç¤ºä¾‹æ•°æ®ä¸Žæµ‹è¯•è§†é¢‘ï¼ˆéœ€æŒ‰éœ€æ”¾ç½®ï¼‰
+â”œâ”€ outputs/                # ä»»åŠ¡ç»“æžœè¾“å‡ºç›®å½•ï¼ˆJSONã€CSVã€å¯è§†åŒ–å›¾è¡¨ç­‰ï¼‰
+â”œâ”€ scripts/                # å‘½ä»¤è¡Œè„šæœ¬å…¥å£ï¼ŒæŒ‰åŠŸèƒ½åˆ’åˆ†å­ç›®å½•
+â”‚  â”œâ”€ temporal_reasoning/  # æ—¶åºåˆç†æ€§åˆ†æžè„šæœ¬
+â”‚  â”œâ”€ aux_motion_intensity/    # æ—§ç‰ˆè¿åŠ¨å¼ºåº¦åˆ†æžæµç¨‹
+â”‚  â”œâ”€ aux_motion_intensity_2/  # åŸºäºŽ Grounded-SAM + CoTracker çš„ PAS æµç¨‹
+â”‚  â”œâ”€ perceptual_quality/  # æ„ŸçŸ¥è´¨é‡ï¼ˆæ¨¡ç³Šæ£€æµ‹ï¼‰è„šæœ¬
+â”‚  â””â”€ ...                  # å…¶ä»–åœºæ™¯/èžåˆè„šæœ¬
+â”œâ”€ src/                    # æ ¸å¿ƒæºç ï¼ˆæŒ‰æ¨¡å—æ‹†åˆ†ï¼‰
+â”‚  â”œâ”€ temporal_reasoning/
+â”‚  â”œâ”€ aux_motion_intensity/
+â”‚  â”œâ”€ aux_motion_intensity_2/
+â”‚  â”œâ”€ perceptual_quality/
+â”‚  â”œâ”€ scene_realism/
+â”‚  â”œâ”€ fusion_engine/
+â”‚  â”œâ”€ video_io/
+â”‚  â””â”€ vlm_reasoning/
+â”œâ”€ third_party/            # å¤–éƒ¨ä¾èµ–ä»“åº“ï¼ˆGrounded-SAM-2ã€CoTrackerã€Q-Alignã€RAFT ç­‰ï¼‰
+â””â”€ README.md               # é¡¹ç›®è¯´æ˜Žï¼ˆæœ¬æ–‡æ¡£ï¼‰
+```
 
-- **Ä¿±ê**£ºÁ¿»¯ÊÓÆµÕûÌåÔË¶¯Ç¿¶È£¬Çø·Ö¾²Ì¬/¶¯Ì¬³¡¾°
-- **·½·¨**£º
-  - ¼ÆËãÆ½¾ù¹âÁ÷·ùÖµ »ò Ö¡¼ä LPIPS ±ä»¯ÂÊ
-  - ¹éÒ»»¯Îª `[0.0, 1.0]` ¶¯Ì¬¶È·ÖÊý
-  - °´ãÐÖµ»®·Ö³¡¾°ÀàÐÍ£º`"static"`£¨<0.2£©¡¢`"moderate"`£¨0.2¨C0.6£©¡¢`"dynamic"`£¨>0.6£©
-- **Êä³ö**£º
-  - `motion_intensity: float`
-  - `scene_type: string`
-- **ÓÃÍ¾**£º
-  - µ÷ÕûÆäËûÄ£¿éÃô¸Ð¶È£¨Èç¾²Ì¬³¡¾°ÏÂÌá¸ßÉÁË¸¼ì²âãÐÖµ£©
-  - ×÷Îª±¨¸æÔªÐÅÏ¢£¬¸¨ÖúÈË¹¤ÅÐ¶Ï
-- **×¢Òâ**£º**²»²ÎÓë×ÜºÏÀíÐÔÆÀ·Ö**
+å„å­æ¨¡å—åœ¨ `src/<module>/README.md` ä¸­æä¾›äº†æ›´ç»†åŒ–çš„è¯´æ˜Žä¸Žè®¾è®¡æ€è·¯ã€‚
 
 ---
 
-### 2.2 Ä£¿é1£ºÊ±ÐòºÏÀíÐÔ·ÖÎö
+## çŽ¯å¢ƒå‡†å¤‡
 
-- **Ä¿±ê**£º¼ì²âÔË¶¯Óë½á¹¹µÄÊ±ÐòÁ¬¹áÐÔ
-- **·½·¨**£º
-  - ¹âÁ÷·ÖÎö£¨RAFT£©ÆÀ¹ÀÈ«¾ÖÔË¶¯Æ½»¬¶È
-  - Grounding DINO + SAM + DeAOT ÊµÏÖ¹Ø¼ü´ÊÒýµ¼µÄÊµÀý·Ö¸îÓë¿çÖ¡×·×Ù
-  - MediaPipe ÌáÈ¡¹Ø¼üµã£¬·ÖÎöÕ£ÑÛ¡¢×ìÐÍµÈ¶¯×÷×ÔÈ»ÐÔ
-- **Êä³ö**£ºÔË¶¯ºÏÀíÐÔµÃ·Ö¡¢½á¹¹ÎÈ¶¨ÐÔµÃ·Ö¡¢Òì³£ÊµÀýÁÐ±í
+å»ºè®®ä½¿ç”¨ **Python 3.10+**ï¼Œå¹¶é¢„å…ˆå‡†å¤‡ GPUï¼ˆCUDAï¼‰çŽ¯å¢ƒä»¥èŽ·å¾—æœ€ä½³æ€§èƒ½ã€‚
 
-### 2.3 Ä£¿é2£º³¡¾°ÕæÊµ¸ÐÆÀ¹À
+1. åˆ›å»ºè™šæ‹ŸçŽ¯å¢ƒå¹¶å®‰è£…ä¾èµ–ï¼š
 
-- **Ä¿±ê**£ºÆÀ¹À±³¾°¸ÕÐÔÓëÎïÌå½»»¥ÕæÊµÐÔ
-- **·½·¨**£º
-  - Ç°¾°-±³¾°·Ö¸î£¨MODNet/RVM£©
-  - ±³¾°¸ÕÐÔÇøÓò£¨Èç¡°ºÚ°å¡±£©µÄ¾Ö²¿¹âÁ÷ÓëÇ°¾°ÔË¶¯Ïà¹ØÐÔ·ÖÎö
-  - ÎïÌå¼ä½»»¥·ÖÎö£¨Èç¡°Â¶Öé¡±Óë¡°ºÉÒ¶¡±£©£º±ß½çÇ¶ºÏ¶È + Ïà¶ÔÔË¶¯
-- **Êä³ö**£º³¡¾°¸ÕÐÔÎ¥·´±êÖ¾¡¢½»»¥Ê§Õæ±êÖ¾
+   ```bash
+   conda create -n aigc_eval python=3.10
+   conda activate aigc_eval
+   pip install -r third_party/requirements.txt  # åŒ…å« Grounded-SAM-2 ä¾èµ–
+   ```
+2. ç¼–è¯‘/å®‰è£…ç¬¬ä¸‰æ–¹é¡¹ç›®ï¼ˆè‹¥ä½¿ç”¨ï¼‰ï¼š
 
-### 2.4 Ä£¿é3£ºAI¸ÐÖªÖÊÁ¿ÆÀ¹À£¨Î±Ó°¼ì²â£©
+   - **Co-Tracker**ï¼šå‚è€ƒ `third_party/co-tracker/README.md` å®‰è£…ä¾èµ–ä¸Žæƒé‡ã€‚
+   - **Grounded-SAM-2 / Segment Anything / Grounding DINO**ï¼šæŒ‰å…¶å®˜æ–¹è¯´æ˜Žå‡†å¤‡æ¨¡åž‹æ–‡ä»¶ã€‚
+   - **Q-Align**ï¼šéœ€è¦ä¸‹è½½ `q-future/one-align` æƒé‡è‡³ `.cache/q-future/one-align`ã€‚
+   - **RAFT**ï¼šå°† `raft-things.pth` ç­‰æƒé‡æ”¾ç½®åœ¨ `.cache/`ï¼Œå¹¶æ ¹æ®éœ€è¦ç¼–è¯‘ CUDA æ‰©å±•ã€‚
+3. å°†æ¨¡åž‹æƒé‡æ”¾ç½®åˆ°é¡¹ç›®æ ¹ç›®å½• `.cache/` ä¸‹ï¼Œå¸¸è§ç¤ºä¾‹ï¼š
 
-- **Ä¿±ê**£ºÊ¶±ðÓ°ÏìÊÓ¾õ¿ÉÐÅ¶ÈµÄµÍ²ãÎ±Ó°
-- **·½·¨**£¨ÇáÁ¿¡¢ÎÞ¼à¶½£©£º
-  - **ÉÁË¸¼ì²â**£ºLaplacian·½²î»ò¾Ö²¿±ê×¼²îµÄÊ±ÐòÍ»±ä
-  - **Òì³£Ä£ºý**£ºÇåÎú¶ÈÏÔÖøÏÂ½µÇÒÎÞ¶ÔÓ¦ÔË¶¯
-  - **É«²ÊÆ¯ÒÆ**£ºHSVÖ±·½Í¼EMD¾àÀëÍ»Ôö
-  - **ÎÆÀí±À»µ**£º¸ßÆµÄÜÁ¿Òì³£±¬·¢
-- **Êä³ö**£ºÎ±Ó°ÀàÐÍ¡¢Ê±¼ä´Á¡¢ÊÓ¾õÖÊÁ¿×Ó·Ö
-
-### 2.5 Ä£¿é4£ºVLM³£Ê¶ÍÆÀí
-
-- **Ä¿±ê**£º¸ß²ãÓïÒåºÏÀíÐÔÅÐ¶Ï
-- **·½·¨**£º
-  - Ê¹ÓÃ Qwen-VL¡¢LLaVA µÈ¶àÄ£Ì¬´óÄ£ÐÍ
-  - ½á¹¹»¯ÌáÊ¾¾Û½¹¿É¼ûÄÚÈÝ£¨Èç¡°ÕÅ×ìÊ±¿ÚÇ»ÊÇ·ñ¿É¼û£¿¡±£©
-- **Êä³ö**£º³£Ê¶ºÏÀíÐÔÅÐ¶Ï£¨º¬Î¬¶È¡¢Ô­Òò¡¢Ê±¼ä´Á£©
+   ```
+   .cache/
+   â”œâ”€ grounddingdino_swinb_cogcoor.pth
+   â”œâ”€ sam_vit_h_4b8939.pth
+   â”œâ”€ scaled_offline.pth                # CoTracker
+   â”œâ”€ raft-things.pth                   # RAFT
+   â”œâ”€ q-future/one-align/               # Q-Align
+   â””â”€ google-bert/bert-base-uncased/    # Grounding DINO æ‰€éœ€
+   ```
 
 ---
 
-## Èý¡¢ÈÚºÏÆÀ¹ÀÒýÇæ
+## å¿«é€Ÿä¸Šæ‰‹
 
-### 3.1 ÆÀ·ÖÌåÏµ
+### 1. æ—¶åºåˆç†æ€§åˆ†æž
 
-½öÈÚºÏËÄ´óºËÐÄÄ£¿é£¬**¶¯Ì¬³Ì¶È²»²ÎÓë**£º
-
-```
-×ÜºÏÀíÐÔµÃ·Ö = 
-  w? ¡Á ÔË¶¯ºÏÀíÐÔ +
-  w? ¡Á ½á¹¹ÎÈ¶¨ÐÔ +
-  w? ¡Á ³¡¾°ÕæÊµ¸Ð +
-  w? ¡Á ÊÓ¾õÖÊÁ¿£¨Î±Ó°£©+
-  w? ¡Á VLM³£Ê¶ºÏÀíÐÔ
+```bash
+python scripts/temporal_reasoning/run_analysis.py \
+  --video path/to/video.mp4 \
+  --enable_structure_visualization \
+  --prompts "person" "car"
 ```
 
-- Ä¬ÈÏÈ¨ÖØ¾ùµÈ£¨¸÷ 0.2£©£¬Ö§³Ö°´³¡¾°ÅäÖÃ
+- ç»“æžœå°†ä¿å­˜è‡³ `outputs/temporal_reasoning/<video>_result.json`ã€‚
+- è‹¥æŒ‡å®š `--enable_cotracker_visualization`ï¼Œä¼šé¢å¤–ç”Ÿæˆ CoTracker è½¨è¿¹è§†é¢‘ã€‚
+- CLI æ”¯æŒä¼ å…¥ YAML é…ç½®ï¼Œæˆ–é€šè¿‡å‘½ä»¤è¡Œè¦†ç›–å…³é”®å‚æ•°ï¼ˆè®¾å¤‡ã€æ¨¡åž‹è·¯å¾„ã€å¯è§†åŒ–å‚æ•°ç­‰ï¼‰ã€‚
 
-### 3.2 Òì³£·Ö¼¶
+### 2. å¯æ„ŸçŸ¥å¹…åº¦ï¼ˆè¿åŠ¨å¼ºåº¦ï¼‰åˆ†æž
 
-- **Critical**£ºÎ¥·´»ù±¾ÎïÀí/ÉúÎï¹æÂÉ£¨ÈçÉàÍ·ÏûÊ§£©
-- **Moderate**£º³¡¾°Å¤Çú¡¢½»»¥Ê§Õæ¡¢Ã÷ÏÔÉÁË¸
-- **Minor**£ºÇáÎ¢Ä£ºý¡¢É«²ÊÆ¯ÒÆ¡¢ÎÆÀíè¦´Ã
-
-### 3.3 Êä³ö±¨¸æ£¨JSON£©
-
-```json
-{
-  "overall_score": 0.72,
-  "grade": "B",
-  "motion_intensity": 0.08,
-  "scene_type": "static",
-  "issues": [
-    {
-      "severity": "Critical",
-      "type": "Structural Inconsistency",
-      "description": "µÚ3.2ÃëÕÅ×ì×´Ì¬ÏÂ¿ÚÇ»ÄÚ²¿²»¿É¼û",
-      "timestamp": "3.2s"
-    },
-    {
-      "severity": "Moderate",
-      "type": "Temporal Flickering",
-      "description": "±³¾°ÎÆÀíÔÚ2.1¨C2.4Ãë¼äÉÁË¸",
-      "timestamp": "2.1¨C2.4s"
-    }
-  ]
-}
+```bash
+python scripts/aux_motion_intensity_2/run_pas.py \
+  --meta_info_path data/meta_info.json \
+  --output_path outputs/pas_results.json \
+  --enable_scene_classification
 ```
+
+- `meta_info.json` åº”åŒ…å« `filepath`ã€`subject_noun` ç­‰å­—æ®µã€‚
+- è¾“å‡ºä¼šåœ¨åŽŸå…ƒæ•°æ®ä¸­è¿½åŠ  `perceptible_amplitude_score` å­—æ®µï¼Œå¹¶ç”Ÿæˆæ±‡æ€»æ—¥å¿—ã€‚
+
+### 3. æ¨¡ç³Šæ£€æµ‹ï¼ˆæ„ŸçŸ¥è´¨é‡ï¼‰
+
+```bash
+python scripts/perceptual_quality/run_blur_detection.py \
+  --video path/to/video.mp4 \
+  --output-dir outputs/perceptual_quality/blur \
+  --enable-visual-report
+```
+
+- ä¼šè°ƒç”¨ Q-Align è´¨é‡æ¨¡åž‹è®¡ç®—æ»‘åŠ¨çª—å£åˆ†æ•°ï¼Œè¾“å‡º JSON/CSV/å¯è§†åŒ–å›¾è¡¨ã€‚
+- `outputs/perceptual_quality/blur` ä¸‹åŒ…å«è¯¦ç»†æŠ¥å‘Šä¸Žç»Ÿè®¡ã€‚
 
 ---
 
-## ËÄ¡¢ºËÐÄÔ¼ÊøÓëÓÅÊÆ
+## æ ¸å¿ƒæ¨¡å—ç®€ä»‹
 
-- ? **½öÒÀÀµÊÓÆµÏñËØ**£¬ÎÞÐèÉúÀíÐÅºÅ¡¢Íâ²¿²Î¿¼»òÉú³ÉÄ£ÐÍÐÅÏ¢
-- ? **Ö§³Ö¹Ø¼ü´ÊÒýµ¼**£¨Èç `"tongue"`, `"blackboard"`£©
-- ? **¶¯Ì¬³Ì¶È¶ÀÁ¢Êä³ö**£¬¿É×÷ÉÏÏÂÎÄ²Î¿¼£¬²»Ó°ÏìÖ÷ÆÀ·Ö
-- ? **¼ÆËã¿É¿Ø**£ºÎ±Ó°¼ì²âÇáÁ¿£¬VLM½öÓÃÓÚ¹Ø¼üÆ¬¶Î
-- ? **È«Ãæ¸²¸Ç**£º´ÓµÍ²ãÎ±Ó°µ½¸ß²ãÂß¼­£¬ÐÎ³ÉºÏÀíÐÔ±Õ»·
+| æ¨¡å—                       | æè¿°                                                                           | ä¸»è¦ä¾èµ–                                               |
+| -------------------------- | ------------------------------------------------------------------------------ | ------------------------------------------------------ |
+| `temporal_reasoning`     | å…‰æµã€å®žä¾‹è¿½è¸ªã€å…³é”®ç‚¹åˆ†æžä¸‰è·¯èžåˆï¼Œè¾“å‡ºè¿åŠ¨åˆç†æ€§ã€ç»“æž„ç¨³å®šæ€§ã€å¼‚å¸¸åˆ—è¡¨ç­‰æŒ‡æ ‡ | RAFTã€Grounded-DINOã€SAM2ã€CoTrackerã€MediaPipe/MMPose |
+| `aux_motion_intensity`   | æ—§ç‰ˆè¿åŠ¨å¼ºåº¦åˆ†æžæµæ°´çº¿ï¼Œä»å¯ç”¨äºŽè½»é‡è¯„ä¼°                                       | OpenCV (Farneback/TV-L1)ã€RAFT                         |
+| `aux_motion_intensity_2` | åŸºäºŽ Grounded-SAM + CoTracker çš„ PAS åˆ†æžï¼Œæ”¯æŒåœºæ™¯åˆ†ç±»/å¯è§†åŒ–                 | Grounded-SAM-2ã€CoTrackerã€Torch                       |
+| `perceptual_quality`     | ä½¿ç”¨ Q-Align è´¨é‡æ¨¡åž‹æ£€æµ‹æ¨¡ç³Šã€ç”ŸæˆæŠ¥å‘Š                                        | Q-Alignã€Decordã€Matplotlib                            |
+| `scene_realism`          | åœºæ™¯çœŸå®žåº¦ç›¸å…³æŽ¥å£é¢„ç•™æ¨¡å—                                                     | ï¼ˆæŒ‰éœ€æ‰©å±•ï¼‰                                           |
+| `vlm_reasoning`          | å¤§è¯­è¨€/è§†è§‰æ¨¡åž‹è”åˆæŽ¨ç†æŽ¥å£                                                    | ï¼ˆæŒ‰éœ€æ‰©å±•ï¼‰                                           |
+| `fusion_engine`          | å¤šæ¨¡æ€ç»“æžœèžåˆä¸Žå†³ç­–é€»è¾‘                                                       | è‡ªç ”                                                   |
+| `video_io`               | é€šç”¨è§†é¢‘è¯»å–ã€å¸§æŠ½æ ·ã€ç¼“å­˜å·¥å…·                                                 | OpenCVã€Decord                                         |
 
-> **×îÖÕÄ¿±ê**£ºÈ·±£AIÉú³ÉÊÓÆµ¡°**½á¹¹ÎÈ¡¢ÔË¶¯Ë³¡¢½»»¥Õæ¡¢ÎÞÉÁË¸¡¢ºÏ³£Ê¶**¡±£¬²¢Ìá¹©³¡¾°¶¯Ì¬ÉÏÏÂÎÄÒÔÔöÇ¿ÏµÍ³ÊÊÓ¦ÐÔ¡£
->
+æ¯ä¸ªå­ç›®å½•å‡æä¾› README / QUICKSTART / INTEGRATION æ–‡æ¡£è¯´æ˜Žç”¨æ³•ä¸Žè®¾è®¡ã€‚
+
+---
+
+## æ•°æ®ä¸Žè¾“å‡º
+
+- **è¾“å…¥æ•°æ®**ï¼šé¡¹ç›®æœªç›´æŽ¥æä¾›æ•°æ®ï¼Œå¯è‡ªè¡Œå°†æµ‹è¯•è§†é¢‘ç½®äºŽ `data/` æˆ–ä»»æ„è·¯å¾„åŽé€šè¿‡ CLI æŒ‡å®šã€‚
+- **è¾“å‡ºå†…å®¹**ï¼šé»˜è®¤å†™å…¥ `outputs/` ä¸‹ï¼ŒåŒ…å« JSON ç»“æžœã€å›¾è¡¨ã€ç»Ÿè®¡æŠ¥è¡¨ç­‰ï¼›è·¯å¾„å¯é€šè¿‡ CLI/é…ç½®è¦†ç›–ã€‚
+- **å¯è§†åŒ–**ï¼šç»“æž„å¯è§†åŒ–ï¼ˆSAM2 åˆ†å‰²è¦†ç›–ï¼‰ã€CoTracker è½¨è¿¹è§†é¢‘ã€æ¨¡ç³Šæ£€æµ‹æ›²çº¿/æŠ¥å‘Šç­‰å‡å¯å¯ç”¨ã€‚
+
+---
+
+## è‡ªå®šä¹‰ä¸Žæ‰©å±•
+
+- **é…ç½®ç®¡ç†**ï¼šå„æ¨¡å—åœ¨ `src/<module>/config.py` æˆ–ç›¸å…³ README ä¸­ç»™å‡ºå¯è¦†ç›–å­—æ®µï¼›å¯é€šè¿‡ YAML / CLI å‚æ•°è¦†å†™ã€‚
+- **æ¨¡åž‹æ›¿æ¢**ï¼šå¦‚éœ€æ›¿æ¢æˆå…¶ä»–æ£€æµ‹æˆ–åˆ†å‰²æ¨¡åž‹ï¼Œå¯åœ¨å¯¹åº”æ¨¡å—é‡Œæ‰©å±• `*_Analyzer`ã€`DetectionEngine` å®žçŽ°ã€‚
+- **èžåˆç­–ç•¥**ï¼š`src/fusion_engine` ä¸­çš„ `FusionDecisionEngine` æ”¯æŒè‡ªå®šä¹‰å¤šæ¨¡æ€èžåˆé€»è¾‘ä¸Žé˜ˆå€¼ã€‚
+- **è„šæœ¬æ‰©å±•**ï¼š`scripts/` ç›®å½•æŒ‰åŠŸèƒ½åˆ’åˆ†ï¼ŒæŽ¨èåœ¨å¯¹åº”å­ç›®å½•æ–°å¢žè„šæœ¬ï¼Œä¿æŒ CLI å‚æ•°é£Žæ ¼ä¸€è‡´ã€‚
+
+---
+
+## å¸¸è§é—®é¢˜
+
+1. **æ¨¡åž‹æƒé‡æ— æ³•æ‰¾åˆ° / åŠ è½½å¤±è´¥**
+
+   - ç¡®è®¤ `.cache/` ç›®å½•ä¸‹å­˜åœ¨ç›¸åº”æ–‡ä»¶ï¼Œè·¯å¾„åŒºåˆ†å¤§å°å†™ï¼›å¯é€šè¿‡ CLI ç›´æŽ¥æŒ‡å®šæ¨¡åž‹è·¯å¾„è¿›è¡Œè¦†ç›–ã€‚
+2. **CUDA å†…å­˜ä¸è¶³**
+
+   - é™ä½Žæ‰¹å¤§å°ï¼ˆ`--batch-size`ï¼‰ã€å‡å°‘æ»‘åŠ¨çª—å£é•¿åº¦ï¼Œæˆ–æ”¹ç”¨ CPU æ¨¡å¼ï¼ˆæ€§èƒ½ä¼šä¸‹é™ï¼‰ã€‚
+3. **ç¬¬ä¸‰æ–¹ä¾èµ–å®‰è£…å›°éš¾**
+
+   - å»ºè®®å‚è€ƒå„ç¬¬ä¸‰æ–¹ä»“åº“ READMEï¼›å¦‚éœ€å¿«é€Ÿä½“éªŒï¼Œå¯å…ˆå…³é—­ç›¸å…³åŠŸèƒ½ï¼ˆä¾‹å¦‚ç¦ç”¨ CoTracker éªŒè¯ï¼‰ã€‚
+4. **ç”Ÿæˆçš„å¯è§†åŒ–ç¼ºå¤±**
+
+   - ç¡®è®¤å‘½ä»¤è¡Œå‚æ•°å·²å¼€å¯å¯¹åº”é€‰é¡¹ï¼Œå¹¶æ£€æŸ¥è¾“å‡ºç›®å½•æ˜¯å¦å¯å†™ï¼ˆWindows ä¸‹æ³¨æ„æƒé™ä¸Žè·¯å¾„é•¿åº¦ï¼‰ã€‚
+
+---
+
+## è‡´è°¢ä¸Žç‰ˆæƒ
+
+é¡¹ç›®ä¸­åŒ…å«å¤šä¸ªå¼€æºå­æ¨¡å—ï¼Œç‰ˆæƒå½’åŽŸä½œè€…æ‰€æœ‰ã€‚ä½¿ç”¨å‰è¯·ä»”ç»†é˜…è¯» `third_party` ç›®å½•ä¸‹å„é¡¹ç›®çš„ License ä¸Žä½¿ç”¨è§„èŒƒï¼š
+
+- [Grounded-SAM-2](https://github.com/IDEA-Research/Grounded-SAM-2)
+- [Co-Tracker](https://github.com/facebookresearch/co-tracker)
+- [Q-Align](https://github.com/VQAssessment/Q-Align)
+- [RAFT](https://github.com/princeton-vl/RAFT)
+- ä»¥åŠå…¶ä»–éšé™„åº“ä¸Žæ¨¡åž‹ã€‚

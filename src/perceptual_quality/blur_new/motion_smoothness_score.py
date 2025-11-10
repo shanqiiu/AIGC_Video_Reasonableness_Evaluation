@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
-ÊÓÆµÔË¶¯Æ½»¬¶ÈÆÀ·ÖÄ£¿é
-»ùÓÚ Q-Align Ä£ĞÍ¼ÆËãÊÓÆµÖÊÁ¿·ÖÊı£¬ÓÃÓÚ¼ì²âÄ£ºıÖ¡
+è§†é¢‘è¿åŠ¨å¹³æ»‘åº¦è¯„åˆ†æ¨¡å—
+ä¾æ‰˜ Q-Align æ¨¡å‹è®¡ç®—è§†é¢‘è´¨é‡ï¼Œå®ç°æ»‘åŠ¨çª—å£å¼çš„å…³é”®å¸§åˆ†æã€‚
 """
 
 import os
@@ -29,41 +29,41 @@ from q_align.mm_utils import tokenizer_image_token  # type: ignore
 
 
 class QAlignVideoScorer(nn.Module):
-    """»ùÓÚ Q-Align Ä£ĞÍµÄÊÓÆµÖÊÁ¿ÆÀ·ÖÆ÷"""
+    """åŸºäº Q-Align æ¨¡å‹çš„è§†é¢‘è´¨é‡è¯„åˆ†å™¨ã€‚"""
     
-    # ÖÊÁ¿µÈ¼¶È¨ÖØ
+    # è´¨é‡ç­‰çº§æƒé‡
     QUALITY_WEIGHTS = torch.Tensor([1.0, 0.75, 0.5, 0.25, 0.0])
-    # ÖÊÁ¿µÈ¼¶¹Ø¼ü´Ê
+    # è´¨é‡ç­‰çº§å…³é”®è¯
     QUALITY_KEYWORDS = ["excellent", "good", "fair", "poor", "bad"]
-    # ÖÊÁ¿ÆÀ¹ÀÌáÊ¾´Ê
+    # è´¨é‡è¯„ä¼°æç¤ºè¯­
     QUALITY_PROMPT = "USER: How would you rate the quality of this video?\n<|image|>\nASSISTANT: The quality of the video is"
     
     def __init__(self, pretrained: str = "q-future/one-align", device: str = "cuda:0"):
         """
-        ³õÊ¼»¯ Q-Align ÊÓÆµÆÀ·ÖÆ÷
+        åˆå§‹åŒ– Q-Align è§†é¢‘è´¨é‡è¯„åˆ†å™¨ã€‚
         
         Args:
-            pretrained: Ô¤ÑµÁ·Ä£ĞÍÂ·¾¶»òÃû³Æ
-            device: ¼ÆËãÉè±¸
+            pretrained: é¢„è®­ç»ƒæ¨¡å‹åç§°æˆ–è·¯å¾„
+            device: è®¡ç®—è®¾å¤‡
         """
         super().__init__()
         tokenizer, model, image_processor, _ = load_pretrained_model(
             pretrained, None, "mplug_owl2", device=device
         )
         
-        # ÌáÈ¡ÖÊÁ¿µÈ¼¶¶ÔÓ¦µÄ token ID
+        # è·å–å„è´¨é‡ç­‰çº§å¯¹åº”çš„ token ID
         quality_token_ids = tokenizer(self.QUALITY_KEYWORDS)["input_ids"]
         self.preferential_ids = [token_id[1] for token_id in quality_token_ids]
         
-        # ³õÊ¼»¯È¨ÖØÕÅÁ¿
+        # åˆå§‹åŒ–æƒé‡å¼ é‡
         self.weight_tensor = self.QUALITY_WEIGHTS.half().to(model.device)
         
-        # ±£´æÄ£ĞÍ×é¼ş
+        # ä¿å­˜æ¨¡å‹ç»„ä»¶
         self.tokenizer = tokenizer
         self.model = model
         self.image_processor = image_processor
         
-        # ×¼±¸ÊäÈë token
+        # å‡†å¤‡è´¨é‡è¯„ä¼°æç¤º token
         input_ids = tokenizer_image_token(
             self.QUALITY_PROMPT, tokenizer, IMAGE_TOKEN_INDEX, return_tensors='pt'
         )
@@ -71,25 +71,25 @@ class QAlignVideoScorer(nn.Module):
     
     def _expand_to_square(self, image: Image.Image, background_color: Tuple[int, int, int]) -> Image.Image:
         """
-        ½«Í¼ÏñÀ©Õ¹ÎªÕı·½ĞÎ
+        å°†å›¾åƒæ‰©å±•ä¸ºæ­£æ–¹å½¢ï¼Œç¼ºå¤±åŒºåŸŸä½¿ç”¨èƒŒæ™¯è‰²å¡«å……ã€‚
         
         Args:
-            image: PIL Í¼Ïñ¶ÔÏó
-            background_color: ±³¾°ÑÕÉ« (R, G, B)
+            image: PIL å›¾åƒ
+            background_color: èƒŒæ™¯é¢œè‰² (R, G, B)
             
         Returns:
-            À©Õ¹ºóµÄÕı·½ĞÎÍ¼Ïñ
+            æ‰©å±•åçš„æ­£æ–¹å½¢å›¾åƒ
         """
         width, height = image.size
         if width == height:
             return image
         
         if width > height:
-            # ¿í¶È´óÓÚ¸ß¶È£¬ÔÚÉÏÏÂÁ½²àÌî³ä
+            # å®½åº¦å¤§äºé«˜åº¦ï¼Œä¸Šä¸‹å¡«å……
             result = Image.new(image.mode, (width, width), background_color)
             result.paste(image, (0, (width - height) // 2))
         else:
-            # ¸ß¶È´óÓÚ¿í¶È£¬ÔÚ×óÓÒÁ½²àÌî³ä
+            # é«˜åº¦å¤§äºå®½åº¦ï¼Œå·¦å³å¡«å……
             result = Image.new(image.mode, (height, height), background_color)
             result.paste(image, ((height - width) // 2, 0))
         
@@ -101,23 +101,23 @@ class QAlignVideoScorer(nn.Module):
         batch_size: Optional[int] = 32
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """
-        ¶ÔÊÓÆµÖ¡½øĞĞÖÊÁ¿ÆÀ·Ö£¨Ö§³ÖÅú´¦Àí£¬·ÀÖ¹ OOM£©
+        å¯¹è§†é¢‘å¸§åºåˆ—è¿›è¡Œæ‰¹é‡æ¨ç†ï¼Œæ”¯æŒæ‹†åˆ†æ‰¹æ¬¡é˜²æ­¢ OOMã€‚
         
         Args:
-            video_frames: ÊÓÆµÖ¡ÁĞ±í£¬Ã¿¸öÔªËØÊÇÒ»¸öÖ¡×éÁĞ±í
-            batch_size: Åú´¦Àí´óĞ¡£¬Ä¬ÈÏ 32¡£None ±íÊ¾Ò»´ÎĞÔ´¦ÀíËùÓĞÖ¡
+            video_frames: è§†é¢‘å¸§ç»„åˆ—è¡¨ï¼Œæ¯ä¸ªå…ƒç´ æ˜¯ä¸€ä¸ªå¸§çª—å£åˆ—è¡¨
+            batch_size: æ‰¹å¤„ç†å¤§å°ï¼›None è¡¨ç¤ºä¸€æ¬¡å¤„ç†å…¨éƒ¨å¸§ç»„
             
         Returns:
             (logits, probabilities, weighted_scores)
-            - logits: Ô­Ê¼ logits
-            - probabilities: ÖÊÁ¿µÈ¼¶¸ÅÂÊ·Ö²¼
-            - weighted_scores: ¼ÓÈ¨ÖÊÁ¿·ÖÊı
+            - logits: åŸå§‹ logits
+            - probabilities: è´¨é‡ç­‰çº§æ¦‚ç‡åˆ†å¸ƒ
+            - weighted_scores: åŠ æƒè´¨é‡åˆ†æ•°
         """
-        # Èç¹ûÃ»ÓĞÖ¸¶¨Åú´¦Àí´óĞ¡£¬»òÅú´¦Àí´óĞ¡´óÓÚµÈÓÚ×ÜÖ¡Êı£¬Ò»´ÎĞÔ´¦Àí
+        # è‹¥æœªæŒ‡å®š batch_size æˆ–å¸§ç»„æ•°é‡è¾ƒå°‘ï¼Œåˆ™ä¸€æ¬¡æ€§å¤„ç†
         if batch_size is None or batch_size >= len(video_frames):
             return self._forward_batch(video_frames)
         
-        # ·ÖÅú´¦Àí
+        # åˆ†æ‰¹è®¡ç®—
         all_logits = []
         all_probabilities = []
         all_weighted_scores = []
@@ -128,16 +128,16 @@ class QAlignVideoScorer(nn.Module):
             batch_frames = video_frames[i:i + batch_size]
             logits, probabilities, weighted_scores = self._forward_batch(batch_frames)
             
-            all_logits.append(logits.cpu())  # ÒÆµ½ CPU ÊÍ·Å GPU ÄÚ´æ
+            all_logits.append(logits.cpu())  # è½¬ç§»åˆ° CPU é‡Šæ”¾ GPU æ˜¾å­˜
             all_probabilities.append(probabilities.cpu())
             all_weighted_scores.append(weighted_scores.cpu())
             
-            # ÊÍ·Å GPU ÄÚ´æ
+            # æ¸…ç† GPU æ˜¾å­˜
             del logits, probabilities, weighted_scores
             if torch.cuda.is_available():
                 torch.cuda.empty_cache()
         
-        # ºÏ²¢ËùÓĞÅú´ÎµÄ½á¹û£¨ÔÚ CPU ÉÏºÏ²¢£©
+        # åˆå¹¶å„æ‰¹æ¬¡ç»“æœ
         all_logits = torch.cat(all_logits, dim=0).to(self.model.device)
         all_probabilities = torch.cat(all_probabilities, dim=0).to(self.model.device)
         all_weighted_scores = torch.cat(all_weighted_scores, dim=0).to(self.model.device)
@@ -146,15 +146,15 @@ class QAlignVideoScorer(nn.Module):
     
     def _forward_batch(self, video_frames: List[List[Image.Image]]) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """
-        ¶Ôµ¥¸öÅú´ÎµÄÊÓÆµÖ¡½øĞĞÖÊÁ¿ÆÀ·Ö
+        å¯¹å•ä¸ªæ‰¹æ¬¡çš„è§†é¢‘å¸§çª—å£è¿›è¡Œæ¨ç†ã€‚
         
         Args:
-            video_frames: ÊÓÆµÖ¡Åú´ÎÁĞ±í
+            video_frames: å¸§çª—å£åˆ—è¡¨
             
         Returns:
             (logits, probabilities, weighted_scores)
         """
-        # ½«Í¼ÏñÀ©Õ¹ÎªÕı·½ĞÎ
+        # å°†æ‰€æœ‰å¸§æ‰©å±•ä¸ºæ­£æ–¹å½¢
         background_color = tuple(
             int(x * 255) for x in self.image_processor.image_mean
         )
@@ -167,7 +167,7 @@ class QAlignVideoScorer(nn.Module):
         ]
         
         with torch.inference_mode():
-            # Ô¤´¦ÀíÊÓÆµÖ¡
+            # é¢„å¤„ç†å¸§æ•°æ®
             video_tensors = [
                 self.image_processor.preprocess(
                     frame_group, return_tensors="pt"
@@ -175,62 +175,62 @@ class QAlignVideoScorer(nn.Module):
                 for frame_group in processed_frames
             ]
             
-            # ×¼±¸ÊäÈë
+            # å‡†å¤‡è¾“å…¥ token
             input_tensors = self.input_ids.repeat(len(video_tensors), 1)
             
-            # Ä£ĞÍÍÆÀí
+            # æ¨¡å‹å‰å‘
             output = self.model(input_tensors, images=video_tensors)
             
-            # ÌáÈ¡ÖÊÁ¿µÈ¼¶µÄ logits
+            # è·å–è´¨é‡ç­‰çº§çš„ logits
             output_logits = output["logits"][:, -1, self.preferential_ids]
             
-            # ¼ÆËã¸ÅÂÊ·Ö²¼
+            # æ¦‚ç‡åˆ†å¸ƒ
             probabilities = torch.softmax(output_logits, dim=-1)
             
-            # ¼ÆËã¼ÓÈ¨·ÖÊı
+            # è®¡ç®—åŠ æƒå¾—åˆ†
             weighted_scores = probabilities @ self.weight_tensor
             
             return output_logits, probabilities, weighted_scores
 
 def load_video_with_sliding_window(video_path: str, window_size: int = 5) -> List[List[Image.Image]]:
     """
-    Ê¹ÓÃ»¬¶¯´°¿Ú·½Ê½¼ÓÔØÊÓÆµÖ¡£¨Ò»´ÎĞÔ¼ÓÔØËùÓĞÖ¡£©
+    ä½¿ç”¨æ»‘åŠ¨çª—å£æ–¹å¼åŠ è½½è§†é¢‘å¸§ï¼Œä¸ºæ¯å¸§é…å¤‡é‚»åŸŸå¸§ç»„ã€‚
     
     Args:
-        video_path: ÊÓÆµÎÄ¼şÂ·¾¶
-        window_size: »¬¶¯´°¿Ú´óĞ¡£¨Ö¡Êı£©
+        video_path: è§†é¢‘æ–‡ä»¶è·¯å¾„
+        window_size: æ»‘åŠ¨çª—å£å¤§å°ï¼ˆå¸§æ•°ï¼‰
         
     Returns:
-        ÊÓÆµÖ¡×éÁĞ±í£¬Ã¿¸öÔªËØÊÇÒ»¸öÖ¡×é£¨°üº¬ window_size Ö¡£©
+        å¸§ç»„åˆ—è¡¨ï¼Œæ¯ä¸ªå…ƒç´ åŒ…å« window_size å¸§
     """
     video_reader = VideoReader(video_path)
     total_frames = len(video_reader)
     frame_groups = []
     
-    # ¼ÆËã´°¿Ú×óÓÒÀ©Õ¹Ö¡Êı
+    # è®¡ç®—çª—å£æ‰©å±•å¸§æ•°
     left_extend = (window_size - 1) // 2
     right_extend = window_size - 1 - left_extend
     
     for current_frame_idx in range(total_frames):
-        # ¼ÆËã´°¿ÚµÄÆğÊ¼ºÍ½áÊøÖ¡Ë÷Òı
+        # è®¡ç®—çª—å£èµ·æ­¢å¸§ç´¢å¼•
         start_frame_idx = max(0, current_frame_idx - left_extend)
         end_frame_idx = min(total_frames, current_frame_idx + right_extend + 1)
         
         frame_indices = list(range(start_frame_idx, end_frame_idx))
         
-        # Èç¹ûÖ¡Êı²»×ã£¬½øĞĞÌî³ä
+        # å¦‚æœå¸§æ•°ä¸è¶³ï¼Œå¤åˆ¶è¾¹ç•Œå¸§è¡¥é½
         while len(frame_indices) < window_size:
             if start_frame_idx == 0:
-                # Èç¹û´°¿ÚÔÚ¿ªÍ·£¬ÏòºóÌî³ä
+                # é è¿‘å¼€å¤´ï¼Œå¤åˆ¶æœ€åä¸€å¸§
                 frame_indices.append(frame_indices[-1])
             else:
-                # ·ñÔòÏòÇ°Ìî³ä
+                # é è¿‘ç»“å°¾ï¼Œå¤åˆ¶ç¬¬ä¸€å¸§
                 frame_indices.insert(0, frame_indices[0])
         
-        # ¶ÁÈ¡Ö¡Êı¾İ
+        # è¯»å–å¸§æ•°æ®
         frames_array = video_reader.get_batch(frame_indices).asnumpy()
         
-        # ´¦Àí¿ªÍ·Ö¡£¬È·±£Ò»ÖÂĞÔ
+        # å¯¹å¼€å¤´å¸§åšç‰¹æ®Šå¤„ç†ï¼Œä¿è¯çª—å£é•¿åº¦ä¸€è‡´
         if current_frame_idx < left_extend:
             frame_groups.append([Image.fromarray(frames_array[0])] * window_size)
         else:
@@ -244,63 +244,63 @@ def load_video_with_sliding_window_generator(
     window_size: int = 5
 ) -> Iterator[List[Image.Image]]:
     """
-    Ê¹ÓÃ»¬¶¯´°¿Ú·½Ê½¼ÓÔØÊÓÆµÖ¡£¨Éú³ÉÆ÷°æ±¾£¬½ÚÊ¡ÄÚ´æ£©
+    ä½¿ç”¨æ»‘åŠ¨çª—å£æ–¹å¼åŠ è½½è§†é¢‘å¸§ï¼ˆç”Ÿæˆå™¨ç‰ˆæœ¬ï¼ŒèŠ‚çœå†…å­˜ï¼‰ã€‚
     
     Args:
-        video_path: ÊÓÆµÎÄ¼şÂ·¾¶
-        window_size: »¬¶¯´°¿Ú´óĞ¡£¨Ö¡Êı£©
+        video_path: è§†é¢‘æ–‡ä»¶è·¯å¾„
+        window_size: æ»‘åŠ¨çª—å£å¤§å°ï¼ˆå¸§æ•°ï¼‰
         
     Yields:
-        ÊÓÆµÖ¡×é£¬Ã¿¸öÖ¡×é°üº¬ window_size Ö¡
+        å¸§çª—å£åˆ—è¡¨ï¼Œæ¯ä¸ªçª—å£åŒ…å« window_size å¸§
     """
     video_reader = VideoReader(video_path)
     total_frames = len(video_reader)
     
-    # ¼ÆËã´°¿Ú×óÓÒÀ©Õ¹Ö¡Êı
+    # è®¡ç®—çª—å£æ‰©å±•å¸§æ•°
     left_extend = (window_size - 1) // 2
     right_extend = window_size - 1 - left_extend
     
     for current_frame_idx in range(total_frames):
-        # ¼ÆËã´°¿ÚµÄÆğÊ¼ºÍ½áÊøÖ¡Ë÷Òı
+        # è®¡ç®—çª—å£èµ·æ­¢å¸§ç´¢å¼•
         start_frame_idx = max(0, current_frame_idx - left_extend)
         end_frame_idx = min(total_frames, current_frame_idx + right_extend + 1)
         
         frame_indices = list(range(start_frame_idx, end_frame_idx))
         
-        # Èç¹ûÖ¡Êı²»×ã£¬½øĞĞÌî³ä
+        # è‹¥å¸§æ•°ä¸è¶³ï¼Œå¤åˆ¶è¾¹ç•Œå¸§è¡¥é½
         while len(frame_indices) < window_size:
             if start_frame_idx == 0:
-                # Èç¹û´°¿ÚÔÚ¿ªÍ·£¬ÏòºóÌî³ä
+                # é è¿‘å¼€å¤´ï¼Œå¤åˆ¶æœ€åä¸€å¸§
                 frame_indices.append(frame_indices[-1])
             else:
-                # ·ñÔòÏòÇ°Ìî³ä
+                # é è¿‘ç»“å°¾ï¼Œå¤åˆ¶ç¬¬ä¸€å¸§
                 frame_indices.insert(0, frame_indices[0])
         
-        # ¶ÁÈ¡Ö¡Êı¾İ
+        # è¯»å–å¸§æ•°æ®
         frames_array = video_reader.get_batch(frame_indices).asnumpy()
         
-        # ´¦Àí¿ªÍ·Ö¡£¬È·±£Ò»ÖÂĞÔ
+        # å¯¹å¼€å¤´å¸§åšç‰¹æ®Šå¤„ç†
         if current_frame_idx < left_extend:
             frame_group = [Image.fromarray(frames_array[0])] * window_size
         else:
             frame_group = [Image.fromarray(frame) for frame in frames_array]
         
-        # Éú³Éµ±Ç°Ö¡×é
+        # äº§å‡ºå½“å‰çª—å£
         yield frame_group
         
-        # ×Ô¶¯ÊÍ·ÅÄÚ´æ
+        # è‡ªåŠ¨é‡Šæ”¾ä¸­é—´å˜é‡
         del frames_array, frame_group
 
 
 def calculate_adaptive_threshold(camera_movement: float = None) -> float:
     """
-    ¸ù¾İÏà»úÔË¶¯·ù¶È¼ÆËã×ÔÊÊÓ¦ãĞÖµ
+    æ ¹æ®ç›¸æœºè¿åŠ¨å¹…åº¦è®¡ç®—è‡ªé€‚åº”é˜ˆå€¼ã€‚
     
     Args:
-        camera_movement: Ïà»úÔË¶¯·ù¶È£¨0-1Ö®¼ä£©
+        camera_movement: ç›¸æœºè¿åŠ¨å¹…åº¦ï¼ˆ0-1 ä¹‹é—´ï¼‰
         
     Returns:
-        ×ÔÊÊÓ¦ãĞÖµ
+        è‡ªé€‚åº”é˜ˆå€¼
     """
     if camera_movement is None:
         return 0.01
@@ -317,22 +317,22 @@ def calculate_adaptive_threshold(camera_movement: float = None) -> float:
 
 def detect_artifact_frames(quality_scores: List[float], threshold: float = 0.025) -> np.ndarray:
     """
-    »ùÓÚÖÊÁ¿·ÖÊı²îÒì¼ì²âÒì³£Ö¡
+    æ ¹æ®è´¨é‡åˆ†æ•°å˜åŒ–æ£€æµ‹å¼‚å¸¸å¸§ã€‚
     
     Args:
-        quality_scores: ÖÊÁ¿·ÖÊıÁĞ±í
-        threshold: ¼ì²âãĞÖµ
+        quality_scores: è´¨é‡åˆ†æ•°åˆ—è¡¨
+        threshold: æ£€æµ‹é˜ˆå€¼
         
     Returns:
-        Òì³£Ö¡Ë÷ÒıÊı×é
+        å¼‚å¸¸å¸§ç´¢å¼•æ•°ç»„
     """
-    # ¼ÆËãÏàÁÚÖ¡Ö®¼äµÄ·ÖÊı²îÒì
+    # è®¡ç®—ç›¸é‚»å¸§ä¹‹é—´çš„åˆ†æ•°å·®
     score_differences = np.abs(np.diff(quality_scores))
     
-    # ÕÒ³ö·ÖÊı²îÒì³¬¹ıãĞÖµµÄÖ¡
+    # æ‰¾åˆ°å·®å€¼è¶…è¿‡é˜ˆå€¼çš„ä½ç½®
     artifact_indices = np.where(score_differences > threshold)[0]
     
-    # ·µ»Øµ±Ç°Ö¡ºÍÏÂÒ»Ö¡£¨ÒòÎªÏÔÖøµÄ·ÖÊı²îÒì¿ÉÄÜÓÉÈÎÒ»Ö¡ÒıÆğ£©
+    # è¿”å›å½“å‰å¸§åŠä¸‹ä¸€å¸§çš„ç´¢å¼•ï¼Œé¿å…é—æ¼
     artifact_frame_indices = np.unique(
         np.concatenate([artifact_indices, artifact_indices + 1])
     )

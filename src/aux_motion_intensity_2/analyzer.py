@@ -13,7 +13,7 @@ import torch
 from PIL import Image
 import cv2
 
-# 添加第三方库路径
+# 添加第三方库路径，确保依赖可被正常导入
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
 gsa_path = os.path.join(project_root, "third_party", "Grounded-Segment-Anything")
 gdn_path = os.path.join(gsa_path, "GroundingDINO")
@@ -23,7 +23,7 @@ sys.path.insert(0, os.path.join(gsa_path, "segment_anything"))
 sys.path.insert(0, os.path.join(project_root, "third_party", "co-tracker"))
 
 # Grounding DINO - 使用完整模块路径
-# type: ignore 注释用于忽略linter警告（这些模块在运行时可用）
+# type: ignore 注释用于忽略 linter 警告（这些模块在运行时可用）
 import groundingdino.datasets.transforms as T  # type: ignore
 from groundingdino.models import build_model  # type: ignore
 from groundingdino.util.slconfig import SLConfig  # type: ignore
@@ -45,10 +45,10 @@ from .scene_classifier import SceneClassifier
 
 
 def load_video(video_path):
-    """加载视频并返回第一帧和所有帧"""
+    """加载视频并返回首帧、转换后的张量及完整帧序列。"""
     cap = cv2.VideoCapture(video_path)
     if not cap.isOpened():
-        print("Error opening video file")
+        print("错误：无法打开视频文件")
         return None, None, None, None
 
     frames = []
@@ -61,10 +61,10 @@ def load_video(video_path):
     cap.release()
 
     if not frames:
-        print("Error reading frames from the video")
+        print("错误：无法从视频中读取有效帧")
         return None, None, None, None
 
-    # take the first frame as the query image
+    # 取第一帧作为检索图像
     frame_rgb = frames[0]
     image_pil = Image.fromarray(frame_rgb)
 
@@ -179,12 +179,12 @@ class PASAnalyzer:
         self.cotracker_model = None
     
     def _load_models(self):
-        """延迟加载模型"""
+        """延迟加载所需模型，避免重复初始化。"""
         if self._models_loaded:
             return
         
-        print("Loading models...")
-        # Load Grounding DINO
+        print("正在加载 Grounding DINO / SAM / Co-Tracker 模型...")
+        # 加载 Grounding DINO
         args = SLConfig.fromfile(self.config_file)
         args.device = self.device
         args.bert_base_uncased_path = self.bert_base_uncased_path
@@ -193,11 +193,11 @@ class PASAnalyzer:
         self.grounding_model.load_state_dict(clean_state_dict(checkpoint["model"]), strict=False)
         self.grounding_model.eval()
         
-        # Initialize SAM
+        # 初始化 SAM 分割模型
         sam_version = "vit_h"
         self.sam_predictor = SamPredictor(sam_model_registry[sam_version](checkpoint=self.sam_checkpoint).to(self.device))
         
-        # Initialize Co-Tracker
+        # 初始化 Co-Tracker 追踪模型
         self.cotracker_model = CoTrackerPredictor(
             checkpoint=self.cotracker_checkpoint,
             v2=False,
@@ -206,7 +206,7 @@ class PASAnalyzer:
         ).to(self.device)
         
         self._models_loaded = True
-        print("Models loaded successfully")
+        print("模型加载完成")
     
     def analyze_video(self, 
                      video_path: str,
@@ -231,7 +231,7 @@ class PASAnalyzer:
         if not self._models_loaded:
             self._load_models()
         
-        # 加载视频
+        # 加载视频帧序列
         image_pil, image, image_array, video = load_video(video_path)
         if video is None:
             return {
@@ -247,9 +247,9 @@ class PASAnalyzer:
             self.grounding_model, image, text_prompt, box_threshold, text_threshold, device=self.device
         )
         
-        # 检测失败
+        # 主体检测失败
         if boxes_filt.shape[0] == 0:
-            print(f"Cannot detect {text_prompt} in video")
+            print(f"警告：在视频中未检测到 {text_prompt}")
             background_motion = self._calculate_background_motion(video)
             return {
                 'status': 'error',
@@ -279,7 +279,7 @@ class PASAnalyzer:
             multimask_output=False,
         )
         
-        # 准备视频数据
+        # 准备视频张量数据
         video_tensor = torch.from_numpy(video).permute(0, 3, 1, 2)[None].float()
         video_width, video_height = video_tensor.shape[-1], video_tensor.shape[-2]
         video_tensor = video_tensor.to(self.device)
@@ -322,7 +322,7 @@ class PASAnalyzer:
                     'subject_motion': 0.0
                 }
             elif not mask_suitable:
-                print(f"Warning: Mask unsuitable for tracking")
+                print("警告：主体掩码面积过小，不适合跟踪")
                 subject_motion = 0.0
                 result = {
                     'status': 'error',
@@ -340,7 +340,7 @@ class PASAnalyzer:
                 )
                 
                 if pred_tracks.shape[2] == 0:
-                    print(f"Warning: Empty tracks despite suitable mask")
+                    print("警告：掩码满足条件但未得到有效轨迹")
                     subject_motion = 0.0
                     result = {
                         'status': 'error',
@@ -367,7 +367,7 @@ class PASAnalyzer:
                                     scale = video_diag / subj_diag
                                     subject_motion *= scale
                         except Exception as e:
-                            print(f"Warning: Failed to normalize by subject diagonal: {e}")
+                            print(f"警告：按主体对角线归一化失败：{e}")
                     
                     # 计算详细运动分数
                     pure_subject = max(0, subject_motion - background_motion)

@@ -1,5 +1,5 @@
 """
-Static object dynamics analysis migrated from AIGC_detector/static_object_analyzer.py
+静态目标动态分析模块，迁移自 AIGC_detector/static_object_analyzer.py。
 """
 
 from typing import Dict, List, Optional
@@ -185,11 +185,11 @@ class StaticObjectDynamicsCalculator:
     def visualize_results(self, image: np.ndarray, flow: np.ndarray, result: Dict, save_path: Optional[str] = None):
         fig, axes = plt.subplots(2, 3, figsize=(15, 10))
         axes[0, 0].imshow(image)
-        axes[0, 0].set_title('Original Image')
+        axes[0, 0].set_title('原始图像')
         axes[0, 0].axis('off')
         flow_magnitude = np.sqrt(flow[:, :, 0] ** 2 + flow[:, :, 1] ** 2)
         im1 = axes[0, 1].imshow(flow_magnitude, cmap='jet')
-        axes[0, 1].set_title('Residual Flow Magnitude')
+        axes[0, 1].set_title('残余光流幅值')
         axes[0, 1].axis('off')
         plt.colorbar(im1, ax=axes[0, 1])
         step = 16
@@ -198,16 +198,16 @@ class StaticObjectDynamicsCalculator:
         fy = flow[::step, ::step, 1]
         axes[0, 2].imshow(image)
         axes[0, 2].quiver(x, y, fx, fy, color='red', alpha=0.7)
-        axes[0, 2].set_title('Flow Vectors')
+        axes[0, 2].set_title('光流矢量')
         axes[0, 2].axis('off')
         axes[1, 0].imshow(result['static_mask'], cmap='gray')
-        axes[1, 0].set_title('Static Regions Mask')
+        axes[1, 0].set_title('静态区域掩码')
         axes[1, 0].axis('off')
         overlay = image.copy()
         if len(overlay.shape) == 3:
             overlay[result['static_mask']] = [0, 255, 0]
         axes[1, 1].imshow(overlay)
-        axes[1, 1].set_title('Static Regions Overlay')
+        axes[1, 1].set_title('静态区域叠加')
         axes[1, 1].axis('off')
         static_mask = result['static_mask']
         compensated_flow = result['compensated_flow']
@@ -221,9 +221,9 @@ class StaticObjectDynamicsCalculator:
             dynamic_flow_y = compensated_flow[:, :, 1][~static_mask]
             dynamic_magnitude = np.sqrt(dynamic_flow_x ** 2 + dynamic_flow_y ** 2)
             axes[1, 2].hist(dynamic_magnitude, bins=50, alpha=0.7, label='Dynamic Regions')
-        axes[1, 2].set_title('Flow Magnitude Distribution')
-        axes[1, 2].set_xlabel('Flow Magnitude')
-        axes[1, 2].set_ylabel('Frequency')
+        axes[1, 2].set_title('光流幅值分布')
+        axes[1, 2].set_xlabel('光流幅值')
+        axes[1, 2].set_ylabel('频次')
         axes[1, 2].legend()
         plt.tight_layout()
         if save_path:

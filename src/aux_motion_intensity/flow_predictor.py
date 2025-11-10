@@ -1,6 +1,6 @@
 """
-Optical flow prediction utilities migrated from AIGC_detector/simple_raft.py
-- Supports Farneback (fast), TV-L1 (accurate), optional RAFT if model present
+光流预测工具，迁移自 AIGC_detector/simple_raft.py。
+- 支持 Farneback（速度快）、TV-L1（精度高），若存在模型可使用 RAFT。
 """
 
 import sys
@@ -17,32 +17,32 @@ class SimpleRAFT:
     """Unified optical-flow predictor supporting Farneback, TV-L1, RAFT."""
 
     def __init__(self, device: str = 'cpu', method: str = 'farneback', model_path: Optional[str] = None) -> None:
-        print(f"Initializing SimpleRAFT with method={method}, device={device}")
+        print(f"初始化 SimpleRAFT，method={method}，device={device}")
         self.device = device if torch.cuda.is_available() and device.startswith('cuda') else 'cpu'
         if self.device != device:
-            print(f"Device changed from {device} to {self.device} (CUDA not available)")
+            print(f"CUDA 不可用，设备已从 {device} 切换为 {self.device}")
         self.method = method
         # If RAFT is requested but no model path provided, try default under project third_party
         if method == 'raft' and not model_path:
             model_path = self._default_raft_model_path()
             if model_path:
-                print(f"Using default RAFT model path: {model_path}")
+                print(f"使用默认 RAFT 模型路径：{model_path}")
             else:
-                print("No default RAFT model found, will fall back to farneback")
+                print("未找到默认 RAFT 模型，将回退到 Farneback 算法")
         self.model_path = model_path
         self.raft_model = None
 
         if method == 'tvl1':
             self._init_tvl1()
         elif method == 'raft':
-            print("Starting RAFT initialization...")
+            print("开始初始化 RAFT 模型...")
             self._init_raft()
-            print(f"RAFT initialization complete, method={self.method}")
+            print(f"RAFT 初始化完成，当前 method={self.method}")
         elif method == 'farneback':
-            print("Using Farneback optical flow method")
+            print("使用 Farneback 光流算法")
         else:
             self.method = 'farneback'
-            print(f"Unknown method, falling back to farneback")
+            print("未知的光流算法，已回退到 Farneback")
 
     def _init_tvl1(self) -> None:
         try:
@@ -61,7 +61,7 @@ class SimpleRAFT:
             self.method = 'farneback'
             return
         try:
-            print(f"Initializing RAFT model from {self.model_path}...")
+            print(f"从 {self.model_path} 加载 RAFT 模型...")
             # Try to locate third_party/RAFT/core relative to project
             raft_core_path = None
             for candidate in [
@@ -72,7 +72,7 @@ class SimpleRAFT:
                     raft_core_path = candidate
                     break
             if raft_core_path is None:
-                raise FileNotFoundError('third_party/RAFT/core not found')
+                raise FileNotFoundError('未找到 third_party/RAFT/core')
             sys.path.insert(0, str(raft_core_path))
             from raft import RAFT  # type: ignore
             import argparse
@@ -93,7 +93,7 @@ class SimpleRAFT:
                 state_dict = state_dict['model']
             new_state_dict = {k.replace('module.', ''): v for k, v in state_dict.items()}
             self.raft_model.load_state_dict(new_state_dict, strict=False)
-            print(f"Moving RAFT model to {self.device}...")
+            print(f"将 RAFT 模型移动到 {self.device} 上...")
             self.raft_model.to(self.device)
             self.raft_model.eval()
             
@@ -103,23 +103,23 @@ class SimpleRAFT:
                     test_input = torch.zeros(1, 3, 64, 64, device=self.device)
                     with torch.no_grad():
                         _ = self.raft_model(test_input, test_input, iters=1, test_mode=True)
-                    print("RAFT model initialized successfully and CUDA test passed.")
+                    print("RAFT 模型初始化成功，CUDA 连通性测试通过。")
                 except RuntimeError as e:
                     if 'CUDA' in str(e) or 'kernel' in str(e).lower():
-                        print(f"CUDA compatibility test failed: {e}")
-                        print("Trying CPU fallback for RAFT model...")
+                        print(f"CUDA 兼容性测试失败：{e}")
+                        print("尝试将 RAFT 模型回退到 CPU...")
                         self.device = 'cpu'
                         self.raft_model.to(self.device)
                         self.raft_model.eval()
-                        print("RAFT model moved to CPU successfully.")
+                        print("RAFT 模型已成功迁移到 CPU。")
                     else:
                         raise
                 except Exception as e:
-                    print(f"RAFT test inference failed: {e}, but continuing...")
+                    print(f"RAFT 测试推理失败：{e}，继续执行...")
             else:
-                print("RAFT model initialized successfully.")
+                print("RAFT 模型初始化成功。")
         except Exception as e:
-            print(f"Failed to initialize RAFT: {e}, falling back to farneback method")
+            print(f"初始化 RAFT 失败：{e}，已回退到 Farneback 算法")
             self.method = 'farneback'
 
     def _default_raft_model_path(self) -> Optional[str]:
@@ -143,19 +143,19 @@ class SimpleRAFT:
                 return flow  # (2, H, W)
             except RuntimeError as e:
                 if 'CUDA' in str(e) or 'kernel' in str(e).lower():
-                    print(f"CUDA error during RAFT inference: {e}")
-                    print("Attempting CPU fallback for this prediction...")
+                    print(f"CUDA 推理报错：{e}")
+                    print("尝试使用 CPU 回退执行本次预测...")
                     # Try CPU fallback
                     try:
                         img1_cpu = img1.cpu()
                         img2_cpu = img2.cpu()
                         _, flow_up = self.raft_model(img1_cpu, img2_cpu, iters=20, test_mode=True)
                         flow = flow_up[0].cpu().numpy()
-                        print("CPU fallback successful.")
+                        print("CPU 回退执行成功。")
                         return flow
                     except Exception as e2:
-                        print(f"CPU fallback also failed: {e2}")
-                        print("Falling back to OpenCV farneback method...")
+                        print(f"CPU 回退同样失败：{e2}")
+                        print("将回退到 OpenCV Farneback 算法...")
                         self.method = 'farneback'
                         return self._predict_flow_opencv(image1, image2)
                 else:
