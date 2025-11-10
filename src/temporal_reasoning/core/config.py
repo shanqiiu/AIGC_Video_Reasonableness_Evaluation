@@ -329,7 +329,7 @@ class TemporalReasoningConfig:
 
 def load_config_from_yaml(config_path: str) -> TemporalReasoningConfig:
     """
-    �? YAML 文件加载配置�?
+    从 YAML 文件加载配置。
     
     Args:
         config_path: YAML 配置文件路径
@@ -357,7 +357,7 @@ def load_config_from_yaml(config_path: str) -> TemporalReasoningConfig:
 
 def get_default_config() -> TemporalReasoningConfig:
     """
-    获取默认配置�?
+    获取默认配置。
     
     Returns:
         TemporalReasoningConfig 实例
