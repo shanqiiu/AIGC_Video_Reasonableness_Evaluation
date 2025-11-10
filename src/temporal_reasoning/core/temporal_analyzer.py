@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-时序合理性分析器主类
+时序合理性评估主入口，负责统筹光流、结构、关键点及融合流程。
 """
 
 from __future__ import annotations
@@ -50,7 +50,7 @@ class TemporalReasoningAnalyzer:
     def initialize(self):
         """初始化所有子模块"""
         if self._initialized:
-            print("分析器已初始�?")
+            print("提示：分析器已处于初始化状态。")
             return
 
         print("=" * 50)
@@ -58,24 +58,24 @@ class TemporalReasoningAnalyzer:
         print("=" * 50)
 
         try:
-            # 1. 光流分析�?
+            # 1. 光流分析模块
             print("\n[1/4] 初始化光流分析器...")
             self.motion_analyzer = MotionFlowAnalyzer(self.config.raft)
             self.motion_analyzer.initialize()
 
-            # 2. 结构一致性分析管�?
-            print("\n[2/4] 初始化实例追�?/结构分析管线...")
+            # 2. 结构一致性分析管线
+            print("\n[2/4] 初始化实例追踪 / 结构分析管线...")
             coherence_config = self._build_temporal_coherence_config()
             self.structure_pipeline = TemporalCoherencePipeline(coherence_config)
             self.structure_pipeline.initialize()
 
             # 3. 关键点分析器
-            print("\n[3/4] 初始化关键点分析�?...")
+            print("\n[3/4] 初始化关键点分析器...")
             self.keypoint_analyzer = KeypointAnalyzer(self.config.keypoint)
             self.keypoint_analyzer.initialize()
 
             # 4. 融合决策引擎
-            print("\n[4/4] 初始化融合决策引�?...")
+            print("\n[4/4] 初始化融合决策引擎...")
             self.fusion_engine = FusionDecisionEngine(self.config.fusion, cotracker_validator=None)
 
             self._initialized = True
@@ -88,7 +88,7 @@ class TemporalReasoningAnalyzer:
             raise
 
     def _build_temporal_coherence_config(self) -> TemporalCoherenceConfig:
-        """构造结构分析管线的配置�?"""
+        """构造结构分析管线的配置字典"""
         meta_info_path = Path(self.config.output_dir) / "temporal_coherence_meta.json"
         cotracker_checkpoint = (
             self.config.tracker.cotracker_checkpoint
@@ -159,10 +159,10 @@ class TemporalReasoningAnalyzer:
 
         print("\n" + "=" * 50)
         print("开始分析视频时序合理�?...")
-        print(f"视频帧数: {len(video_frames)}")
-        print(f"视频帧率: {fps:.2f} fps")
+        print(f"视频帧数：{len(video_frames)}")
+        print(f"视频帧率：{fps:.2f} fps")
         if text_prompts:
-            print(f"文本提示: {', '.join(text_prompts)}")
+            print(f"文本提示：{', '.join(text_prompts)}")
         print("=" * 50)
 
         # 1. 光流分析
@@ -178,13 +178,13 @@ class TemporalReasoningAnalyzer:
         structure_output = self._analyze_structure(video_path, text_prompts)
 
         # 3. 关键点分�?
-        print("\n>>> 步骤3: 关键点分�?")
+        print("\n>>> 步骤3: 关键点分析")
         physiological_score, physiological_anomalies = self.keypoint_analyzer.analyze(
             video_frames, fps=fps, video_path=video_path
         )
 
         # 4. 多模态融�?
-        print("\n>>> 步骤4: 多模态融�?")
+        print("\n>>> 步骤4: 多模态融合")
         fused_anomalies = self.fusion_engine.fuse(
             motion_anomalies,
             structure_output.anomalies,
@@ -197,7 +197,7 @@ class TemporalReasoningAnalyzer:
         )
 
         # 5. 计算最终得�?
-        print("\n>>> 步骤5: 计算最终得�?")
+        print("\n>>> 步骤5: 计算最终得分")
         final_motion_score, final_structure_score = self.fusion_engine.compute_final_scores(
             motion_score,
             structure_output.score,
@@ -236,9 +236,9 @@ class TemporalReasoningAnalyzer:
         print("\n" + "=" * 50)
         print("分析完成")
         print("=" * 50)
-        print(f"运动合理性得�?: {final_motion_score:.3f}")
-        print(f"结构稳定性得�?: {final_structure_score:.3f}")
-        print(f"检测到 {len(fused_anomalies)} 个融合异�?")
+        print(f"运动合理性得分：{final_motion_score:.3f}")
+        print(f"结构稳定性得分：{final_structure_score:.3f}")
+        print(f"检测到 {len(fused_anomalies)} 个融合异常。")
         print("=" * 50)
 
         return result
@@ -249,7 +249,7 @@ class TemporalReasoningAnalyzer:
         text_prompts: Optional[Sequence[str]],
     ) -> StructureAnalysisOutput:
         if self.structure_pipeline is None:
-            print("警告: 结构分析管线未初始化，返回默认结果�?")
+            print("警告：结构分析管线未初始化，返回默认结果。")
             return StructureAnalysisOutput(
                 score=1.0,
                 vanish_score=1.0,
@@ -259,7 +259,7 @@ class TemporalReasoningAnalyzer:
             )
 
         if not video_path:
-            print("警告: 未提供视频路径，无法执行结构一致性分析�?")
+            print("警告：未提供视频路径，无法执行结构一致性分析。")
             return StructureAnalysisOutput(
                 score=1.0,
                 vanish_score=1.0,
@@ -278,7 +278,7 @@ class TemporalReasoningAnalyzer:
                 metadata=result.metadata,
             )
         except Exception as exc:
-            print(f"警告: 结构分析失败，将使用默认得分。详�?: {exc}")
+            print(f"警告：结构分析失败，将使用默认得分。详情：{exc}")
             return StructureAnalysisOutput(
                 score=1.0,
                 vanish_score=1.0,
