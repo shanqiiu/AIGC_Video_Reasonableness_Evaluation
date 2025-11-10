@@ -17,7 +17,7 @@ if COTRACKER_ROOT.exists() and str(COTRACKER_ROOT) not in sys.path:
     sys.path.insert(0, str(COTRACKER_ROOT))
 
 from cotracker.predictor import CoTrackerPredictor  # type: ignore
-from cotracker.utils.visualizer import read_video_from_path  # type: ignore
+from cotracker.utils.visualizer import read_video_from_path, Visualizer  # type: ignore
 
 from .detection import DetectionConfig, Sam2DetectionEngine
 from .evaluation import TemporalEventEvaluator
@@ -45,6 +45,10 @@ class TemporalCoherenceConfig:
     enable_visualization: bool = False
     visualization_output_dir: Optional[str] = None
     visualization_max_frames: int = 50
+    cotracker_visualization_enable: bool = False
+    cotracker_visualization_output_dir: Optional[str] = None
+    cotracker_visualization_fps: int = 12
+    cotracker_visualization_mode: str = "rainbow"
 
 
 @dataclass
@@ -242,6 +246,13 @@ class TemporalCoherencePipeline:
             fps=fps,
         )
 
+        if self.config.cotracker_visualization_enable:
+            self._save_cotracker_visualization(
+                video_tensor=video_tensor,
+                video_path=video_path,
+                fps=fps,
+            )
+
         metadata = {
             "objects_count": objects_count,
             "tracking_result_length": len(tracking_result),
@@ -266,6 +277,71 @@ class TemporalCoherencePipeline:
         target = root / video_name
         target.mkdir(parents=True, exist_ok=True)
         return target
+
+    @staticmethod
+    def _get_cotracker_visualization_dir(base_dir: Optional[str], video_path: str) -> Path:
+        if base_dir:
+            root = Path(base_dir).expanduser().resolve()
+        else:
+            root = Path(__file__).resolve().parents[3] / "outputs" / "cotracker_visualization"
+        root.mkdir(parents=True, exist_ok=True)
+        video_name = Path(video_path).stem if video_path else "video"
+        target = root / video_name
+        target.mkdir(parents=True, exist_ok=True)
+        return target
+
+    def _save_cotracker_visualization(
+        self,
+        video_tensor: torch.Tensor,
+        video_path: str,
+        fps: int,
+    ) -> None:
+        if not self.config.cotracker_visualization_enable:
+            return
+        if self.cotracker_model is None:
+            print("警告: CoTracker 模型未初始化，无法生成可视化。")
+            return
+
+        output_dir = self._get_cotracker_visualization_dir(
+            self.config.cotracker_visualization_output_dir,
+            video_path,
+        )
+
+        try:
+            device = next(self.cotracker_model.parameters()).device
+        except StopIteration:
+            device = torch.device("cpu")
+
+        video_on_device = video_tensor.to(device)
+        try:
+            tracks, visibility = self.cotracker_model(
+                video_on_device,
+                grid_size=self.config.grid_size,
+                grid_query_frame=0,
+                backward_tracking=True,
+            )
+        except Exception as exc:
+            print(f"警告: 生成 CoTracker 可视化失败: {exc}")
+            return
+
+        fps_value = self.config.cotracker_visualization_fps or fps
+        fps_value = max(1, int(fps_value))
+        visualizer = Visualizer(
+            save_dir=str(output_dir),
+            fps=fps_value,
+            mode=self.config.cotracker_visualization_mode,
+        )
+
+        try:
+            visualizer.visualize(
+                video=video_tensor.cpu(),
+                tracks=tracks.cpu(),
+                visibility=visibility.cpu(),
+                filename="cotracker_tracks",
+                save_video=True,
+            )
+        except Exception as exc:
+            print(f"警告: 保存 CoTracker 可视化视频失败: {exc}")
 
     def _save_structure_visualization(
         self,

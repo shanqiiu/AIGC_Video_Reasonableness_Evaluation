@@ -226,6 +226,35 @@ def parse_args():
         help='结构可视化最多保存的帧数'
     )
 
+    # CoTracker 可视化参数
+    parser.add_argument(
+        '--enable_cotracker_visualization',
+        action='store_true',
+        help='启用 CoTracker 轨迹可视化'
+    )
+
+    parser.add_argument(
+        '--cotracker_visualization_dir',
+        type=str,
+        default=None,
+        help='CoTracker 可视化输出目录'
+    )
+
+    parser.add_argument(
+        '--cotracker_visualization_fps',
+        type=int,
+        default=None,
+        help='CoTracker 可视化输出视频帧率'
+    )
+
+    parser.add_argument(
+        '--cotracker_visualization_mode',
+        type=str,
+        choices=['rainbow', 'cool', 'optical_flow'],
+        default=None,
+        help='CoTracker 可视化颜色模式'
+    )
+
     # 光流可视化参数
     parser.add_argument(
         '--enable_motion_visualization',
@@ -326,6 +355,16 @@ def main():
         config.structure_visualization_output_dir = args.structure_visualization_dir
     if args.structure_visualization_max_frames is not None:
         config.structure_visualization_max_frames = max(0, args.structure_visualization_max_frames)
+
+    # CoTracker 可视化配置
+    if args.enable_cotracker_visualization:
+        config.cotracker_visualization_enable = True
+    if args.cotracker_visualization_dir:
+        config.cotracker_visualization_output_dir = args.cotracker_visualization_dir
+    if args.cotracker_visualization_fps is not None:
+        config.cotracker_visualization_fps = max(1, args.cotracker_visualization_fps)
+    if args.cotracker_visualization_mode:
+        config.cotracker_visualization_mode = args.cotracker_visualization_mode
 
     # 光流可视化配置
     if args.enable_motion_visualization:
