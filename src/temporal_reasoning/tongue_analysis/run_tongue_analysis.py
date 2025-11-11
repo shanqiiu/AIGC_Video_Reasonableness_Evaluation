@@ -164,11 +164,16 @@ def run_analysis(args: argparse.Namespace) -> Dict[str, Any]:
 
     pipeline = TongueAnalysisPipeline(pipeline_config)
 
-    video_info = get_video_info(str(video_path))
-    fps = float(video_info.get("fps") or 30.0)
-    frames = load_video_frames(str(video_path))
-
-    analysis_result = pipeline.analyze(frames, fps=fps)
+    sam2_root = PROJECT_ROOT / "third_party" / "Grounded-SAM-2" / "sam2"
+    previous_cwd = Path.cwd()
+    try:
+        os.chdir(sam2_root)
+        video_info = get_video_info(str(video_path))
+        fps = float(video_info.get("fps") or 30.0)
+        frames = load_video_frames(str(video_path))
+        analysis_result = pipeline.analyze(frames, fps=fps)
+    finally:
+        os.chdir(previous_cwd)
 
     report: Dict[str, Any] = {
         "video_path": str(video_path),
