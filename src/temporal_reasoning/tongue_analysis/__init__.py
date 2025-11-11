@@ -1,10 +1,33 @@
-from .tongue_flow_change_detector import TongueFlowChangeConfig, TongueFlowChangeDetector
-from .pipeline import TongueAnalysisPipelineConfig, TongueAnalysisPipeline
+from __future__ import annotations
+
+import warnings
+
+from ..region_analysis import (
+    RegionAnalysisPipeline,
+    RegionAnalysisPipelineConfig,
+    RegionTemporalChangeConfig,
+    RegionTemporalChangeDetector,
+)
+
+warnings.warn(
+    "'src.temporal_reasoning.tongue_analysis' 已重命名为 'src.temporal_reasoning.region_analysis'，"
+    "请更新导入路径以消除该警告。",
+    DeprecationWarning,
+    stacklevel=2,
+)
+
+TongueAnalysisPipeline = RegionAnalysisPipeline
+TongueAnalysisPipelineConfig = RegionAnalysisPipelineConfig
+TongueFlowChangeConfig = RegionTemporalChangeConfig
+TongueFlowChangeDetector = RegionTemporalChangeDetector
 
 __all__ = [
+    "TongueAnalysisPipeline",
+    "TongueAnalysisPipelineConfig",
     "TongueFlowChangeConfig",
     "TongueFlowChangeDetector",
-    "TongueAnalysisPipelineConfig",
-    "TongueAnalysisPipeline",
+    "RegionAnalysisPipeline",
+    "RegionAnalysisPipelineConfig",
+    "RegionTemporalChangeConfig",
+    "RegionTemporalChangeDetector",
 ]
-

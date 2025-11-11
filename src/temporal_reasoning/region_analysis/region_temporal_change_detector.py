@@ -4,7 +4,6 @@ from dataclasses import dataclass
 from typing import Dict, List, Optional, Sequence, Tuple
 
 import numpy as np
-import torch
 
 from ..motion_flow.flow_analyzer import MotionFlowAnalyzer
 
@@ -12,7 +11,7 @@ from ..motion_flow.flow_analyzer import MotionFlowAnalyzer
 @dataclass
 class RegionTemporalChangeConfig:
     """
-    控制舌头区域光流 / 外观突变检测的参数。
+    区域时序变化检测参数，控制光流、颜色及颜色突变速率等阈值。
     """
 
     motion_threshold: float = 6.0
@@ -27,13 +26,12 @@ class RegionTemporalChangeConfig:
 
 class RegionTemporalChangeDetector:
     """
-    利用 RAFT 光流与局部特征变化检测舌头突变。
+    对任意区域的 ROI 序列执行光流与颜色的时序变化检测。
 
-    使用流程：
-        1. 初始化时复用现有 MotionFlowAnalyzer。
-        2. 调用 analyze() 时传入视频帧序列以及每帧嘴部 ROI（mask 或 bbox）。
-        3. 在 ROI 处计算光流幅值分布对比、颜色直方图相似度，一旦发生突变持续若干帧，
-           输出 `tongue_flow_change` 异常。
+    操作流程：
+        1. 初始化时注入 MotionFlowAnalyzer 与阈值配置。
+        2. analyze() 接收视频帧和对应区域掩膜，计算光流幅值、颜色相似度及其突变速率。
+        3. 当任一指标越过阈值并连续满足要求时，记录该区域的异常。
     """
 
     def __init__(self, flow_analyzer: MotionFlowAnalyzer, config: Optional[RegionTemporalChangeConfig] = None):
@@ -45,7 +43,7 @@ class RegionTemporalChangeDetector:
         video_frames: Sequence[np.ndarray],
         mouth_masks: Sequence[Optional[np.ndarray]],
         fps: float = 30.0,
-        label: str = "tongue",
+        label: str = "region",
     ) -> Dict[str, object]:
         if not video_frames:
             raise ValueError("video_frames 为空")
@@ -182,7 +180,6 @@ class RegionTemporalChangeDetector:
         max_hist_diff = 0.0
 
         for idx, (stat, flow_val) in enumerate(zip(roi_stats, flow_diffs)):
-            valid = stat.get("valid", False)
             hist_similarity = stat.get("hist_similarity", 1.0)
             hist_diff = (
                 abs(hist_similarity - prev_hist_similarity)
@@ -206,7 +203,7 @@ class RegionTemporalChangeDetector:
                 "motion_change": float(motion_change),
             }
 
-            if not valid:
+            if not stat.get("valid"):
                 frame_entry.update({"triggers": [], "valid": False})
                 frame_stats.append(frame_entry)
                 consecutive = 0
@@ -248,7 +245,9 @@ class RegionTemporalChangeDetector:
                             ),
                             "description": (
                                 f"{label} region change detected "
-                                f"(motion={motion_change:.2f}, similarity_drop={similarity_drop:.2f}, hist_diff={hist_diff:.3f}, triggers={triggers})"
+                                f"(motion={motion_change:.2f}, "
+                                f"similarity_drop={similarity_drop:.2f}, "
+                                f"hist_diff={hist_diff:.3f}, triggers={triggers})"
                             ),
                             "metadata": {
                                 "motion_change": motion_change,
@@ -307,9 +306,3 @@ class RegionTemporalChangeDetector:
         numerator = np.sum(hist_a * hist_b)
         denominator = np.sqrt(np.sum(hist_a ** 2) * np.sum(hist_b ** 2)) + eps
         return float(numerator / denominator)
-
-
-# Backward compatibility aliases
-TongueFlowChangeConfig = RegionTemporalChangeConfig
-TongueFlowChangeDetector = RegionTemporalChangeDetector
-
