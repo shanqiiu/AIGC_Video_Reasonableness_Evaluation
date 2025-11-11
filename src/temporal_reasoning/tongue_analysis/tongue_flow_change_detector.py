@@ -17,7 +17,7 @@ class TongueFlowChangeConfig:
 
     motion_threshold: float = 6.0
     similarity_threshold: float = 0.25
-    consecutive_frames: int = 2
+    consecutive_frames: int = 1
     baseline_window: int = 5
     min_roi_size: int = 12
     use_color_similarity: bool = True
@@ -196,6 +196,23 @@ class TongueFlowChangeDetector:
             motion_change = abs(flow_val - baseline_motion)
             similarity_drop = 1.0 - hist_similarity
 
+            if not valid:
+                frame_stats.append(
+                    {
+                        "frame_id": idx,
+                        "timestamp": idx / fps_safe,
+                        "hist_similarity": float(hist_similarity),
+                        "similarity_drop": float(similarity_drop),
+                        "hist_diff": float(hist_diff),
+                        "motion_value": float(flow_val),
+                        "motion_change": float(motion_change),
+                        "triggers": [],
+                        "valid": False,
+                    }
+                )
+                consecutive = 0
+                continue
+
             flow_trigger = self.config.use_flow_change and motion_change >= self.config.motion_threshold
             color_trigger = self.config.use_color_similarity and similarity_drop >= self.config.similarity_threshold
             hist_diff_trigger = (
@@ -220,13 +237,9 @@ class TongueFlowChangeDetector:
                     "motion_value": float(flow_val),
                     "motion_change": float(motion_change),
                     "triggers": triggers,
-                    "valid": bool(valid),
+                    "valid": True,
                 }
             )
-
-            if not valid:
-                consecutive = 0
-                continue
 
             if flow_trigger or color_trigger or hist_diff_trigger:
                 consecutive += 1
