@@ -22,6 +22,7 @@ class TongueFlowChangeConfig:
     min_roi_size: int = 12
     use_color_similarity: bool = True
     use_flow_change: bool = True
+    hist_diff_threshold: float = 0.012
 
 
 class TongueFlowChangeDetector:
@@ -66,6 +67,7 @@ class TongueFlowChangeDetector:
                 "use_color_similarity": self.config.use_color_similarity,
                 "motion_threshold": self.config.motion_threshold,
                 "similarity_threshold": self.config.similarity_threshold,
+                "hist_diff_threshold": self.config.hist_diff_threshold,
                 "baseline_motion": baseline_motion,
                 "frame_stats": frame_stats,
                 "max_hist_diff": max_hist_diff,
@@ -193,11 +195,19 @@ class TongueFlowChangeDetector:
             motion_change = abs(flow_val - baseline_motion)
             similarity_drop = 1.0 - hist_similarity
 
+            flow_trigger = self.config.use_flow_change and motion_change >= self.config.motion_threshold
+            color_trigger = self.config.use_color_similarity and similarity_drop >= self.config.similarity_threshold
+            hist_diff_trigger = (
+                self.config.use_color_similarity and hist_diff >= self.config.hist_diff_threshold
+            )
+
             triggers = []
-            if self.config.use_flow_change and motion_change >= self.config.motion_threshold:
+            if flow_trigger:
                 triggers.append("flow")
-            if self.config.use_color_similarity and similarity_drop >= self.config.similarity_threshold:
+            if color_trigger:
                 triggers.append("color")
+            if hist_diff_trigger:
+                triggers.append("hist_diff")
 
             frame_stats.append(
                 {
@@ -217,7 +227,7 @@ class TongueFlowChangeDetector:
                 consecutive = 0
                 continue
 
-            if triggers:
+            if flow_trigger and color_trigger and hist_diff_trigger:
                 consecutive += 1
                 if consecutive >= self.config.consecutive_frames:
                     anomalies.append(
@@ -231,17 +241,19 @@ class TongueFlowChangeDetector:
                                 max(
                                     motion_change / (self.config.motion_threshold * 2),
                                     similarity_drop / (self.config.similarity_threshold * 2),
+                                    hist_diff / (self.config.hist_diff_threshold * 2)
                                 ),
                             ),
                             "description": (
                                 f"{label} region change detected "
-                                f"(motion={motion_change:.2f}, similarity_drop={similarity_drop:.2f}, triggers={triggers})"
+                                f"(motion={motion_change:.2f}, similarity_drop={similarity_drop:.2f}, hist_diff={hist_diff:.3f}, triggers={triggers})"
                             ),
                             "metadata": {
                                 "motion_change": motion_change,
                                 "similarity_drop": similarity_drop,
                                 "baseline_motion": baseline_motion,
                                 "hist_similarity": hist_similarity,
+                                "hist_diff": hist_diff,
                                 "flow_value": flow_val,
                                 "triggers": triggers,
                             },

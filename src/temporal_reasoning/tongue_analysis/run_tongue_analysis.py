@@ -60,6 +60,12 @@ def parse_args() -> argparse.Namespace:
         help="Threshold for color histogram similarity drop inside the mouth ROI.",
     )
     parser.add_argument(
+        "--hist-diff-threshold",
+        type=float,
+        default=0.012,
+        help="Threshold for histogram similarity frame-to-frame difference.",
+    )
+    parser.add_argument(
         "--consecutive-frames",
         type=int,
         default=2,
@@ -109,6 +115,7 @@ def build_pipeline_config(
     mouth_margin: float,
     motion_threshold: float,
     similarity_threshold: float,
+    hist_diff_threshold: float,
     consecutive_frames: int,
     baseline_window: int,
     disable_flow: bool,
@@ -120,6 +127,7 @@ def build_pipeline_config(
     flow_change_config = TongueFlowChangeConfig(
         motion_threshold=motion_threshold,
         similarity_threshold=similarity_threshold,
+        hist_diff_threshold=hist_diff_threshold,
         consecutive_frames=consecutive_frames,
         baseline_window=baseline_window,
         use_flow_change=not disable_flow,
@@ -156,6 +164,7 @@ def run_analysis(args: argparse.Namespace) -> Dict[str, Any]:
         mouth_margin=args.mouth_margin,
         motion_threshold=args.motion_threshold,
         similarity_threshold=args.similarity_threshold,
+        hist_diff_threshold=args.hist_diff_threshold,
         consecutive_frames=args.consecutive_frames,
         baseline_window=args.baseline_window,
         disable_flow=args.disable_flow,
