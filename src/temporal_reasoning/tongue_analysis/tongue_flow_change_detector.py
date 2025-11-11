@@ -228,7 +228,7 @@ class TongueFlowChangeDetector:
                 consecutive = 0
                 continue
 
-            if (flow_trigger and hist_diff_trigger) or (color_trigger and hist_diff_trigger):
+            if flow_trigger or color_trigger or hist_diff_trigger:
                 consecutive += 1
                 if consecutive >= self.config.consecutive_frames:
                     anomalies.append(

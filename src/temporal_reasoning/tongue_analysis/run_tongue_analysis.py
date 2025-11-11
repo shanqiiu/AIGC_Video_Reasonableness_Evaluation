@@ -50,7 +50,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--motion_threshold",
         type=float,
-        default=3.0,
+        default=2.0,
         help="Threshold for motion change within the mouth ROI.",
     )
     parser.add_argument(
@@ -68,7 +68,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--consecutive_frames",
         type=int,
-        default=2,
+        default=1,
         help="Number of consecutive frames exceeding thresholds required to flag anomaly.",
     )
     parser.add_argument(
