@@ -101,11 +101,9 @@ def build_pipeline_config(
     disable_flow: bool,
     disable_color: bool,
 ) -> TongueAnalysisPipelineConfig:
-    sam_config_path = (
-        temporal_config.sam.resolved_config_path
-        if temporal_config.sam.resolved_config_path
-        else temporal_config.sam.config_path
-    )
+    sam_config_path = temporal_config.sam.config_path
+    if not sam_config_path and temporal_config.sam.resolved_config_path:
+        sam_config_path = temporal_config.sam.resolved_config_path
 
     detection_config = DetectionConfig(
         grounding_config_path=temporal_config.grounding_dino.config_path,
