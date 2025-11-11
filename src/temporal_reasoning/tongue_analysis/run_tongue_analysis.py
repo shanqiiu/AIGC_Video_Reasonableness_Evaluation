@@ -44,13 +44,13 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--mouth-margin",
         type=float,
-        default=0.05,
+        default=0.02,
         help="Additional margin around the mouth polygon (ratio of frame size).",
     )
     parser.add_argument(
         "--motion-threshold",
         type=float,
-        default=6.0,
+        default=3.0,
         help="Threshold for motion change within the mouth ROI.",
     )
     parser.add_argument(
