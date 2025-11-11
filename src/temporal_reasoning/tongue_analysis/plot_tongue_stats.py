@@ -26,6 +26,7 @@ def load_report(report_path: Path) -> dict:
         "frame_stats": frame_stats,
         "motion_threshold": metadata.get("motion_threshold", 0.0),
         "similarity_threshold": metadata.get("similarity_threshold", 0.0),
+        "hist_diff_threshold": metadata.get("hist_diff_threshold"),
         "baseline_motion": metadata.get("baseline_motion", 0.0),
         "fps": data.get("fps", 0.0),
         "video_path": data.get("video_path", ""),
@@ -36,6 +37,7 @@ def plot_metrics(
     frame_stats: list,
     motion_threshold: float,
     similarity_threshold: float,
+    hist_diff_threshold: Optional[float],
     baseline_motion: float,
     save_path: Optional[Path] = None,
     show: bool = True,
@@ -83,6 +85,8 @@ def plot_metrics(
 
     if has_hist_diff:
         axes[3].plot(df["time"], df["hist_diff"], label="hist_diff", color="tab:blue")
+        if hist_diff_threshold is not None:
+            axes[3].axhline(hist_diff_threshold, color="red", linestyle="--", label="hist_diff_threshold")
         axes[3].set_ylabel("Hist Diff")
         axes[3].legend()
         axes[3].grid(True)
@@ -125,6 +129,7 @@ def main():
         frame_stats=payload["frame_stats"],
         motion_threshold=payload["motion_threshold"],
         similarity_threshold=payload["similarity_threshold"],
+        hist_diff_threshold=payload.get("hist_diff_threshold"),
         baseline_motion=payload["baseline_motion"],
         save_path=Path(args.output).expanduser().resolve() if args.output else None,
         show=not args.no_show,

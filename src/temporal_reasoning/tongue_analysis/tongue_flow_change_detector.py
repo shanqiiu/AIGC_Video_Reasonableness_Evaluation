@@ -173,10 +173,11 @@ class TongueFlowChangeDetector:
         label: str,
     ) -> Tuple[List[Dict[str, object]], List[Dict[str, object]], float, float]:
         anomalies: List[Dict[str, object]] = []
+        frame_stats: List[Dict[str, object]] = []
+
         consecutive = 0
         baseline_motion = self._compute_baseline_motion(flow_diffs)
         fps_safe = max(fps, 1.0)
-        frame_stats: List[Dict[str, object]] = []
         prev_hist_similarity: Optional[float] = None
         max_hist_diff = 0.0
 
@@ -227,7 +228,7 @@ class TongueFlowChangeDetector:
                 consecutive = 0
                 continue
 
-            if flow_trigger and color_trigger and hist_diff_trigger:
+            if (flow_trigger and hist_diff_trigger) or (color_trigger and hist_diff_trigger):
                 consecutive += 1
                 if consecutive >= self.config.consecutive_frames:
                     anomalies.append(
