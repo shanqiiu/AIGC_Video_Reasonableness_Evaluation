@@ -36,54 +36,54 @@ def parse_args() -> argparse.Namespace:
         help="Path to save the analysis report (JSON).",
     )
     parser.add_argument(
-        "--min-mouth-area",
+        "--min_mouth_area",
         type=int,
         default=64,
         help="Minimum area (pixels) required for the mouth ROI mask.",
     )
     parser.add_argument(
-        "--mouth-margin",
+        "--mouth_margin",
         type=float,
         default=0.02,
         help="Additional margin around the mouth polygon (ratio of frame size).",
     )
     parser.add_argument(
-        "--motion-threshold",
+        "--motion_threshold",
         type=float,
         default=3.0,
         help="Threshold for motion change within the mouth ROI.",
     )
     parser.add_argument(
-        "--similarity-threshold",
+        "--similarity_threshold",
         type=float,
         default=0.25,
         help="Threshold for color histogram similarity drop inside the mouth ROI.",
     )
     parser.add_argument(
-        "--hist-diff-threshold",
+        "--hist_diff_threshold",
         type=float,
         default=0.012,
         help="Threshold for histogram similarity frame-to-frame difference.",
     )
     parser.add_argument(
-        "--consecutive-frames",
+        "--consecutive_frames",
         type=int,
         default=2,
         help="Number of consecutive frames exceeding thresholds required to flag anomaly.",
     )
     parser.add_argument(
-        "--baseline-window",
+        "--baseline_window",
         type=int,
         default=5,
         help="Number of initial frames used to build baseline statistics.",
     )
     parser.add_argument(
-        "--disable-flow",
+        "--disable_flow",
         action="store_true",
         help="Disable optical-flow change detection (only use appearance similarity).",
     )
     parser.add_argument(
-        "--disable-color",
+        "--disable_color",
         action="store_true",
         help="Disable color histogram similarity check (only use motion).",
     )
@@ -93,17 +93,17 @@ def parse_args() -> argparse.Namespace:
         help="Save mouth mask visualizations for each frame.",
     )
     parser.add_argument(
-        "--vis-dir",
+        "--vis_dir",
         help="Directory to store visualization frames.",
     )
     parser.add_argument(
-        "--vis-max-frames",
+        "--vis_max_frames",
         type=int,
         default=150,
         help="Maximum number of visualization frames to save (0 for unlimited).",
     )
     parser.add_argument(
-        "--debug-stats",
+        "--debug_stats",
         help="Optional path to save per-frame statistics (JSON).",
     )
     return parser.parse_args()
