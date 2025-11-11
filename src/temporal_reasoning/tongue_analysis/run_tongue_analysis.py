@@ -2,16 +2,22 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from pathlib import Path
 from typing import Any, Dict, List, Sequence
 
 import numpy as np
 
-from ..core.config import TemporalReasoningConfig, load_config_from_yaml
-from ..instance_tracking.detection import DetectionConfig
-from ..utils.video_utils import get_video_info, load_video_frames
-from .pipeline import TongueAnalysisPipeline, TongueAnalysisPipelineConfig
-from .tongue_flow_change_detector import TongueFlowChangeConfig
+CURRENT_DIR = Path(__file__).resolve().parent
+PROJECT_ROOT = CURRENT_DIR.parents[2]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+from src.temporal_reasoning.core.config import TemporalReasoningConfig, load_config_from_yaml
+from src.temporal_reasoning.instance_tracking.detection import DetectionConfig
+from src.temporal_reasoning.utils.video_utils import get_video_info, load_video_frames
+from src.temporal_reasoning.tongue_analysis.pipeline import TongueAnalysisPipeline, TongueAnalysisPipelineConfig
+from src.temporal_reasoning.tongue_analysis.tongue_flow_change_detector import TongueFlowChangeConfig
 
 
 def parse_args() -> argparse.Namespace:
