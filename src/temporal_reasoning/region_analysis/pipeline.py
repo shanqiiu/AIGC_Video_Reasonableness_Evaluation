@@ -8,10 +8,10 @@ import cv2
 import numpy as np
 from enum import Enum
 
-from ..motion_flow.flow_analyzer import MotionFlowAnalyzer
-from ..core.config import RAFTConfig, KeypointConfig
-from ..keypoint_analysis.keypoint_analyzer import KeypointAnalyzer
-from .region_temporal_change_detector import (
+from src.temporal_reasoning.motion_flow.flow_analyzer import MotionFlowAnalyzer
+from src.temporal_reasoning.core.config import RAFTConfig, KeypointConfig
+from src.temporal_reasoning.keypoint_analysis.keypoint_analyzer import KeypointAnalyzer
+from src.temporal_reasoning.region_analysis.region_temporal_change_detector import (
     RegionTemporalChangeConfig,
     RegionTemporalChangeDetector,
 )

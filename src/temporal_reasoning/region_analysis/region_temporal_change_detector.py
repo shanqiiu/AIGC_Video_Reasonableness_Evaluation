@@ -5,7 +5,7 @@ from typing import Dict, List, Optional, Sequence, Tuple
 
 import numpy as np
 
-from ..motion_flow.flow_analyzer import MotionFlowAnalyzer
+from src.temporal_reasoning.motion_flow.flow_analyzer import MotionFlowAnalyzer
 
 
 @dataclass

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import warnings
 
-from ..region_analysis.region_temporal_change_detector import (
+from src.temporal_reasoning.region_analysis.region_temporal_change_detector import (
     RegionTemporalChangeConfig,
     RegionTemporalChangeDetector,
 )

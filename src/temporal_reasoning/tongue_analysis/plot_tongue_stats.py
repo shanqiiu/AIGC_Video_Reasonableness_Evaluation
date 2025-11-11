@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import warnings
 
-from ..region_analysis import plot_region_temporal_stats as _region_plot
+from src.temporal_reasoning.region_analysis import plot_region_temporal_stats as _region_plot
 
 warnings.warn(
     "'src.temporal_reasoning.tongue_analysis.plot_tongue_stats' 已重命名为 'src.temporal_reasoning.region_analysis.plot_region_temporal_stats'，"

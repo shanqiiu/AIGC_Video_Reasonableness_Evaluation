@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import warnings
 
-from ..region_analysis import run_region_temporal_analysis as _region_cli
+from src.temporal_reasoning.region_analysis import run_region_temporal_analysis as _region_cli
 
 warnings.warn(
     "'src.temporal_reasoning.tongue_analysis.run_tongue_analysis' 已重命名为 'src.temporal_reasoning.region_analysis.run_region_temporal_analysis'，"
