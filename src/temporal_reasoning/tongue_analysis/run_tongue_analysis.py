@@ -5,7 +5,7 @@ import json
 import os
 import sys
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Sequence
+from typing import Any, Dict, Optional
 
 import numpy as np
 
@@ -16,7 +16,6 @@ if str(PROJECT_ROOT) not in sys.path:
 os.chdir(PROJECT_ROOT)
 
 from src.temporal_reasoning.core.config import TemporalReasoningConfig, load_config_from_yaml
-from src.temporal_reasoning.instance_tracking.detection import DetectionConfig
 from src.temporal_reasoning.utils.video_utils import get_video_info, load_video_frames
 from src.temporal_reasoning.tongue_analysis.pipeline import TongueAnalysisPipeline, TongueAnalysisPipelineConfig
 from src.temporal_reasoning.tongue_analysis.tongue_flow_change_detector import TongueFlowChangeConfig
@@ -37,22 +36,16 @@ def parse_args() -> argparse.Namespace:
         help="Path to save the analysis report (JSON).",
     )
     parser.add_argument(
-        "--prompts",
-        nargs="+",
-        default=["mouth", "tongue"],
-        help="Text prompts used for GroundingDINO detection.",
-    )
-    parser.add_argument(
-        "--mask-min-area",
+        "--min-mouth-area",
         type=int,
         default=64,
-        help="Minimum area (pixels) required to keep a detected mouth mask.",
+        help="Minimum area (pixels) required for the mouth ROI mask.",
     )
     parser.add_argument(
-        "--mask-dilation",
-        type=int,
-        default=2,
-        help="Number of dilation iterations applied to mouth masks.",
+        "--mouth-margin",
+        type=float,
+        default=0.05,
+        help="Additional margin around the mouth polygon (ratio of frame size).",
     )
     parser.add_argument(
         "--motion-threshold",
@@ -112,9 +105,8 @@ def parse_args() -> argparse.Namespace:
 
 def build_pipeline_config(
     temporal_config: TemporalReasoningConfig,
-    prompts: Sequence[str],
-    mask_min_area: int,
-    mask_dilation: int,
+    min_mouth_area: int,
+    mouth_margin: float,
     motion_threshold: float,
     similarity_threshold: float,
     consecutive_frames: int,
@@ -125,21 +117,6 @@ def build_pipeline_config(
     visualization_output_dir: Optional[str],
     visualization_max_frames: int,
 ) -> TongueAnalysisPipelineConfig:
-    sam_config_path = temporal_config.sam.config_path
-    if not sam_config_path and temporal_config.sam.resolved_config_path:
-        sam_config_path = temporal_config.sam.resolved_config_path
-
-    detection_config = DetectionConfig(
-        grounding_config_path=temporal_config.grounding_dino.config_path,
-        grounding_checkpoint_path=temporal_config.grounding_dino.model_path,
-        bert_path=temporal_config.grounding_dino.bert_path,
-        sam2_config_path=sam_config_path,
-        sam2_checkpoint_path=temporal_config.sam.model_path,
-        box_threshold=temporal_config.grounding_dino.box_threshold,
-        text_threshold=temporal_config.grounding_dino.text_threshold,
-        device=temporal_config.device,
-    )
-
     flow_change_config = TongueFlowChangeConfig(
         motion_threshold=motion_threshold,
         similarity_threshold=similarity_threshold,
@@ -150,12 +127,11 @@ def build_pipeline_config(
     )
 
     return TongueAnalysisPipelineConfig(
-        detection=detection_config,
         raft=temporal_config.raft,
+        keypoint=temporal_config.keypoint,
         flow_change=flow_change_config,
-        prompts=prompts,
-        min_area=mask_min_area,
-        mask_dilation=mask_dilation,
+        min_mouth_area=min_mouth_area,
+        mouth_margin_ratio=mouth_margin,
         enable_visualization=enable_visualization,
         visualization_output_dir=visualization_output_dir,
         visualization_max_frames=visualization_max_frames,
@@ -176,9 +152,8 @@ def run_analysis(args: argparse.Namespace) -> Dict[str, Any]:
     temporal_config = load_temporal_config(args.config)
     pipeline_config = build_pipeline_config(
         temporal_config=temporal_config,
-        prompts=args.prompts,
-        mask_min_area=args.mask_min_area,
-        mask_dilation=args.mask_dilation,
+        min_mouth_area=args.min_mouth_area,
+        mouth_margin=args.mouth_margin,
         motion_threshold=args.motion_threshold,
         similarity_threshold=args.similarity_threshold,
         consecutive_frames=args.consecutive_frames,
@@ -192,16 +167,10 @@ def run_analysis(args: argparse.Namespace) -> Dict[str, Any]:
 
     pipeline = TongueAnalysisPipeline(pipeline_config)
 
-    sam2_root = PROJECT_ROOT / "third_party" / "Grounded-SAM-2" / "sam2"
-    previous_cwd = Path.cwd()
-    try:
-        os.chdir(sam2_root)
-        video_info = get_video_info(str(video_path))
-        fps = float(video_info.get("fps") or 30.0)
-        frames = load_video_frames(str(video_path))
-        analysis_result = pipeline.analyze(frames, fps=fps, video_path=str(video_path))
-    finally:
-        os.chdir(previous_cwd)
+    video_info = get_video_info(str(video_path))
+    fps = float(video_info.get("fps") or 30.0)
+    frames = load_video_frames(str(video_path))
+    analysis_result = pipeline.analyze(frames, fps=fps, video_path=str(video_path))
 
     report: Dict[str, Any] = {
         "video_path": str(video_path),

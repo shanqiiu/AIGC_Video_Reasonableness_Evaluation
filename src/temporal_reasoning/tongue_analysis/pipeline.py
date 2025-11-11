@@ -6,25 +6,20 @@ from typing import Dict, List, Optional, Sequence
 
 import cv2
 import numpy as np
-import torch
-from PIL import Image
 
-from ..instance_tracking.detection import DetectionConfig, Sam2DetectionEngine
-from ..instance_tracking.mask_manager import MaskDictionary
-from ..instance_tracking.types import ObjectInfo
 from ..motion_flow.flow_analyzer import MotionFlowAnalyzer
-from ..core.config import RAFTConfig
+from ..core.config import RAFTConfig, KeypointConfig
+from ..keypoint_analysis.keypoint_analyzer import KeypointAnalyzer
 from .tongue_flow_change_detector import TongueFlowChangeConfig, TongueFlowChangeDetector
 
 
 @dataclass
 class TongueAnalysisPipelineConfig:
-    detection: DetectionConfig
     raft: RAFTConfig
+    keypoint: KeypointConfig = KeypointConfig()
     flow_change: TongueFlowChangeConfig = TongueFlowChangeConfig()
-    prompts: Sequence[str] = ("mouth", "tongue")
-    min_area: int = 64
-    mask_dilation: int = 2
+    min_mouth_area: int = 64
+    mouth_margin_ratio: float = 0.05
     enable_visualization: bool = False
     visualization_output_dir: Optional[str] = None
     visualization_max_frames: Optional[int] = 150
@@ -37,18 +32,21 @@ class TongueAnalysisPipeline:
 
     def __init__(self, config: TongueAnalysisPipelineConfig):
         self.config = config
-        self.detection_engine = Sam2DetectionEngine(config.detection)
         self.flow_analyzer = MotionFlowAnalyzer(config.raft)
         self.change_detector = TongueFlowChangeDetector(self.flow_analyzer, config.flow_change)
         self._initialized = False
         self._vis_dir: Optional[Path] = None
         self._vis_counter: int = 0
+        self.keypoint_analyzer = KeypointAnalyzer(config.keypoint)
+        self._mouth_outer_indices = np.array(
+            [61, 146, 91, 181, 84, 17, 314, 405, 321, 375, 291, 308], dtype=np.int32
+        )
 
     def initialize(self):
         if self._initialized:
             return
-        self.detection_engine.initialize()
         self.flow_analyzer.initialize()
+        self.keypoint_analyzer.initialize()
         self._initialized = True
 
     def analyze(
@@ -60,7 +58,9 @@ class TongueAnalysisPipeline:
         if not self._initialized:
             self.initialize()
         self._prepare_visualization(video_path)
-        mouth_masks = self._generate_mouth_masks(video_frames, self.config.prompts)
+        if hasattr(self.keypoint_analyzer.extractor, "reset_timestamp"):
+            self.keypoint_analyzer.extractor.reset_timestamp()
+        mouth_masks = self._generate_mouth_masks(video_frames, fps)
         result = self.change_detector.analyze(video_frames, mouth_masks, fps=fps)
         coverage = []
         for frame, mask in zip(video_frames, mouth_masks):
@@ -76,66 +76,62 @@ class TongueAnalysisPipeline:
     def _generate_mouth_masks(
         self,
         video_frames: Sequence[np.ndarray],
-        prompts: Sequence[str],
+        fps: float,
     ) -> List[Optional[np.ndarray]]:
         masks: List[Optional[np.ndarray]] = []
-        text_prompt = self._build_prompt(prompts)
-
         max_frames = self.config.visualization_max_frames or 0
 
         for idx, frame in enumerate(video_frames):
-            image = Image.fromarray(self._ensure_uint8(frame))
-            mask_dict = self.detection_engine.detect(image, text_prompt)
-            mask = self._select_best_mask(mask_dict)
-            if mask is not None and self.config.mask_dilation > 0:
-                mask = self._dilate_mask(mask, self.config.mask_dilation)
+            frame_uint8 = self._ensure_uint8(frame)
+            keypoints = self.keypoint_analyzer.extractor.extract_keypoints(frame_uint8, fps=fps)
+            mask = self._build_mouth_mask(keypoints, frame_uint8.shape[0], frame_uint8.shape[1])
             masks.append(mask)
             if self._vis_dir and (max_frames <= 0 or self._vis_counter < max_frames):
-                self._save_mask_visualization(frame, mask_dict, mask, idx)
+                self._save_mask_visualization(frame_uint8, keypoints, mask, idx)
         return masks
 
-    @staticmethod
-    def _build_prompt(prompts: Sequence[str]) -> str:
-        valid_prompts = [p.strip() for p in prompts if p and p.strip()]
-        if not valid_prompts:
-            return "mouth."
-        joined = ". ".join(valid_prompts)
-        if not joined.endswith("."):
-            joined += "."
-        return joined
+    def _build_mouth_mask(
+        self,
+        keypoints: Dict[str, Optional[np.ndarray]],
+        height: int,
+        width: int,
+    ) -> Optional[np.ndarray]:
+        face = keypoints.get("face")
+        if face is None or face.shape[0] == 0:
+            return None
 
-    def _select_best_mask(self, mask_dict: MaskDictionary) -> Optional[np.ndarray]:
-        best_mask: Optional[np.ndarray] = None
-        best_score = 0.0
-        for obj in mask_dict.labels.values():
-            if not self._is_mouth_like(obj):
-                continue
-            mask = obj.mask
-            if mask is None:
-                continue
-            mask_np = mask.cpu().numpy().astype(bool)
-            if mask_np.ndim == 3:
-                mask_np = mask_np[0]
-            area = float(mask_np.sum())
-            if area < self.config.min_area:
-                continue
-            if area > best_score:
-                best_mask = mask_np
-                best_score = area
-        return best_mask
+        try:
+            points = face[self._mouth_outer_indices, :2].copy()
+        except Exception:
+            return None
 
-    @staticmethod
-    def _is_mouth_like(obj: ObjectInfo) -> bool:
-        label = (obj.class_name or "").lower()
-        keywords = ("mouth", "tongue", "lip")
-        return any(keyword in label for keyword in keywords)
+        if points.shape[0] != len(self._mouth_outer_indices):
+            return None
 
-    @staticmethod
-    def _dilate_mask(mask: np.ndarray, iterations: int) -> np.ndarray:
-        kernel = np.ones((3, 3), dtype=np.uint8)
-        mask_uint8 = mask.astype(np.uint8)
-        dilated = cv2.dilate(mask_uint8, kernel, iterations=iterations)
-        return dilated.astype(bool)
+        points = np.clip(points, 0.0, 1.0)
+        pts_px = np.stack(
+            [points[:, 0] * width, points[:, 1] * height],
+            axis=1,
+        )
+
+        if np.any(np.isnan(pts_px)):
+            return None
+
+        mask_uint8 = np.zeros((height, width), dtype=np.uint8)
+        polygon = pts_px.reshape((-1, 1, 2)).astype(np.int32)
+        cv2.fillPoly(mask_uint8, [polygon], 1)
+
+        dilation_ratio = max(0.0, float(self.config.mouth_margin_ratio))
+        if dilation_ratio > 0.0:
+            iterations = max(1, int(round(max(height, width) * dilation_ratio)))
+            kernel = np.ones((3, 3), dtype=np.uint8)
+            mask_uint8 = cv2.dilate(mask_uint8, kernel, iterations=iterations)
+
+        area = int(mask_uint8.sum())
+        if area < self.config.min_mouth_area:
+            return None
+
+        return mask_uint8.astype(bool)
 
     @staticmethod
     def _ensure_uint8(frame: np.ndarray) -> np.ndarray:
@@ -163,7 +159,7 @@ class TongueAnalysisPipeline:
     def _save_mask_visualization(
         self,
         frame: np.ndarray,
-        mask_dict: MaskDictionary,
+        keypoints: Dict[str, Optional[np.ndarray]],
         selected_mask: Optional[np.ndarray],
         frame_idx: int,
     ) -> None:
@@ -173,41 +169,33 @@ class TongueAnalysisPipeline:
         frame_uint8 = self._ensure_uint8(frame)
         frame_rgb = frame_uint8.copy()
         overlay = frame_rgb.copy()
-
-        palette = [
-            (30, 30, 30),
-            (80, 80, 80),
-            (120, 120, 120),
-            (170, 170, 170),
-        ]
-
-        for color_idx, (instance_id, obj) in enumerate(mask_dict.labels.items()):
-            mask_tensor = obj.mask
-            if mask_tensor is None:
-                continue
-            mask_np = mask_tensor.detach().cpu().numpy()
-            if mask_np.ndim == 3:
-                mask_np = mask_np[0]
-            mask_bool = mask_np.astype(bool)
-
-            color = palette[color_idx % len(palette)]
-            overlay[mask_bool] = color
-
-            if obj.x1 is not None and obj.y1 is not None and obj.x2 is not None and obj.y2 is not None:
-                cv2.rectangle(
-                    overlay,
-                    (int(obj.x1), int(obj.y1)),
-                    (int(obj.x2), int(obj.y2)),
-                    color,
-                    1,
-                )
+        overlay[:] = frame_rgb
 
         if selected_mask is not None:
-            mask_uint8 = selected_mask.astype(np.uint8) * 255
+            mask_uint8 = selected_mask.astype(np.uint8)
+            overlay[mask_uint8.astype(bool)] = (40, 40, 40)
             contours, _ = cv2.findContours(mask_uint8, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
             cv2.drawContours(overlay, contours, -1, (0, 255, 0), 2)
 
+        face = keypoints.get("face")
+        if face is not None and face.shape[0] > 0:
+            h, w = frame_rgb.shape[:2]
+            pts = np.clip(face[self._mouth_outer_indices, :2], 0.0, 1.0)
+            pts_px = np.stack([pts[:, 0] * w, pts[:, 1] * h], axis=1).astype(np.int32)
+            for x, y in pts_px:
+                cv2.circle(overlay, (int(x), int(y)), 2, (0, 255, 255), -1)
+
         blended = cv2.addWeighted(frame_rgb, 0.6, overlay, 0.4, 0)
+        cv2.putText(
+            blended,
+            f"frame {frame_idx:04d}",
+            (10, 20),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.6,
+            (255, 255, 255),
+            1,
+            cv2.LINE_AA,
+        )
         save_path = self._vis_dir / f"frame_{frame_idx:04d}.png"
         cv2.imwrite(str(save_path), cv2.cvtColor(blended, cv2.COLOR_RGB2BGR))
         self._vis_counter += 1

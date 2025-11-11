@@ -42,7 +42,7 @@ class TongueFlowChangeDetector:
     def analyze(
         self,
         video_frames: Sequence[np.ndarray],
-        mouth_masks: Sequence[np.ndarray],
+        mouth_masks: Sequence[Optional[np.ndarray]],
         fps: float = 30.0,
         label: str = "tongue",
     ) -> Dict[str, object]:
@@ -74,7 +74,7 @@ class TongueFlowChangeDetector:
     def _extract_roi_stats(
         self,
         video_frames: Sequence[np.ndarray],
-        mouth_masks: Sequence[np.ndarray],
+        mouth_masks: Sequence[Optional[np.ndarray]],
     ) -> List[Dict[str, float]]:
         stats: List[Dict[str, float]] = []
 
@@ -83,7 +83,10 @@ class TongueFlowChangeDetector:
                 stats.append({"hist_similarity": 1.0, "valid": False})
                 continue
 
-            roi_pixels = frame[mask > 0]
+            if mask.dtype == bool:
+                roi_pixels = frame[mask]
+            else:
+                roi_pixels = frame[mask > 0]
             if roi_pixels.size == 0 or roi_pixels.shape[0] < self.config.min_roi_size:
                 stats.append({"hist_similarity": 1.0, "valid": False})
                 continue
@@ -103,7 +106,7 @@ class TongueFlowChangeDetector:
     def _compute_flow_change(
         self,
         video_frames: Sequence[np.ndarray],
-        mouth_masks: Sequence[np.ndarray],
+        mouth_masks: Sequence[Optional[np.ndarray]],
     ) -> List[float]:
         if not self.config.use_flow_change or len(video_frames) < 2:
             return [0.0 for _ in video_frames]
@@ -124,7 +127,10 @@ class TongueFlowChangeDetector:
 
             u, v = flow
             magnitude = np.sqrt(u ** 2 + v ** 2)
-            roi_values = magnitude[prev_mask > 0]
+            if prev_mask.dtype == bool:
+                roi_values = magnitude[prev_mask]
+            else:
+                roi_values = magnitude[prev_mask > 0]
             if roi_values.size == 0:
                 flow_diffs.append(0.0)
             else:
