@@ -27,7 +27,7 @@ class TongueAnalysisPipelineConfig:
 
 class TongueAnalysisPipeline:
     """
-    使用 GroundingDINO + SAM2 获取嘴部掩膜，并结合 RAFT 光流检测舌头突变。
+    基于 MediaPipe 面部关键点生成嘴部 ROI，并结合 RAFT 光流/颜色检测舌头突变。
     """
 
     def __init__(self, config: TongueAnalysisPipelineConfig):
@@ -62,12 +62,10 @@ class TongueAnalysisPipeline:
             self.keypoint_analyzer.extractor.reset_timestamp()
         mouth_masks = self._generate_mouth_masks(video_frames, fps)
         result = self.change_detector.analyze(video_frames, mouth_masks, fps=fps)
-        coverage = []
-        for frame, mask in zip(video_frames, mouth_masks):
-            if mask is None:
-                coverage.append(0.0)
-                continue
-            coverage.append(float(mask.sum()) / float(mask.size))
+        coverage = [
+            float(mask.sum()) / float(mask.size) if mask is not None else 0.0
+            for mask in mouth_masks
+        ]
         metadata = result.setdefault("metadata", {})
         metadata["mouth_mask_coverage"] = [float(np.clip(val, 0.0, 1.0)) for val in coverage]
         metadata["visualization_dir"] = str(self._vis_dir) if self._vis_dir else None
@@ -96,42 +94,48 @@ class TongueAnalysisPipeline:
         height: int,
         width: int,
     ) -> Optional[np.ndarray]:
-        face = keypoints.get("face")
-        if face is None or face.shape[0] == 0:
-            return None
-
-        try:
-            points = face[self._mouth_outer_indices, :2].copy()
-        except Exception:
-            return None
-
-        if points.shape[0] != len(self._mouth_outer_indices):
-            return None
-
-        points = np.clip(points, 0.0, 1.0)
-        pts_px = np.stack(
-            [points[:, 0] * width, points[:, 1] * height],
-            axis=1,
-        )
-
-        if np.any(np.isnan(pts_px)):
+        polygon = self._extract_mouth_polygon(keypoints, height, width)
+        if polygon is None:
             return None
 
         mask_uint8 = np.zeros((height, width), dtype=np.uint8)
-        polygon = pts_px.reshape((-1, 1, 2)).astype(np.int32)
         cv2.fillPoly(mask_uint8, [polygon], 1)
 
         dilation_ratio = max(0.0, float(self.config.mouth_margin_ratio))
         if dilation_ratio > 0.0:
             iterations = max(1, int(round(max(height, width) * dilation_ratio)))
-            kernel = np.ones((3, 3), dtype=np.uint8)
-            mask_uint8 = cv2.dilate(mask_uint8, kernel, iterations=iterations)
+            mask_uint8 = cv2.dilate(mask_uint8, np.ones((3, 3), dtype=np.uint8), iterations=iterations)
 
         area = int(mask_uint8.sum())
         if area < self.config.min_mouth_area:
             return None
 
         return mask_uint8.astype(bool)
+
+    def _extract_mouth_polygon(
+        self,
+        keypoints: Dict[str, Optional[np.ndarray]],
+        height: int,
+        width: int,
+    ) -> Optional[np.ndarray]:
+        face = keypoints.get("face")
+        if face is None or face.shape[0] == 0:
+            return None
+
+        try:
+            normalized_pts = face[self._mouth_outer_indices, :2]
+        except Exception:
+            return None
+
+        if normalized_pts.shape[0] != len(self._mouth_outer_indices):
+            return None
+
+        normalized_pts = np.clip(normalized_pts, 0.0, 1.0)
+        if np.any(np.isnan(normalized_pts)):
+            return None
+
+        pts_px = np.stack([normalized_pts[:, 0] * width, normalized_pts[:, 1] * height], axis=1)
+        return pts_px.reshape((-1, 1, 2)).astype(np.int32)
 
     @staticmethod
     def _ensure_uint8(frame: np.ndarray) -> np.ndarray:
@@ -169,21 +173,21 @@ class TongueAnalysisPipeline:
         frame_uint8 = self._ensure_uint8(frame)
         frame_rgb = frame_uint8.copy()
         overlay = frame_rgb.copy()
-        overlay[:] = frame_rgb
 
         if selected_mask is not None:
-            mask_uint8 = selected_mask.astype(np.uint8)
-            overlay[mask_uint8.astype(bool)] = (40, 40, 40)
+            mask_bool = selected_mask.astype(bool)
+            overlay[mask_bool] = (40, 40, 40)
+            mask_uint8 = (mask_bool.astype(np.uint8) * 255)
             contours, _ = cv2.findContours(mask_uint8, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
             cv2.drawContours(overlay, contours, -1, (0, 255, 0), 2)
 
-        face = keypoints.get("face")
-        if face is not None and face.shape[0] > 0:
-            h, w = frame_rgb.shape[:2]
-            pts = np.clip(face[self._mouth_outer_indices, :2], 0.0, 1.0)
-            pts_px = np.stack([pts[:, 0] * w, pts[:, 1] * h], axis=1).astype(np.int32)
-            for x, y in pts_px:
-                cv2.circle(overlay, (int(x), int(y)), 2, (0, 255, 255), -1)
+        polygon = self._extract_mouth_polygon(
+            keypoints,
+            height=frame_rgb.shape[0],
+            width=frame_rgb.shape[1],
+        )
+        if polygon is not None:
+            cv2.polylines(overlay, [polygon], isClosed=True, color=(0, 255, 255), thickness=1)
 
         blended = cv2.addWeighted(frame_rgb, 0.6, overlay, 0.4, 0)
         cv2.putText(

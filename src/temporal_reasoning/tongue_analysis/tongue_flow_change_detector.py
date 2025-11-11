@@ -196,20 +196,19 @@ class TongueFlowChangeDetector:
             motion_change = abs(flow_val - baseline_motion)
             similarity_drop = 1.0 - hist_similarity
 
+            frame_entry: Dict[str, object] = {
+                "frame_id": idx,
+                "timestamp": idx / fps_safe,
+                "hist_similarity": float(hist_similarity),
+                "similarity_drop": float(similarity_drop),
+                "hist_diff": float(hist_diff),
+                "motion_value": float(flow_val),
+                "motion_change": float(motion_change),
+            }
+
             if not valid:
-                frame_stats.append(
-                    {
-                        "frame_id": idx,
-                        "timestamp": idx / fps_safe,
-                        "hist_similarity": float(hist_similarity),
-                        "similarity_drop": float(similarity_drop),
-                        "hist_diff": float(hist_diff),
-                        "motion_value": float(flow_val),
-                        "motion_change": float(motion_change),
-                        "triggers": [],
-                        "valid": False,
-                    }
-                )
+                frame_entry.update({"triggers": [], "valid": False})
+                frame_stats.append(frame_entry)
                 consecutive = 0
                 continue
 
@@ -227,19 +226,8 @@ class TongueFlowChangeDetector:
             if hist_diff_trigger:
                 triggers.append("hist_diff")
 
-            frame_stats.append(
-                {
-                    "frame_id": idx,
-                    "timestamp": idx / fps_safe,
-                    "hist_similarity": float(hist_similarity),
-                    "similarity_drop": float(similarity_drop),
-                    "hist_diff": float(hist_diff),
-                    "motion_value": float(flow_val),
-                    "motion_change": float(motion_change),
-                    "triggers": triggers,
-                    "valid": True,
-                }
-            )
+            frame_entry.update({"triggers": triggers, "valid": True})
+            frame_stats.append(frame_entry)
 
             if flow_trigger or color_trigger or hist_diff_trigger:
                 consecutive += 1
