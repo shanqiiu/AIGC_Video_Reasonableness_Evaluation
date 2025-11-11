@@ -5,7 +5,7 @@ import json
 import os
 import sys
 from pathlib import Path
-from typing import Any, Dict, List, Sequence
+from typing import Any, Dict, List, Optional, Sequence
 
 import numpy as np
 
@@ -88,6 +88,25 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Disable color histogram similarity check (only use motion).",
     )
+    parser.add_argument(
+        "--visualize",
+        action="store_true",
+        help="Save mouth mask visualizations for each frame.",
+    )
+    parser.add_argument(
+        "--vis-dir",
+        help="Directory to store visualization frames.",
+    )
+    parser.add_argument(
+        "--vis-max-frames",
+        type=int,
+        default=150,
+        help="Maximum number of visualization frames to save (0 for unlimited).",
+    )
+    parser.add_argument(
+        "--debug-stats",
+        help="Optional path to save per-frame statistics (JSON).",
+    )
     return parser.parse_args()
 
 
@@ -102,6 +121,9 @@ def build_pipeline_config(
     baseline_window: int,
     disable_flow: bool,
     disable_color: bool,
+    enable_visualization: bool,
+    visualization_output_dir: Optional[str],
+    visualization_max_frames: int,
 ) -> TongueAnalysisPipelineConfig:
     sam_config_path = temporal_config.sam.config_path
     if not sam_config_path and temporal_config.sam.resolved_config_path:
@@ -134,6 +156,9 @@ def build_pipeline_config(
         prompts=prompts,
         min_area=mask_min_area,
         mask_dilation=mask_dilation,
+        enable_visualization=enable_visualization,
+        visualization_output_dir=visualization_output_dir,
+        visualization_max_frames=visualization_max_frames,
     )
 
 
@@ -160,6 +185,9 @@ def run_analysis(args: argparse.Namespace) -> Dict[str, Any]:
         baseline_window=args.baseline_window,
         disable_flow=args.disable_flow,
         disable_color=args.disable_color,
+        enable_visualization=args.visualize,
+        visualization_output_dir=args.vis_dir,
+        visualization_max_frames=args.vis_max_frames,
     )
 
     pipeline = TongueAnalysisPipeline(pipeline_config)
@@ -171,7 +199,7 @@ def run_analysis(args: argparse.Namespace) -> Dict[str, Any]:
         video_info = get_video_info(str(video_path))
         fps = float(video_info.get("fps") or 30.0)
         frames = load_video_frames(str(video_path))
-        analysis_result = pipeline.analyze(frames, fps=fps)
+        analysis_result = pipeline.analyze(frames, fps=fps, video_path=str(video_path))
     finally:
         os.chdir(previous_cwd)
 
@@ -210,6 +238,14 @@ def main():
     output_path.parent.mkdir(parents=True, exist_ok=True)
     with output_path.open("w", encoding="utf-8") as f:
         json.dump(to_serializable(report), f, ensure_ascii=False, indent=2)
+
+    debug_stats = report.get("analysis", {}).get("metadata", {}).get("frame_stats")
+    if args.debug_stats and debug_stats:
+        debug_path = Path(args.debug_stats).expanduser().resolve()
+        debug_path.parent.mkdir(parents=True, exist_ok=True)
+        with debug_path.open("w", encoding="utf-8") as f:
+            json.dump(to_serializable(debug_stats), f, ensure_ascii=False, indent=2)
+        print(f"[TongueAnalysis] 帧级统计已保存到: {debug_path}")
 
     print(f"[TongueAnalysis] 分析完成，报告已保存到: {output_path}")
 

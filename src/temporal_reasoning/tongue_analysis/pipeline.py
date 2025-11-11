@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Dict, List, Optional, Sequence
 
+import cv2
 import numpy as np
 import torch
 from PIL import Image
@@ -23,6 +25,9 @@ class TongueAnalysisPipelineConfig:
     prompts: Sequence[str] = ("mouth", "tongue")
     min_area: int = 64
     mask_dilation: int = 2
+    enable_visualization: bool = False
+    visualization_output_dir: Optional[str] = None
+    visualization_max_frames: Optional[int] = 150
 
 
 class TongueAnalysisPipeline:
@@ -36,6 +41,8 @@ class TongueAnalysisPipeline:
         self.flow_analyzer = MotionFlowAnalyzer(config.raft)
         self.change_detector = TongueFlowChangeDetector(self.flow_analyzer, config.flow_change)
         self._initialized = False
+        self._vis_dir: Optional[Path] = None
+        self._vis_counter: int = 0
 
     def initialize(self):
         if self._initialized:
@@ -48,9 +55,11 @@ class TongueAnalysisPipeline:
         self,
         video_frames: Sequence[np.ndarray],
         fps: float = 30.0,
+        video_path: Optional[str] = None,
     ) -> Dict[str, object]:
         if not self._initialized:
             self.initialize()
+        self._prepare_visualization(video_path)
         mouth_masks = self._generate_mouth_masks(video_frames, self.config.prompts)
         result = self.change_detector.analyze(video_frames, mouth_masks, fps=fps)
         coverage = []
@@ -59,9 +68,8 @@ class TongueAnalysisPipeline:
                 coverage.append(0.0)
                 continue
             coverage.append(float(mask.sum()) / float(mask.size))
-        result["metadata"]["mouth_mask_coverage"] = [
-            float(np.clip(val, 0.0, 1.0)) for val in coverage
-        ]
+        metadata = result.setdefault("metadata", {})
+        metadata["mouth_mask_coverage"] = [float(np.clip(val, 0.0, 1.0)) for val in coverage]
         return result
 
     def _generate_mouth_masks(
@@ -72,13 +80,17 @@ class TongueAnalysisPipeline:
         masks: List[Optional[np.ndarray]] = []
         text_prompt = self._build_prompt(prompts)
 
-        for frame in video_frames:
+        max_frames = self.config.visualization_max_frames or 0
+
+        for idx, frame in enumerate(video_frames):
             image = Image.fromarray(self._ensure_uint8(frame))
             mask_dict = self.detection_engine.detect(image, text_prompt)
             mask = self._select_best_mask(mask_dict)
             if mask is not None and self.config.mask_dilation > 0:
                 mask = self._dilate_mask(mask, self.config.mask_dilation)
             masks.append(mask)
+            if self._vis_dir and (max_frames <= 0 or self._vis_counter < max_frames):
+                self._save_mask_visualization(frame, mask_dict, mask, idx)
         return masks
 
     @staticmethod
@@ -119,8 +131,6 @@ class TongueAnalysisPipeline:
 
     @staticmethod
     def _dilate_mask(mask: np.ndarray, iterations: int) -> np.ndarray:
-        import cv2
-
         kernel = np.ones((3, 3), dtype=np.uint8)
         mask_uint8 = mask.astype(np.uint8)
         dilated = cv2.dilate(mask_uint8, kernel, iterations=iterations)
@@ -131,4 +141,71 @@ class TongueAnalysisPipeline:
         if frame.dtype == np.uint8:
             return frame
         return np.clip(frame, 0, 255).astype(np.uint8)
+
+    def _prepare_visualization(self, video_path: Optional[str]) -> None:
+        if not self.config.enable_visualization:
+            self._vis_dir = None
+            self._vis_counter = 0
+            return
+
+        base_dir = (
+            Path(self.config.visualization_output_dir).expanduser()
+            if self.config.visualization_output_dir
+            else Path("outputs") / "tongue_analysis"
+        )
+        base_dir.mkdir(parents=True, exist_ok=True)
+        video_name = Path(video_path).stem if video_path else "video"
+        target_dir = (base_dir / video_name).resolve()
+        target_dir.mkdir(parents=True, exist_ok=True)
+        self._vis_dir = target_dir
+        self._vis_counter = 0
+
+    def _save_mask_visualization(
+        self,
+        frame: np.ndarray,
+        mask_dict: MaskDictionary,
+        selected_mask: Optional[np.ndarray],
+        frame_idx: int,
+    ) -> None:
+        if self._vis_dir is None:
+            return
+
+        frame_uint8 = self._ensure_uint8(frame)
+        frame_rgb = frame_uint8.copy()
+        overlay = frame_rgb.copy()
+
+        palette = [
+            (30, 30, 30),
+            (80, 80, 80),
+            (120, 120, 120),
+            (170, 170, 170),
+        ]
+
+        for color_idx, (instance_id, obj) in enumerate(mask_dict.labels.items()):
+            mask_tensor = obj.mask
+            if mask_tensor is None:
+                continue
+            mask_np = mask_tensor.cpu().numpy().astype(bool)
+            if mask_np.ndim == 3:
+                mask_np = mask_np[0]
+            color = palette[color_idx % len(palette)]
+            overlay[mask_np] = color
+            if obj.x1 is not None and obj.y1 is not None and obj.x2 is not None and obj.y2 is not None:
+                cv2.rectangle(
+                    overlay,
+                    (int(obj.x1), int(obj.y1)),
+                    (int(obj.x2), int(obj.y2)),
+                    color,
+                    1,
+                )
+
+        if selected_mask is not None:
+            mask_uint8 = selected_mask.astype(np.uint8) * 255
+            contours, _ = cv2.findContours(mask_uint8, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            cv2.drawContours(overlay, contours, -1, (0, 255, 0), 2)
+
+        blended = cv2.addWeighted(frame_rgb, 0.6, overlay, 0.4, 0)
+        save_path = self._vis_dir / f"frame_{frame_idx:04d}.png"
+        cv2.imwrite(str(save_path), cv2.cvtColor(blended, cv2.COLOR_RGB2BGR))
+        self._vis_counter += 1
 

@@ -53,7 +53,7 @@ class TongueFlowChangeDetector:
 
         roi_stats = self._extract_roi_stats(video_frames, mouth_masks)
         flow_diffs = self._compute_flow_change(video_frames, mouth_masks)
-        anomalies = self._detect_anomalies(roi_stats, flow_diffs, fps, label)
+        anomalies, frame_stats, baseline_motion = self._detect_anomalies(roi_stats, flow_diffs, fps, label)
         score = 0.0 if anomalies else 1.0
 
         return {
@@ -64,6 +64,8 @@ class TongueFlowChangeDetector:
                 "use_color_similarity": self.config.use_color_similarity,
                 "motion_threshold": self.config.motion_threshold,
                 "similarity_threshold": self.config.similarity_threshold,
+                "baseline_motion": baseline_motion,
+                "frame_stats": frame_stats,
             },
         }
 
@@ -158,11 +160,12 @@ class TongueFlowChangeDetector:
         flow_diffs: List[float],
         fps: float,
         label: str,
-    ) -> List[Dict[str, object]]:
+    ) -> Tuple[List[Dict[str, object]], List[Dict[str, object]], float]:
         anomalies: List[Dict[str, object]] = []
         consecutive = 0
         baseline_motion = self._compute_baseline_motion(flow_diffs)
         fps_safe = max(fps, 1.0)
+        frame_stats: List[Dict[str, object]] = []
 
         for idx, (stat, flow_val) in enumerate(zip(roi_stats, flow_diffs)):
             valid = stat.get("valid", False)
@@ -176,6 +179,19 @@ class TongueFlowChangeDetector:
                 triggers.append("flow")
             if self.config.use_color_similarity and similarity_drop >= self.config.similarity_threshold:
                 triggers.append("color")
+
+            frame_stats.append(
+                {
+                    "frame_id": idx,
+                    "timestamp": idx / fps_safe,
+                    "hist_similarity": float(hist_similarity),
+                    "similarity_drop": float(similarity_drop),
+                    "motion_value": float(flow_val),
+                    "motion_change": float(motion_change),
+                    "triggers": triggers,
+                    "valid": bool(valid),
+                }
+            )
 
             if not valid:
                 consecutive = 0
@@ -215,7 +231,7 @@ class TongueFlowChangeDetector:
             else:
                 consecutive = 0
 
-        return anomalies
+        return anomalies, frame_stats, baseline_motion
 
     def _compute_baseline_histogram(self, stats: List[Dict[str, float]]) -> np.ndarray:
         baseline_window = max(1, self.config.baseline_window)
