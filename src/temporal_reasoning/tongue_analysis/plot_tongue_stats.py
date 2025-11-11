@@ -14,14 +14,29 @@ import numpy as np
 import pandas as pd
 
 
-def load_report(report_path: Path) -> dict:
-    """读取 JSON 报告"""
+def load_report(report_path: Path, region: str) -> dict:
+    """读取 JSON 报告并返回指定区域的数据"""
     data = json.loads(report_path.read_text(encoding="utf-8"))
     analysis = data.get("analysis", {})
-    metadata = analysis.get("metadata", {})
-    frame_stats = metadata.get("frame_stats", [])
+    regions = analysis.get("regions", {})
+
+    if regions:
+        if region not in regions:
+            raise ValueError(
+                f"报告中无区域 '{region}'，可用区域: {', '.join(sorted(regions.keys()))}"
+            )
+        metadata = regions[region].get("metadata", {})
+        frame_stats = metadata.get("frame_stats", [])
+    else:
+        metadata = analysis.get("metadata", {})
+        frame_stats = metadata.get("frame_stats", [])
+        if region != "mouth":
+            raise ValueError("报告为旧格式，仅包含 mouth 区域，请指定 --region mouth。")
+
     if not frame_stats:
-        raise ValueError(f"{report_path} 中没有 frame_stats 数据，请确认脚本是否开启 --debug-stats。")
+        raise ValueError(
+            f"{report_path} 中区域 '{region}' 没有 frame_stats 数据，请确认分析时是否开启 --debug_stats。"
+        )
     return {
         "frame_stats": frame_stats,
         "motion_threshold": metadata.get("motion_threshold", 0.0),
@@ -30,6 +45,7 @@ def load_report(report_path: Path) -> dict:
         "baseline_motion": metadata.get("baseline_motion", 0.0),
         "fps": data.get("fps", 0.0),
         "video_path": data.get("video_path", ""),
+        "region": region,
     }
 
 
@@ -116,15 +132,25 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--output", help="可选：保存图像的路径（png/jpg 等）")
     parser.add_argument("--no-show", action="store_true", help="仅保存图像，不在窗口展示")
     parser.add_argument("--title", help="图像标题，例如视频名")
+    parser.add_argument(
+        "--region",
+        default="mouth",
+        help="要可视化的区域名称（默认: mouth）。",
+    )
     return parser.parse_args()
 
 
 def main():
     args = parse_args()
     report_path = Path(args.report).expanduser().resolve()
-    payload = load_report(report_path)
+    payload = load_report(report_path, args.region)
 
-    title = args.title or Path(payload["video_path"]).name
+    default_title = (
+        f"{Path(payload['video_path']).name} [{payload['region']}]"
+        if payload["video_path"]
+        else payload["region"]
+    )
+    title = args.title or default_title
     plot_metrics(
         frame_stats=payload["frame_stats"],
         motion_threshold=payload["motion_threshold"],

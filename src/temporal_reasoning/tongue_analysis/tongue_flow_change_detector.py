@@ -10,7 +10,7 @@ from ..motion_flow.flow_analyzer import MotionFlowAnalyzer
 
 
 @dataclass
-class TongueFlowChangeConfig:
+class RegionTemporalChangeConfig:
     """
     控制舌头区域光流 / 外观突变检测的参数。
     """
@@ -25,7 +25,7 @@ class TongueFlowChangeConfig:
     hist_diff_threshold: float = 0.012
 
 
-class TongueFlowChangeDetector:
+class RegionTemporalChangeDetector:
     """
     利用 RAFT 光流与局部特征变化检测舌头突变。
 
@@ -36,9 +36,9 @@ class TongueFlowChangeDetector:
            输出 `tongue_flow_change` 异常。
     """
 
-    def __init__(self, flow_analyzer: MotionFlowAnalyzer, config: Optional[TongueFlowChangeConfig] = None):
+    def __init__(self, flow_analyzer: MotionFlowAnalyzer, config: Optional[RegionTemporalChangeConfig] = None):
         self.flow_analyzer = flow_analyzer
-        self.config = config or TongueFlowChangeConfig()
+        self.config = config or RegionTemporalChangeConfig()
 
     def analyze(
         self,
@@ -234,7 +234,7 @@ class TongueFlowChangeDetector:
                 if consecutive >= self.config.consecutive_frames:
                     anomalies.append(
                         {
-                            "type": "tongue_flow_change",
+                            "type": "region_flow_change",
                             "modality": "appearance",
                             "frame_id": idx,
                             "timestamp": idx / fps_safe,
@@ -307,4 +307,9 @@ class TongueFlowChangeDetector:
         numerator = np.sum(hist_a * hist_b)
         denominator = np.sqrt(np.sum(hist_a ** 2) * np.sum(hist_b ** 2)) + eps
         return float(numerator / denominator)
+
+
+# Backward compatibility aliases
+TongueFlowChangeConfig = RegionTemporalChangeConfig
+TongueFlowChangeDetector = RegionTemporalChangeDetector
 

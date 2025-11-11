@@ -5,9 +5,10 @@ import json
 import os
 import sys
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Sequence, List
 
 import numpy as np
+import copy
 
 CURRENT_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = CURRENT_DIR.parents[2]
@@ -17,7 +18,11 @@ os.chdir(PROJECT_ROOT)
 
 from src.temporal_reasoning.core.config import TemporalReasoningConfig, load_config_from_yaml
 from src.temporal_reasoning.utils.video_utils import get_video_info, load_video_frames
-from src.temporal_reasoning.tongue_analysis.pipeline import TongueAnalysisPipeline, TongueAnalysisPipelineConfig
+from src.temporal_reasoning.tongue_analysis.pipeline import (
+    TongueAnalysisPipeline,
+    TongueAnalysisPipelineConfig,
+    RegionDefinition,
+)
 from src.temporal_reasoning.tongue_analysis.tongue_flow_change_detector import TongueFlowChangeConfig
 
 
@@ -26,6 +31,12 @@ def parse_args() -> argparse.Namespace:
         description="Run tongue flow/appearance change analysis on a video."
     )
     parser.add_argument("--video", required=True, help="Path to the input video file.")
+    parser.add_argument(
+        "--regions",
+        nargs="+",
+        default=["mouth"],
+        help="Regions to analyze (default: mouth). Available: mouth, left_eye, right_eye, left_hand, right_hand",
+    )
     parser.add_argument(
         "--config",
         help="Temporal reasoning YAML config. If omitted, default config is used.",
@@ -36,46 +47,39 @@ def parse_args() -> argparse.Namespace:
         help="Path to save the analysis report (JSON).",
     )
     parser.add_argument(
-        "--min_mouth_area",
+        "--min_area",
         type=int,
-        default=64,
-        help="Minimum area (pixels) required for the mouth ROI mask.",
+        help="Override minimum area (pixels) required for region masks.",
     )
     parser.add_argument(
-        "--mouth_margin",
+        "--margin",
         type=float,
-        default=0.02,
-        help="Additional margin around the mouth polygon (ratio of frame size).",
+        help="Override additional margin ratio around region polygons.",
     )
     parser.add_argument(
         "--motion_threshold",
         type=float,
-        default=2.0,
-        help="Threshold for motion change within the mouth ROI.",
+        help="Override motion change threshold for regions.",
     )
     parser.add_argument(
         "--similarity_threshold",
         type=float,
-        default=0.25,
-        help="Threshold for color histogram similarity drop inside the mouth ROI.",
+        help="Override color histogram similarity drop threshold.",
     )
     parser.add_argument(
         "--hist_diff_threshold",
         type=float,
-        default=0.012,
-        help="Threshold for histogram similarity frame-to-frame difference.",
+        help="Override histogram similarity frame-to-frame difference threshold.",
     )
     parser.add_argument(
         "--consecutive_frames",
         type=int,
-        default=1,
-        help="Number of consecutive frames exceeding thresholds required to flag anomaly.",
+        help="Override required consecutive frames for anomaly.",
     )
     parser.add_argument(
         "--baseline_window",
         type=int,
-        default=5,
-        help="Number of initial frames used to build baseline statistics.",
+        help="Override baseline window used to compute reference motion.",
     )
     parser.add_argument(
         "--disable_flow",
@@ -111,39 +115,68 @@ def parse_args() -> argparse.Namespace:
 
 def build_pipeline_config(
     temporal_config: TemporalReasoningConfig,
-    min_mouth_area: int,
-    mouth_margin: float,
-    motion_threshold: float,
-    similarity_threshold: float,
-    hist_diff_threshold: float,
-    consecutive_frames: int,
-    baseline_window: int,
+    regions: Sequence[str],
+    min_area: Optional[int],
+    margin: Optional[float],
+    motion_threshold: Optional[float],
+    similarity_threshold: Optional[float],
+    hist_diff_threshold: Optional[float],
+    consecutive_frames: Optional[int],
+    baseline_window: Optional[int],
     disable_flow: bool,
     disable_color: bool,
     enable_visualization: bool,
     visualization_output_dir: Optional[str],
     visualization_max_frames: int,
 ) -> TongueAnalysisPipelineConfig:
-    flow_change_config = TongueFlowChangeConfig(
-        motion_threshold=motion_threshold,
-        similarity_threshold=similarity_threshold,
-        hist_diff_threshold=hist_diff_threshold,
-        consecutive_frames=consecutive_frames,
-        baseline_window=baseline_window,
-        use_flow_change=not disable_flow,
-        use_color_similarity=not disable_color,
-    )
-
-    return TongueAnalysisPipelineConfig(
+    pipeline_config = TongueAnalysisPipelineConfig(
         raft=temporal_config.raft,
         keypoint=temporal_config.keypoint,
-        flow_change=flow_change_config,
-        min_mouth_area=min_mouth_area,
-        mouth_margin_ratio=mouth_margin,
         enable_visualization=enable_visualization,
         visualization_output_dir=visualization_output_dir,
         visualization_max_frames=visualization_max_frames,
     )
+
+    available_regions = {region.name: copy.deepcopy(region) for region in pipeline_config.regions}
+    if not regions:
+        selected_names = list(available_regions.keys())
+    else:
+        selected_names = list(dict.fromkeys(regions))  # preserve order, remove duplicates
+
+    selected_definitions: List[RegionDefinition] = []
+    for name in selected_names:
+        if name not in available_regions:
+            raise ValueError(f"Unknown region '{name}'. Available options: {', '.join(available_regions.keys())}")
+
+        region_def = available_regions[name]
+        config = copy.deepcopy(region_def.temporal_config)
+
+        if motion_threshold is not None:
+            config.motion_threshold = motion_threshold
+        if similarity_threshold is not None:
+            config.similarity_threshold = similarity_threshold
+        if hist_diff_threshold is not None:
+            config.hist_diff_threshold = hist_diff_threshold
+        if consecutive_frames is not None:
+            config.consecutive_frames = consecutive_frames
+        if baseline_window is not None:
+            config.baseline_window = baseline_window
+        if disable_flow:
+            config.use_flow_change = False
+        if disable_color:
+            config.use_color_similarity = False
+
+        region_def.temporal_config = config
+
+        if min_area is not None:
+            region_def.min_area = min_area
+        if margin is not None:
+            region_def.margin_ratio = margin
+
+        selected_definitions.append(region_def)
+
+    pipeline_config.regions = selected_definitions
+    return pipeline_config
 
 
 def load_temporal_config(config_path: str | None) -> TemporalReasoningConfig:
@@ -160,8 +193,9 @@ def run_analysis(args: argparse.Namespace) -> Dict[str, Any]:
     temporal_config = load_temporal_config(args.config)
     pipeline_config = build_pipeline_config(
         temporal_config=temporal_config,
-        min_mouth_area=args.min_mouth_area,
-        mouth_margin=args.mouth_margin,
+        regions=args.regions,
+        min_area=args.min_area,
+        margin=args.margin,
         motion_threshold=args.motion_threshold,
         similarity_threshold=args.similarity_threshold,
         hist_diff_threshold=args.hist_diff_threshold,
@@ -217,12 +251,15 @@ def main():
     with output_path.open("w", encoding="utf-8") as f:
         json.dump(to_serializable(report), f, ensure_ascii=False, indent=2)
 
-    debug_stats = report.get("analysis", {}).get("metadata", {}).get("frame_stats")
-    if args.debug_stats and debug_stats:
+    if args.debug_stats:
         debug_path = Path(args.debug_stats).expanduser().resolve()
         debug_path.parent.mkdir(parents=True, exist_ok=True)
+        region_stats = {
+            name: region_data.get("metadata", {}).get("frame_stats", [])
+            for name, region_data in report.get("analysis", {}).get("regions", {}).items()
+        }
         with debug_path.open("w", encoding="utf-8") as f:
-            json.dump(to_serializable(debug_stats), f, ensure_ascii=False, indent=2)
+            json.dump(to_serializable(region_stats), f, ensure_ascii=False, indent=2)
         print(f"[TongueAnalysis] 帧级统计已保存到: {debug_path}")
 
     print(f"[TongueAnalysis] 分析完成，报告已保存到: {output_path}")
