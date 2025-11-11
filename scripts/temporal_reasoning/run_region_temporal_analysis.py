@@ -18,6 +18,8 @@ if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
 os.chdir(project_root)
 
+import tqdm  # type: ignore
+
 VIDEO_EXTENSIONS = {".mp4"}
 
 try:
@@ -331,7 +333,9 @@ def main() -> None:
 
     pipeline = RegionAnalysisPipeline(pipeline_config)
 
-    for idx, video_path in enumerate(video_paths):
+    progress = tqdm(video_paths, desc="Processing videos", unit="video") if tqdm else video_paths
+
+    for video_path in progress:
         report = run_analysis_for_video(pipeline, video_path)
 
         if multi_video:
@@ -355,6 +359,8 @@ def main() -> None:
             summary_record["debug_stats_path"] = str(debug_path)
         summary_records.append(summary_record)
 
+        if tqdm:
+            progress.set_postfix({"video": video_path.name, "anomalies": summary_record["anomaly_count"]})
         print(f"[RegionAnalysis] 分析完成，报告已保存到: {output_path}")
 
     if multi_video:
