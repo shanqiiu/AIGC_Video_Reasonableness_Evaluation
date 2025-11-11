@@ -11,11 +11,12 @@ from typing import Any, Dict, List, Optional, Sequence
 
 import numpy as np
 
-CURRENT_DIR = Path(__file__).resolve().parent
-PROJECT_ROOT = CURRENT_DIR.parents[2]
-if str(PROJECT_ROOT) not in sys.path:
-    sys.path.insert(0, str(PROJECT_ROOT))
-os.chdir(PROJECT_ROOT)
+# 添加项目根目录到路径
+current_file = Path(__file__).resolve()
+project_root = current_file.parents[2]
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
+os.chdir(project_root)
 
 VIDEO_EXTENSIONS = {".mp4"}
 
@@ -313,7 +314,7 @@ def main() -> None:
     summary_records: List[Dict[str, Any]] = []
     if multi_video:
         output_dir = Path(args.output_dir).expanduser().resolve() if args.output_dir else (
-            PROJECT_ROOT / "outputs" / "region_analysis_reports"
+            project_root / "outputs" / "region_analysis_reports"
         )
         output_dir.mkdir(parents=True, exist_ok=True)
         if args.debug_dir:
