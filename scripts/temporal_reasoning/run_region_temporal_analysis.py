@@ -7,7 +7,7 @@ import json
 import os
 import sys
 from pathlib import Path
-from typing import Any, Dict, Optional, Sequence, List
+from typing import Any, Dict, List, Optional, Sequence
 
 import numpy as np
 
@@ -16,6 +16,8 @@ PROJECT_ROOT = CURRENT_DIR.parents[2]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 os.chdir(PROJECT_ROOT)
+
+VIDEO_EXTENSIONS = {".mp4"}
 
 try:
     from src.temporal_reasoning.core.config import TemporalReasoningConfig, load_config_from_yaml
@@ -33,11 +35,41 @@ except ModuleNotFoundError as exc:  # pragma: no cover - defensive runtime guard
     ) from exc
 
 
+def collect_video_paths(inputs: Sequence[str]) -> List[Path]:
+    collected: List[Path] = []
+    missing: List[str] = []
+    for raw in inputs:
+        path = Path(raw).expanduser().resolve()
+        if not path.exists():
+            missing.append(raw)
+            continue
+        if path.is_dir():
+            candidates = sorted(
+                p for p in path.iterdir() if p.is_file() and p.suffix.lower() in VIDEO_EXTENSIONS
+            )
+            collected.extend(candidates)
+        else:
+            collected.append(path)
+    if missing:
+        raise FileNotFoundError(
+            "以下路径不存在，请检查: " + ", ".join(missing)
+        )
+    unique_ordered = list(dict.fromkeys(collected))
+    if not unique_ordered:
+        raise ValueError("未找到可处理的视频文件，请检查输入路径或目录内容是否包含受支持的格式。")
+    return unique_ordered
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Run region flow/appearance change analysis on a video."
+        description="Run region flow/appearance change analysis on one or multiple videos."
     )
-    parser.add_argument("--video", required=True, help="Path to the input video file.")
+    parser.add_argument(
+        "--video",
+        required=True,
+        nargs="+",
+        help="Video file(s) or directory(ies). Directories will be scanned for .mp4 files only.",
+    )
     parser.add_argument(
         "--regions",
         nargs="+",
@@ -51,7 +83,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--output",
         default="region_analysis_report.json",
-        help="Path to save the analysis report (JSON).",
+        help="Path to save the analysis report (JSON). For batch mode this becomes a summary file.",
+    )
+    parser.add_argument(
+        "--output_dir",
+        help="Directory to store per-video reports when processing multiple videos (optional).",
     )
     parser.add_argument(
         "--min_area",
@@ -115,7 +151,11 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--debug_stats",
-        help="Optional path to save per-frame statistics (JSON).",
+        help="Path to save per-frame statistics (JSON). For batch mode this becomes a directory unless --debug_dir is set.",
+    )
+    parser.add_argument(
+        "--debug_dir",
+        help="Directory to store per-video debug statistics when processing multiple videos.",
     )
     return parser.parse_args()
 
@@ -192,31 +232,10 @@ def load_temporal_config(config_path: str | None) -> TemporalReasoningConfig:
     return TemporalReasoningConfig()
 
 
-def run_analysis(args: argparse.Namespace) -> Dict[str, Any]:
-    video_path = Path(args.video).expanduser().resolve()
-    if not video_path.exists():
-        raise FileNotFoundError(f"Video not found: {video_path}")
-
-    temporal_config = load_temporal_config(args.config)
-    pipeline_config = build_pipeline_config(
-        temporal_config=temporal_config,
-        regions=args.regions,
-        min_area=args.min_area,
-        margin=args.margin,
-        motion_threshold=args.motion_threshold,
-        similarity_threshold=args.similarity_threshold,
-        hist_diff_threshold=args.hist_diff_threshold,
-        consecutive_frames=args.consecutive_frames,
-        baseline_window=args.baseline_window,
-        disable_flow=args.disable_flow,
-        disable_color=args.disable_color,
-        enable_visualization=args.visualize,
-        visualization_output_dir=args.vis_dir,
-        visualization_max_frames=args.vis_max_frames,
-    )
-
-    pipeline = RegionAnalysisPipeline(pipeline_config)
-
+def run_analysis_for_video(
+    pipeline: RegionAnalysisPipeline,
+    video_path: Path,
+) -> Dict[str, Any]:
     video_info = get_video_info(str(video_path))
     fps = float(video_info.get("fps") or 30.0)
     frames = load_video_frames(str(video_path))
@@ -249,27 +268,109 @@ def to_serializable(obj: Any) -> Any:
     return obj
 
 
-def main() -> None:
-    args = parse_args()
-    report = run_analysis(args)
-
-    output_path = Path(args.output).expanduser().resolve()
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    with output_path.open("w", encoding="utf-8") as f:
+def write_report(report: Dict[str, Any], path: Path) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", encoding="utf-8") as f:
         json.dump(to_serializable(report), f, ensure_ascii=False, indent=2)
 
-    if args.debug_stats:
-        debug_path = Path(args.debug_stats).expanduser().resolve()
-        debug_path.parent.mkdir(parents=True, exist_ok=True)
-        region_stats = {
-            name: region_data.get("metadata", {}).get("frame_stats", [])
-            for name, region_data in report.get("analysis", {}).get("regions", {}).items()
-        }
-        with debug_path.open("w", encoding="utf-8") as f:
-            json.dump(to_serializable(region_stats), f, ensure_ascii=False, indent=2)
-        print(f"[RegionAnalysis] 帧级统计已保存到: {debug_path}")
 
-    print(f"[RegionAnalysis] 分析完成，报告已保存到: {output_path}")
+def write_debug_stats(report: Dict[str, Any], path: Optional[Path]) -> None:
+    if path is None:
+        return
+    path.parent.mkdir(parents=True, exist_ok=True)
+    region_stats = {
+        name: region_data.get("metadata", {}).get("frame_stats", [])
+        for name, region_data in report.get("analysis", {}).get("regions", {}).items()
+    }
+    with path.open("w", encoding="utf-8") as f:
+        json.dump(to_serializable(region_stats), f, ensure_ascii=False, indent=2)
+    print(f"[RegionAnalysis] 帧级统计已保存到: {path}")
+
+
+def main() -> None:
+    args = parse_args()
+    video_paths = collect_video_paths(args.video)
+    multi_video = len(video_paths) > 1
+
+    temporal_config = load_temporal_config(args.config)
+    pipeline_config = build_pipeline_config(
+        temporal_config=temporal_config,
+        regions=args.regions,
+        min_area=args.min_area,
+        margin=args.margin,
+        motion_threshold=args.motion_threshold,
+        similarity_threshold=args.similarity_threshold,
+        hist_diff_threshold=args.hist_diff_threshold,
+        consecutive_frames=args.consecutive_frames,
+        baseline_window=args.baseline_window,
+        disable_flow=args.disable_flow,
+        disable_color=args.disable_color,
+        enable_visualization=args.visualize,
+        visualization_output_dir=args.vis_dir,
+        visualization_max_frames=args.vis_max_frames,
+    )
+
+    summary_records: List[Dict[str, Any]] = []
+    if multi_video:
+        output_dir = Path(args.output_dir).expanduser().resolve() if args.output_dir else (
+            PROJECT_ROOT / "outputs" / "region_analysis_reports"
+        )
+        output_dir.mkdir(parents=True, exist_ok=True)
+        if args.debug_dir:
+            debug_dir = Path(args.debug_dir).expanduser().resolve()
+        elif args.debug_stats:
+            debug_dir = Path(args.debug_stats).expanduser().resolve()
+        else:
+            debug_dir = None
+        if debug_dir:
+            debug_dir.mkdir(parents=True, exist_ok=True)
+    else:
+        output_dir = None
+        debug_dir = None
+
+    pipeline = RegionAnalysisPipeline(pipeline_config)
+
+    for idx, video_path in enumerate(video_paths):
+        report = run_analysis_for_video(pipeline, video_path)
+
+        if multi_video:
+            output_path = (output_dir / f"{video_path.stem}_region_analysis.json").resolve()
+            debug_path = (debug_dir / f"{video_path.stem}_frame_stats.json").resolve() if debug_dir else None
+        else:
+            output_path = Path(args.output).expanduser().resolve()
+            debug_path = Path(args.debug_stats).expanduser().resolve() if args.debug_stats else None
+
+        write_report(report, output_path)
+        write_debug_stats(report, debug_path)
+
+        summary_record = {
+            "video_path": str(video_path),
+            "report_path": str(output_path),
+            "anomaly_count": report.get("anomaly_count", 0),
+            "fps": report.get("fps"),
+            "frame_count": report.get("frame_count"),
+        }
+        if debug_path is not None:
+            summary_record["debug_stats_path"] = str(debug_path)
+        summary_records.append(summary_record)
+
+        print(f"[RegionAnalysis] 分析完成，报告已保存到: {output_path}")
+
+    if multi_video:
+        summary_output = Path(args.output).expanduser().resolve()
+        summary_output.parent.mkdir(parents=True, exist_ok=True)
+        total_anomalies = sum(int(record.get("anomaly_count") or 0) for record in summary_records)
+        batch_summary = {
+            "video_count": len(summary_records),
+            "total_anomaly_count": total_anomalies,
+            "videos": summary_records,
+        }
+        with summary_output.open("w", encoding="utf-8") as f:
+            json.dump(to_serializable(batch_summary), f, ensure_ascii=False, indent=2)
+        print(
+            f"[RegionAnalysis] 批量分析完成，共处理 {len(summary_records)} 个视频。"
+            f" 汇总报告已保存到: {summary_output}"
+        )
 
 
 if __name__ == "__main__":
