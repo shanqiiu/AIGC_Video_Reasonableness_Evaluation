@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Optional
 
 import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
 
 
@@ -46,7 +47,18 @@ def plot_metrics(
         raise ValueError("frame_stats 缺少 timestamp 字段；请使用新版检测脚本重新生成报告。")
     df["time"] = df["timestamp"]
 
-    fig, axes = plt.subplots(3, 1, figsize=(10, 10), sharex=True)
+    has_hist_diff = "hist_diff" in df.columns
+    n_rows = 4 if has_hist_diff else 3
+    fig, axes = plt.subplots(
+        n_rows,
+        1,
+        figsize=(10, 12 if has_hist_diff else 10),
+        sharex=True,
+    )
+    if not isinstance(axes, (list, np.ndarray)):
+        axes = [axes]
+    elif isinstance(axes, np.ndarray):
+        axes = axes.flatten().tolist()
 
     # 1. 光流幅值
     axes[0].plot(df["time"], df["motion_value"], label="motion_value")
@@ -66,9 +78,16 @@ def plot_metrics(
     axes[2].plot(df["time"], df["hist_similarity"], label="hist_similarity", color="tab:green")
     axes[2].axhline(1 - similarity_threshold, color="purple", linestyle="--", label="1 - similarity_threshold")
     axes[2].set_ylabel("Hist Similarity")
-    axes[2].set_xlabel("Time (s)")
     axes[2].legend()
     axes[2].grid(True)
+
+    if has_hist_diff:
+        axes[3].plot(df["time"], df["hist_diff"], label="hist_diff", color="tab:blue")
+        axes[3].set_ylabel("Hist Diff")
+        axes[3].legend()
+        axes[3].grid(True)
+
+    axes[-1].set_xlabel("Time (s)")
 
     if title:
         fig.suptitle(title)

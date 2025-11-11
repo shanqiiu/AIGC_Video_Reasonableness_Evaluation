@@ -53,7 +53,7 @@ class TongueFlowChangeDetector:
 
         roi_stats = self._extract_roi_stats(video_frames, mouth_masks)
         flow_diffs = self._compute_flow_change(video_frames, mouth_masks)
-        anomalies, frame_stats, baseline_motion = self._detect_anomalies(
+        anomalies, frame_stats, baseline_motion, max_hist_diff = self._detect_anomalies(
             roi_stats, flow_diffs, fps, label
         )
         score = 0.0 if anomalies else 1.0
@@ -68,6 +68,7 @@ class TongueFlowChangeDetector:
                 "similarity_threshold": self.config.similarity_threshold,
                 "baseline_motion": baseline_motion,
                 "frame_stats": frame_stats,
+                "max_hist_diff": max_hist_diff,
             },
         }
 
@@ -168,16 +169,26 @@ class TongueFlowChangeDetector:
         flow_diffs: List[float],
         fps: float,
         label: str,
-    ) -> Tuple[List[Dict[str, object]], List[Dict[str, object]], float]:
+    ) -> Tuple[List[Dict[str, object]], List[Dict[str, object]], float, float]:
         anomalies: List[Dict[str, object]] = []
         consecutive = 0
         baseline_motion = self._compute_baseline_motion(flow_diffs)
         fps_safe = max(fps, 1.0)
         frame_stats: List[Dict[str, object]] = []
+        prev_hist_similarity: Optional[float] = None
+        max_hist_diff = 0.0
 
         for idx, (stat, flow_val) in enumerate(zip(roi_stats, flow_diffs)):
             valid = stat.get("valid", False)
             hist_similarity = stat.get("hist_similarity", 1.0)
+            hist_diff = (
+                abs(hist_similarity - prev_hist_similarity)
+                if prev_hist_similarity is not None
+                else 0.0
+            )
+            prev_hist_similarity = hist_similarity
+            if hist_diff > max_hist_diff:
+                max_hist_diff = hist_diff
 
             motion_change = abs(flow_val - baseline_motion)
             similarity_drop = 1.0 - hist_similarity
@@ -194,6 +205,7 @@ class TongueFlowChangeDetector:
                     "timestamp": idx / fps_safe,
                     "hist_similarity": float(hist_similarity),
                     "similarity_drop": float(similarity_drop),
+                    "hist_diff": float(hist_diff),
                     "motion_value": float(flow_val),
                     "motion_change": float(motion_change),
                     "triggers": triggers,
@@ -239,7 +251,7 @@ class TongueFlowChangeDetector:
             else:
                 consecutive = 0
 
-        return anomalies, frame_stats, baseline_motion
+        return anomalies, frame_stats, baseline_motion, max_hist_diff
 
     def _compute_baseline_histogram(self, stats: List[Dict[str, float]]) -> np.ndarray:
         baseline_window = max(1, self.config.baseline_window)
