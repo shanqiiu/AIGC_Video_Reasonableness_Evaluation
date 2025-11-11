@@ -70,6 +70,7 @@ class TongueAnalysisPipeline:
             coverage.append(float(mask.sum()) / float(mask.size))
         metadata = result.setdefault("metadata", {})
         metadata["mouth_mask_coverage"] = [float(np.clip(val, 0.0, 1.0)) for val in coverage]
+        metadata["visualization_dir"] = str(self._vis_dir) if self._vis_dir else None
         return result
 
     def _generate_mouth_masks(
@@ -148,11 +149,10 @@ class TongueAnalysisPipeline:
             self._vis_counter = 0
             return
 
-        base_dir = (
-            Path(self.config.visualization_output_dir).expanduser()
-            if self.config.visualization_output_dir
-            else Path("outputs") / "tongue_analysis"
-        )
+        if self.config.visualization_output_dir:
+            base_dir = Path(self.config.visualization_output_dir).expanduser()
+        else:
+            base_dir = Path(__file__).resolve().parents[3] / "outputs" / "tongue_analysis"
         base_dir.mkdir(parents=True, exist_ok=True)
         video_name = Path(video_path).stem if video_path else "video"
         target_dir = (base_dir / video_name).resolve()
@@ -185,11 +185,14 @@ class TongueAnalysisPipeline:
             mask_tensor = obj.mask
             if mask_tensor is None:
                 continue
-            mask_np = mask_tensor.cpu().numpy().astype(bool)
+            mask_np = mask_tensor.detach().cpu().numpy()
             if mask_np.ndim == 3:
                 mask_np = mask_np[0]
+            mask_bool = mask_np.astype(bool)
+
             color = palette[color_idx % len(palette)]
-            overlay[mask_np] = color
+            overlay[mask_bool] = color
+
             if obj.x1 is not None and obj.y1 is not None and obj.x2 is not None and obj.y2 is not None:
                 cv2.rectangle(
                     overlay,

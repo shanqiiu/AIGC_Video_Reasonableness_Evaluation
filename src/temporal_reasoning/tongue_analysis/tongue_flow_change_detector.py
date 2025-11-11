@@ -53,7 +53,9 @@ class TongueFlowChangeDetector:
 
         roi_stats = self._extract_roi_stats(video_frames, mouth_masks)
         flow_diffs = self._compute_flow_change(video_frames, mouth_masks)
-        anomalies, frame_stats, baseline_motion = self._detect_anomalies(roi_stats, flow_diffs, fps, label)
+        anomalies, frame_stats, baseline_motion = self._detect_anomalies(
+            roi_stats, flow_diffs, fps, label
+        )
         score = 0.0 if anomalies else 1.0
 
         return {
