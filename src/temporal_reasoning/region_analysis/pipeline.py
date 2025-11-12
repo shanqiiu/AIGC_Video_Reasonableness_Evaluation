@@ -17,6 +17,108 @@ from src.temporal_reasoning.region_analysis.region_temporal_change_detector impo
 )
 
 
+_COMBINED_COLORS = [
+    (255, 99, 71),    # tomato
+    (60, 179, 113),   # medium sea green
+    (65, 105, 225),   # royal blue
+    (238, 130, 238),  # violet
+    (255, 215, 0),    # gold
+    (70, 130, 180),   # steel blue
+    (244, 164, 96),   # sandy brown
+    (0, 206, 209),    # dark turquoise
+    (205, 92, 92),    # indian red
+    (123, 104, 238),  # medium slate blue
+]
+
+
+class CombinedMaskVisualizer:
+    """Aggregate region masks and render combined overlays per frame."""
+
+    def __init__(
+        self,
+        base_dir: Path,
+        frames_uint8: Sequence[np.ndarray],
+        max_frames: Optional[int],
+    ) -> None:
+        self._frames = frames_uint8
+        self._max_frames = max_frames or 0
+        self.output_dir = (base_dir / "combined").resolve()
+        self.output_dir.mkdir(parents=True, exist_ok=True)
+        self._entries: Dict[int, Dict[str, object]] = {}
+        self._order: List[int] = []
+
+    def add_region_mask(self, frame_idx: int, region_name: str, mask: Optional[np.ndarray]) -> None:
+        if mask is None:
+            return
+        if frame_idx < 0 or frame_idx >= len(self._frames):
+            return
+
+        if frame_idx not in self._entries:
+            if self._max_frames > 0 and len(self._entries) >= self._max_frames:
+                return
+            self._entries[frame_idx] = {
+                "frame": self._frames[frame_idx].copy(),
+                "regions": [],
+            }
+            self._order.append(frame_idx)
+
+        regions: List[Tuple[str, np.ndarray]] = self._entries[frame_idx]["regions"]  # type: ignore[assignment]
+        regions.append((region_name, mask.copy()))
+
+    def save(self) -> Optional[Path]:
+        if not self._entries:
+            return None
+
+        for frame_idx in self._order:
+            entry = self._entries[frame_idx]
+            frame_rgb: np.ndarray = entry["frame"]  # type: ignore[assignment]
+            regions: List[Tuple[str, np.ndarray]] = entry["regions"]  # type: ignore[assignment]
+
+            overlay = frame_rgb.copy()
+            labels: List[Tuple[int, int, str]] = []
+
+            for region_name, mask in regions:
+                mask_bool = mask.astype(bool)
+                if not np.any(mask_bool):
+                    continue
+
+                color = self._color_for_region(region_name)
+                overlay[mask_bool] = color
+
+                mask_uint8 = (mask_bool.astype(np.uint8) * 255)
+                contours, _ = cv2.findContours(mask_uint8, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+                cv2.drawContours(overlay, contours, -1, color, 2)
+
+                ys, xs = np.where(mask_bool)
+                if xs.size > 0 and ys.size > 0:
+                    labels.append((int(xs.mean()), int(ys.mean()), region_name))
+
+            blended = cv2.addWeighted(frame_rgb, 0.6, overlay, 0.4, 0)
+
+            for x, y, name in labels:
+                cv2.putText(
+                    blended,
+                    name,
+                    (x, y),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.5,
+                    (255, 255, 255),
+                    1,
+                    cv2.LINE_AA,
+                )
+
+            save_path = self.output_dir / f"frame_{frame_idx:04d}.png"
+            cv2.imwrite(str(save_path), cv2.cvtColor(blended, cv2.COLOR_RGB2BGR))
+
+        return self.output_dir
+
+    @staticmethod
+    def _color_for_region(region_name: str) -> Tuple[int, int, int]:
+        idx = abs(hash(region_name)) % len(_COMBINED_COLORS)
+        return _COMBINED_COLORS[idx]
+
+
+
 class RegionMaskMode(Enum):
     POLYGON = "polygon"
     CONVEX_HULL = "convex_hull"
@@ -115,6 +217,7 @@ class RegionAnalysisPipelineConfig:
     enable_visualization: bool = False
     visualization_output_dir: Optional[str] = None
     visualization_max_frames: Optional[int] = 150
+    per_region_visualization: bool = False
 
 
 class RegionAnalysisPipeline:
@@ -127,6 +230,7 @@ class RegionAnalysisPipeline:
         self._initialized = False
         self._vis_dir: Optional[Path] = None
         self._vis_counters: Dict[str, int] = {}
+        self._combined_visualizer: Optional[CombinedMaskVisualizer] = None
 
     def initialize(self) -> None:
         if self._initialized:
@@ -153,6 +257,13 @@ class RegionAnalysisPipeline:
             for frame_uint8 in frames_uint8
         ]
 
+        if self._vis_dir:
+            self._combined_visualizer = CombinedMaskVisualizer(
+                self._vis_dir,
+                frames_uint8,
+                self.config.visualization_max_frames,
+            )
+
         region_results: Dict[str, Dict[str, object]] = {}
         overall_anomalies: List[Dict[str, object]] = []
         scores: List[float] = []
@@ -160,6 +271,9 @@ class RegionAnalysisPipeline:
 
         for region in self.config.regions:
             masks, coverage = self._build_region_masks(region, frames_uint8, keypoint_sequence)
+            if self._combined_visualizer is not None:
+                for frame_idx, mask in enumerate(masks):
+                    self._combined_visualizer.add_region_mask(frame_idx, region.name, mask)
             detector = RegionTemporalChangeDetector(self.flow_analyzer, region.temporal_config)
             region_result = detector.analyze(video_frames, masks, fps=fps, label=region.name)
 
@@ -182,6 +296,12 @@ class RegionAnalysisPipeline:
 
         overall_score = float(np.mean(scores)) if scores else 1.0
         metadata: Dict[str, object] = {"regions": list(region_results.keys())}
+        combined_output: Optional[Path] = None
+        if self._combined_visualizer is not None:
+            combined_output = self._combined_visualizer.save()
+            self._combined_visualizer = None
+        if combined_output is not None:
+            metadata["combined_visualization_dir"] = str(combined_output)
         if visualization_dirs:
             metadata["visualization_dirs"] = visualization_dirs
 
@@ -312,6 +432,7 @@ class RegionAnalysisPipeline:
         if not self.config.enable_visualization:
             self._vis_dir = None
             self._vis_counters = {}
+            self._combined_visualizer = None
             return
 
         if self.config.visualization_output_dir:
@@ -324,6 +445,7 @@ class RegionAnalysisPipeline:
         target_dir.mkdir(parents=True, exist_ok=True)
         self._vis_dir = target_dir
         self._vis_counters = {}
+        self._combined_visualizer = None
 
     def _save_mask_visualization(
         self,
@@ -341,8 +463,11 @@ class RegionAnalysisPipeline:
         if max_frames > 0 and counter >= max_frames:
             return
 
-        region_dir = self._vis_dir / region.name
-        region_dir.mkdir(parents=True, exist_ok=True)
+        if self.config.per_region_visualization:
+            region_dir = self._vis_dir / region.name
+            region_dir.mkdir(parents=True, exist_ok=True)
+        else:
+            region_dir = None
 
         frame_uint8 = self._ensure_uint8(frame)
         frame_rgb = frame_uint8.copy()
@@ -375,7 +500,9 @@ class RegionAnalysisPipeline:
             1,
             cv2.LINE_AA,
         )
-        save_path = region_dir / f"frame_{frame_idx:04d}.png"
-        cv2.imwrite(str(save_path), cv2.cvtColor(blended, cv2.COLOR_RGB2BGR))
-        self._vis_counters[region.name] = counter + 1
+        if region_dir is not None:
+            save_path = region_dir / f"frame_{frame_idx:04d}.png"
+            cv2.imwrite(str(save_path), cv2.cvtColor(blended, cv2.COLOR_RGB2BGR))
+            self._vis_counters[region.name] = counter + 1
+
 

@@ -18,7 +18,7 @@ if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
 os.chdir(project_root)
 
-import tqdm  # type: ignore
+from tqdm import tqdm  # type: ignore
 
 VIDEO_EXTENSIONS = {".mp4"}
 
@@ -143,6 +143,11 @@ def parse_args() -> argparse.Namespace:
         help="Save region mask visualizations for each frame.",
     )
     parser.add_argument(
+        "--per_region_vis",
+        action="store_true",
+        help="Also save per-region visualization images (in addition to combined overlays).",
+    )
+    parser.add_argument(
         "--vis_dir",
         help="Directory to store visualization frames.",
     )
@@ -178,6 +183,7 @@ def build_pipeline_config(
     enable_visualization: bool,
     visualization_output_dir: Optional[str],
     visualization_max_frames: int,
+    per_region_visualization: bool,
 ) -> RegionAnalysisPipelineConfig:
     pipeline_config = RegionAnalysisPipelineConfig(
         raft=temporal_config.raft,
@@ -185,6 +191,7 @@ def build_pipeline_config(
         enable_visualization=enable_visualization,
         visualization_output_dir=visualization_output_dir,
         visualization_max_frames=visualization_max_frames,
+        per_region_visualization=per_region_visualization,
     )
 
     available_regions = {region.name: copy.deepcopy(region) for region in pipeline_config.regions}
@@ -311,6 +318,7 @@ def main() -> None:
         enable_visualization=args.visualize,
         visualization_output_dir=args.vis_dir,
         visualization_max_frames=args.vis_max_frames,
+        per_region_visualization=args.per_region_vis,
     )
 
     summary_records: List[Dict[str, Any]] = []
