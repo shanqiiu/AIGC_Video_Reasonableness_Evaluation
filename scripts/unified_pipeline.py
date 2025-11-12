@@ -30,11 +30,14 @@ from src.temporal_reasoning.region_analysis.pipeline import (
 )
 from src.temporal_reasoning.utils.video_utils import load_video_frames, get_video_info
 
-# 设置blur_new模块路径
+# 动态导入blur_new模块
+import importlib.util
 blur_new_path = os.path.join(project_root, 'src', 'perceptual_quality', 'blur_new')
-if blur_new_path not in sys.path:
-    sys.path.insert(0, blur_new_path)
-from simple_blur_detector import BlurDetector
+simple_blur_detector_path = os.path.join(blur_new_path, 'simple_blur_detector.py')
+spec = importlib.util.spec_from_file_location("simple_blur_detector", simple_blur_detector_path)
+simple_blur_detector = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(simple_blur_detector)
+BlurDetector = simple_blur_detector.BlurDetector
 
 
 class UnifiedEvaluationPipeline:

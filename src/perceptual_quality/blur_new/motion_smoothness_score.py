@@ -203,7 +203,13 @@ def load_video_with_sliding_window(video_path: str, window_size: int = 5) -> Lis
     Returns:
         帧组列表，每个元素包含 window_size 帧
     """
-    video_reader = VideoReader(video_path)
+    # 明确指定使用CPU上下文，确保返回类型一致
+    from decord import cpu
+    try:
+        video_reader = VideoReader(video_path, ctx=cpu(0))
+    except TypeError:
+        # 如果decord版本不支持ctx参数，使用默认方式
+        video_reader = VideoReader(video_path)
     total_frames = len(video_reader)
     frame_groups = []
     
@@ -228,7 +234,21 @@ def load_video_with_sliding_window(video_path: str, window_size: int = 5) -> Lis
                 frame_indices.insert(0, frame_indices[0])
         
         # 读取帧数据
-        frames_array = video_reader.get_batch(frame_indices).asnumpy()
+        frames_batch = video_reader.get_batch(frame_indices)
+        # 兼容不同版本的decord：可能是NDArray（有asnumpy）或Tensor（有numpy）
+        if hasattr(frames_batch, 'asnumpy'):
+            frames_array = frames_batch.asnumpy()
+        elif hasattr(frames_batch, 'numpy'):
+            frames_array = frames_batch.numpy()
+        elif isinstance(frames_batch, np.ndarray):
+            frames_array = frames_batch
+        else:
+            # 如果是torch tensor，转换为numpy
+            import torch
+            if isinstance(frames_batch, torch.Tensor):
+                frames_array = frames_batch.cpu().numpy()
+            else:
+                frames_array = np.array(frames_batch)
         
         # 对开头帧做特殊处理，保证窗口长度一致
         if current_frame_idx < left_extend:
@@ -253,7 +273,13 @@ def load_video_with_sliding_window_generator(
     Yields:
         帧窗口列表，每个窗口包含 window_size 帧
     """
-    video_reader = VideoReader(video_path)
+    # 明确指定使用CPU上下文，确保返回类型一致
+    from decord import cpu
+    try:
+        video_reader = VideoReader(video_path, ctx=cpu(0))
+    except TypeError:
+        # 如果decord版本不支持ctx参数，使用默认方式
+        video_reader = VideoReader(video_path)
     total_frames = len(video_reader)
     
     # 计算窗口扩展帧数
@@ -277,7 +303,21 @@ def load_video_with_sliding_window_generator(
                 frame_indices.insert(0, frame_indices[0])
         
         # 读取帧数据
-        frames_array = video_reader.get_batch(frame_indices).asnumpy()
+        frames_batch = video_reader.get_batch(frame_indices)
+        # 兼容不同版本的decord：可能是NDArray（有asnumpy）或Tensor（有numpy）
+        if hasattr(frames_batch, 'asnumpy'):
+            frames_array = frames_batch.asnumpy()
+        elif hasattr(frames_batch, 'numpy'):
+            frames_array = frames_batch.numpy()
+        elif isinstance(frames_batch, np.ndarray):
+            frames_array = frames_batch
+        else:
+            # 如果是torch tensor，转换为numpy
+            import torch
+            if isinstance(frames_batch, torch.Tensor):
+                frames_array = frames_batch.cpu().numpy()
+            else:
+                frames_array = np.array(frames_batch)
         
         # 对开头帧做特殊处理
         if current_frame_idx < left_extend:
