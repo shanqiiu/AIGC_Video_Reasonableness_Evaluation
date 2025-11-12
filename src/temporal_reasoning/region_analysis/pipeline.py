@@ -132,7 +132,7 @@ class RegionDefinition:
     mask_mode: RegionMaskMode
     keypoint_indices: Sequence[int] = ()
     min_area: int = 64
-    margin_ratio: float = 0.05
+    margin_ratio: float = 0.02
     temporal_config: RegionTemporalChangeConfig = field(default_factory=RegionTemporalChangeConfig)
 
 
@@ -144,7 +144,7 @@ def default_regions() -> List[RegionDefinition]:
             mask_mode=RegionMaskMode.POLYGON,
             keypoint_indices=(61, 146, 91, 181, 84, 17, 314, 405, 321, 375, 291, 308),
             min_area=64,
-            margin_ratio=0.04,
+            margin_ratio=0.02,
             temporal_config=RegionTemporalChangeConfig(
                 motion_threshold=2.0,
                 similarity_threshold=0.25,
@@ -184,8 +184,8 @@ def default_regions() -> List[RegionDefinition]:
             name="left_hand",
             keypoint_group="left_hand",
             mask_mode=RegionMaskMode.CONVEX_HULL,
-            min_area=80,
-            margin_ratio=0.03,
+            min_area=50,
+            margin_ratio=0.02,
             temporal_config=RegionTemporalChangeConfig(
                 motion_threshold=2.5,
                 similarity_threshold=0.3,
@@ -197,8 +197,8 @@ def default_regions() -> List[RegionDefinition]:
             name="right_hand",
             keypoint_group="right_hand",
             mask_mode=RegionMaskMode.CONVEX_HULL,
-            min_area=80,
-            margin_ratio=0.03,
+            min_area=50,
+            margin_ratio=0.02,
             temporal_config=RegionTemporalChangeConfig(
                 motion_threshold=2.5,
                 similarity_threshold=0.3,
