@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 import sys
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
@@ -25,6 +25,16 @@ from .mask_manager import MaskDictionary
 from .tcs_utils import get_appear_objects, get_disappear_objects
 from .types import ObjectInfo
 from .video_io import extract_frames_from_video
+
+# 导入区域时序变化检测器
+try:
+    from src.temporal_reasoning.region_analysis.region_temporal_change_detector import (
+        RegionTemporalChangeDetector,
+        RegionTemporalChangeConfig,
+    )
+    REGION_ANALYSIS_AVAILABLE = True
+except ImportError:
+    REGION_ANALYSIS_AVAILABLE = False
 
 
 @dataclass
@@ -54,6 +64,9 @@ class TemporalCoherenceConfig:
     size_change_area_ratio_threshold: float = 3.0
     size_change_height_ratio_threshold: float = 2.5
     size_change_min_area: int = 200
+    # 区域时序变化检测配置（复用区域分析逻辑）
+    enable_region_temporal_analysis: bool = True  # 是否启用区域时序变化检测（默认开启）
+    region_temporal_config: Optional[RegionTemporalChangeConfig] = None  # 区域时序变化检测配置
 
 
 @dataclass
@@ -420,6 +433,14 @@ class TemporalCoherencePipeline:
                 fps=fps,
             )
         )
+        # 区域时序变化检测（复用区域分析逻辑，使用SAM2的mask）
+        if self.config.enable_region_temporal_analysis and REGION_ANALYSIS_AVAILABLE:
+            region_anomalies = self._analyze_region_temporal_changes(
+                frames,
+                video_object_data,  # 使用完整的video_object_data，而不是过滤后的tracking_result
+                fps=fps,
+            )
+            anomalies.extend(region_anomalies)
 
         if self.config.cotracker_visualization_enable:
             self._save_cotracker_visualization(
@@ -428,10 +449,26 @@ class TemporalCoherencePipeline:
                 fps=fps,
             )
 
+        # 统计检测失败信息
+        detection_failure_stats = {
+            "detection_failure_count": len(detection_failures),
+            "detection_failure_frames": [f.get('frame', 0) for f in detection_failures],
+            "detection_failure_details": [
+                {
+                    "frame": f.get('frame', 0),
+                    "propagated_objects": f.get('propagated_objects', []),
+                    "propagated_objects_count": len(f.get('propagated_objects', [])),
+                    "description": f.get('description', ''),
+                }
+                for f in detection_failures
+            ],
+        }
+        
         metadata = {
             "objects_count": objects_count,
             "tracking_result_length": len(tracking_result),
             "step": step,
+            "detection_failures": detection_failure_stats,
         }
         return TemporalCoherenceResult(
             coherence_score=coherence_score,
@@ -796,6 +833,140 @@ class TemporalCoherencePipeline:
                 })
         
         return anomalies
+
+    def _analyze_region_temporal_changes(
+        self,
+        frames: List[np.ndarray],
+        video_object_data: List[Dict],
+        fps: int,
+    ) -> List[Dict[str, Any]]:
+        """
+        使用区域时序变化检测逻辑分析SAM2检测到的对象
+        
+        对每个检测到的对象，使用RegionTemporalChangeDetector进行时序变化检测
+        复用区域分析的有效逻辑
+        
+        Args:
+            frames: 视频帧序列
+            video_object_data: SAM2完整追踪数据（每帧的对象信息）
+            fps: 帧率
+        
+        Returns:
+            区域时序变化异常列表
+        """
+        if not REGION_ANALYSIS_AVAILABLE:
+            print("[警告] 区域时序变化检测模块不可用，跳过该分析")
+            return []
+        
+        if not video_object_data or len(video_object_data) == 0:
+            return []
+        
+        # 初始化光流分析器（如果还没有）
+        from src.temporal_reasoning.motion_flow.flow_analyzer import MotionFlowAnalyzer
+        from src.temporal_reasoning.core.config import RAFTConfig
+        
+        if not hasattr(self, '_flow_analyzer') or self._flow_analyzer is None:
+            # 使用默认RAFT配置
+            raft_config = RAFTConfig()
+            self._flow_analyzer = MotionFlowAnalyzer(raft_config)
+            self._flow_analyzer.initialize()
+        
+        # 使用配置的区域时序变化检测配置，或使用默认配置
+        region_config = self.config.region_temporal_config
+        if region_config is None:
+            region_config = RegionTemporalChangeConfig()
+        
+        detector = RegionTemporalChangeDetector(self._flow_analyzer, region_config)
+        
+        # 提取每帧的对象mask
+        # video_object_data 结构: List[Dict[int, Dict]]，每个Dict的key是object_id
+        # 需要转换为每帧的mask列表，对每个对象分别分析
+        
+        all_anomalies: List[Dict[str, Any]] = []
+        
+        # 收集所有对象的ID
+        all_object_ids = set()
+        for frame_data in video_object_data:
+            if isinstance(frame_data, dict):
+                all_object_ids.update(frame_data.keys())
+        
+        # 对每个对象进行时序变化检测
+        for obj_id in all_object_ids:
+            # 提取该对象在所有帧中的mask
+            object_masks: List[Optional[np.ndarray]] = []
+            
+            for frame_data in video_object_data:
+                if isinstance(frame_data, dict) and obj_id in frame_data:
+                    obj_info = frame_data[obj_id]
+                    # 从序列化的数据中恢复mask
+                    if isinstance(obj_info, dict):
+                        mask_data = obj_info.get('mask')
+                        if mask_data is not None:
+                            # mask可能是list（序列化后的numpy数组）
+                            if isinstance(mask_data, list):
+                                mask_np = np.array(mask_data, dtype=bool)
+                            elif isinstance(mask_data, torch.Tensor):
+                                mask_np = mask_data.cpu().numpy().astype(bool)
+                            else:
+                                mask_np = np.array(mask_data, dtype=bool)
+                            
+                            # 确保mask是2D
+                            if mask_np.ndim == 3 and mask_np.shape[0] == 1:
+                                mask_np = mask_np[0]
+                            elif mask_np.ndim == 3:
+                                mask_np = mask_np[:, :, 0] if mask_np.shape[2] == 1 else mask_np
+                            
+                            object_masks.append(mask_np.astype(bool))
+                        else:
+                            object_masks.append(None)
+                    else:
+                        object_masks.append(None)
+                else:
+                    object_masks.append(None)
+            
+            # 如果对象在至少一帧中出现，进行时序变化检测
+            if any(m is not None for m in object_masks):
+                # 确保frames和masks长度一致
+                min_len = min(len(frames), len(object_masks))
+                frames_subset = frames[:min_len]
+                masks_subset = object_masks[:min_len]
+                
+                # 获取对象类别名称
+                class_name = ""
+                for frame_data in video_object_data:
+                    if isinstance(frame_data, dict) and obj_id in frame_data:
+                        obj_info = frame_data[obj_id]
+                        if isinstance(obj_info, dict):
+                            class_name = obj_info.get('class_name', '')
+                            break
+                
+                label = f"object_{obj_id}_{class_name}" if class_name else f"object_{obj_id}"
+                
+                try:
+                    # 使用区域时序变化检测器分析
+                    region_result = detector.analyze(
+                        frames_subset,
+                        masks_subset,
+                        fps=fps,
+                        label=label,
+                    )
+                    
+                    # 将区域异常转换为结构异常格式，并添加对象信息
+                    for anomaly in region_result.get('anomalies', []):
+                        anomaly['metadata'] = anomaly.get('metadata', {})
+                        anomaly['metadata']['object_id'] = obj_id
+                        anomaly['metadata']['class_name'] = class_name
+                        anomaly['type'] = 'structural_region_temporal_change'
+                        anomaly['modality'] = 'structure'
+                        all_anomalies.append(anomaly)
+                except Exception as e:
+                    print(f"[警告] 对象 {obj_id} 的区域时序变化检测失败: {e}")
+                    continue
+        
+        if all_anomalies:
+            print(f"[区域时序分析] 检测到 {len(all_anomalies)} 个区域时序变化异常")
+        
+        return all_anomalies
 
 
 def read_video_fps(video_path: str) -> Optional[int]:

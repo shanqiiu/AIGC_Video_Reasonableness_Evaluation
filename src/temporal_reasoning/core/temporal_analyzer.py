@@ -221,27 +221,36 @@ class TemporalReasoningAnalyzer:
             },
         )
 
+        # 构建 sub_scores（如果关键点模块未启用，不包含 physiological_score）
+        sub_scores = {
+            "motion_score": float(motion_score),
+            "structure_score": float(structure_output.score),
+        }
+        if self.keypoint_analyzer is not None:
+            sub_scores["physiological_score"] = float(physiological_score)
+        
+        # 构建 anomaly_counts（如果关键点模块未启用，不包含 physiological）
+        anomaly_counts = {
+            "motion": len(motion_anomalies),
+            "structure": len(structure_output.anomalies),
+            "fused": len(fused_anomalies),
+        }
+        if self.keypoint_analyzer is not None:
+            anomaly_counts["physiological"] = len(physiological_anomalies)
+        
         result = {
             "motion_reasonableness_score": float(final_motion_score),
             "structure_stability_score": float(final_structure_score),
             "anomalies": fused_anomalies,
-            "sub_scores": {
-                "motion_score": float(motion_score),
-                "structure_score": float(structure_output.score),
-                "physiological_score": float(physiological_score),
-            },
-            "anomaly_counts": {
-                "motion": len(motion_anomalies),
-                "structure": len(structure_output.anomalies),
-                "physiological": len(physiological_anomalies),
-                "fused": len(fused_anomalies),
-            },
+            "sub_scores": sub_scores,
+            "anomaly_counts": anomaly_counts,
             "structure_metrics": {
                 "coherence_score": float(structure_output.score),
                 "vanish_score": float(structure_output.vanish_score),
                 "emerge_score": float(structure_output.emerge_score),
                 **structure_output.metadata,
             },
+            "detection_failure_info": structure_output.metadata.get("detection_failures", {}),
         }
 
         print("\n" + "=" * 50)

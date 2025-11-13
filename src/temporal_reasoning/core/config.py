@@ -76,8 +76,8 @@ class KeypointConfig:
 class FusionConfig:
     """多模态融合与打分配置。"""
     multimodal_confidence_boost: float = 1.2
-    min_anomaly_duration_frames: int = 3
-    single_modality_confidence_threshold: float = 0.8
+    min_anomaly_duration_frames: int = 1  # 从3降到1，允许单帧异常
+    single_modality_confidence_threshold: float = 0.5  # 从0.8降到0.5
 
 
 @dataclass
