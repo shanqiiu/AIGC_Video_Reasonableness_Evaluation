@@ -23,6 +23,7 @@ def fuse_multimodal_anomalies(
         融合后的异常列表
     """
     fused_anomalies = []
+    filtered_count = 0  # 统计被过滤的异常组数
     
     for anomaly_group in aligned_anomalies:
         if not anomaly_group:
@@ -42,6 +43,7 @@ def fuse_multimodal_anomalies(
         else:
             # 单模态异常需要达到阈值
             if base_confidence < single_modality_threshold:
+                filtered_count += 1
                 continue  # 过滤低置信度单模态异常
             fused_confidence = base_confidence
         
@@ -66,6 +68,9 @@ def fuse_multimodal_anomalies(
         }
         
         fused_anomalies.append(fused_anomaly)
+    
+    if filtered_count > 0:
+        print(f"[融合] 过滤了 {filtered_count} 个低置信度单模态异常组（置信度 < {single_modality_threshold}）")
     
     return fused_anomalies
 

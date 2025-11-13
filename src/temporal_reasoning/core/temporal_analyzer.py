@@ -240,6 +240,18 @@ class TemporalReasoningAnalyzer:
         if self.keypoint_analyzer is not None:
             anomaly_counts["physiological"] = len(physiological_anomalies)
         
+        # 收集每帧异常检测信息
+        per_frame_anomaly_detection = self._collect_per_frame_anomaly_info(
+            video_frames,
+            motion_anomalies,
+            structure_output,
+            physiological_anomalies if self.keypoint_analyzer is not None else [],
+            fps
+        )
+        
+        # 收集所有阈值配置
+        thresholds_info = self._collect_thresholds_info()
+        
         result = {
             "motion_reasonableness_score": float(final_motion_score),
             "structure_stability_score": float(final_structure_score),
@@ -252,6 +264,8 @@ class TemporalReasoningAnalyzer:
                 "emerge_score": float(structure_output.emerge_score),
                 **structure_output.metadata,
             },
+            "per_frame_anomaly_detection": per_frame_anomaly_detection,
+            "thresholds": thresholds_info,
         }
 
         print("\n" + "=" * 50)
@@ -263,6 +277,134 @@ class TemporalReasoningAnalyzer:
         print("=" * 50)
 
         return result
+
+    def _collect_per_frame_anomaly_info(
+        self,
+        video_frames: List[np.ndarray],
+        motion_anomalies: List[Dict],
+        structure_output: StructureAnalysisOutput,
+        physiological_anomalies: List[Dict],
+        fps: float,
+    ) -> List[Dict[str, Any]]:
+        """
+        收集每帧的异常检测信息
+        
+        Returns:
+            每帧的异常检测信息列表
+        """
+        total_frames = len(video_frames)
+        per_frame_info = []
+        
+        # 按帧ID组织异常
+        motion_by_frame = {}
+        for anomaly in motion_anomalies:
+            frame_id = anomaly.get('frame_id', 0)
+            if frame_id not in motion_by_frame:
+                motion_by_frame[frame_id] = []
+            motion_by_frame[frame_id].append(anomaly)
+        
+        structure_by_frame = {}
+        for anomaly in structure_output.anomalies:
+            frame_id = anomaly.get('frame_id', 0)
+            if frame_id not in structure_by_frame:
+                structure_by_frame[frame_id] = []
+            structure_by_frame[frame_id].append(anomaly)
+        
+        physiological_by_frame = {}
+        for anomaly in physiological_anomalies:
+            frame_id = anomaly.get('frame_id', 0)
+            if frame_id not in physiological_by_frame:
+                physiological_by_frame[frame_id] = []
+            physiological_by_frame[frame_id].append(anomaly)
+        
+        # 获取结构分析的每帧信息
+        structure_frame_states = structure_output.metadata.get('frame_states', [])
+        structure_frame_dict = {state.get('frame_index', -1): state for state in structure_frame_states}
+        
+        # 为每一帧创建信息
+        for frame_idx in range(total_frames):
+            frame_info = {
+                "frame_index": frame_idx,
+                "timestamp": frame_idx / max(fps, 1),
+                "motion": {
+                    "anomalies": motion_by_frame.get(frame_idx, []),
+                    "anomaly_count": len(motion_by_frame.get(frame_idx, [])),
+                },
+                "structure": {
+                    "anomalies": structure_by_frame.get(frame_idx, []),
+                    "anomaly_count": len(structure_by_frame.get(frame_idx, [])),
+                    "frame_state": structure_frame_dict.get(frame_idx, {}),
+                },
+                "physiological": {
+                    "anomalies": physiological_by_frame.get(frame_idx, []),
+                    "anomaly_count": len(physiological_by_frame.get(frame_idx, [])),
+                },
+            }
+            
+            # 添加结构分析的详细值（如果可用）
+            if frame_idx in structure_frame_dict:
+                frame_state = structure_frame_dict[frame_idx]
+                frame_info["structure"].update({
+                    "object_count": frame_state.get("object_count", 0),
+                    "frame_type": frame_state.get("frame_type", "unknown"),
+                    "detected": frame_state.get("detected", False),
+                })
+            
+            per_frame_info.append(frame_info)
+        
+        return per_frame_info
+    
+    def _collect_thresholds_info(self) -> Dict[str, Any]:
+        """
+        收集所有阈值配置信息
+        
+        Returns:
+            阈值配置字典
+        """
+        thresholds_info = {}
+        
+        # 运动分析阈值
+        if hasattr(self.config, 'thresholds'):
+            thresholds_info['motion'] = {
+                "motion_discontinuity_threshold": self.config.thresholds.motion_discontinuity_threshold,
+            }
+        
+        # 结构分析阈值
+        if self.structure_pipeline:
+            thresholds_info['structure'] = {
+                "size_change_area_ratio_threshold": self.structure_pipeline.config.size_change_area_ratio_threshold,
+                "size_change_height_ratio_threshold": self.structure_pipeline.config.size_change_height_ratio_threshold,
+                "size_change_min_area": self.structure_pipeline.config.size_change_min_area,
+                "iou_threshold": self.structure_pipeline.config.iou_threshold,
+            }
+        
+        # 融合阈值
+        if hasattr(self.config, 'fusion'):
+            thresholds_info['fusion'] = {
+                "multimodal_confidence_boost": self.config.fusion.multimodal_confidence_boost,
+                "min_anomaly_duration_frames": self.config.fusion.min_anomaly_duration_frames,
+                "single_modality_confidence_threshold": self.config.fusion.single_modality_confidence_threshold,
+            }
+        
+        # 关键点分析阈值
+        if hasattr(self.config, 'thresholds') and hasattr(self.config.thresholds, 'keypoint_displacement_threshold'):
+            thresholds_info['keypoint'] = {
+                "keypoint_displacement_threshold": self.config.thresholds.keypoint_displacement_threshold,
+            }
+        
+        # 区域时序变化检测阈值
+        if self.structure_pipeline and self.structure_pipeline.config.region_temporal_config:
+            region_config = self.structure_pipeline.config.region_temporal_config
+            thresholds_info['region_temporal'] = {
+                "motion_threshold": region_config.motion_threshold,
+                "similarity_threshold": region_config.similarity_threshold,
+                "consecutive_frames": region_config.consecutive_frames,
+                "baseline_window": region_config.baseline_window,
+                "min_roi_size": region_config.min_roi_size,
+                "hist_diff_threshold": region_config.hist_diff_threshold,
+            }
+        
+        return thresholds_info
 
     def _analyze_structure(
         self,

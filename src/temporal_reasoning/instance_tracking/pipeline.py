@@ -516,6 +516,14 @@ class TemporalCoherencePipeline:
             ],
         }
         
+        # 收集阈值信息
+        thresholds_info = {
+            "size_change_area_ratio_threshold": self.config.size_change_area_ratio_threshold,
+            "size_change_height_ratio_threshold": self.config.size_change_height_ratio_threshold,
+            "size_change_min_area": self.config.size_change_min_area,
+            "iou_threshold": self.config.iou_threshold,
+        }
+        
         metadata = {
             "objects_count": objects_count,
             "tracking_result_length": len(tracking_result),  # 所有帧的数量（采样帧 + 传播帧）
@@ -523,6 +531,7 @@ class TemporalCoherencePipeline:
             "step": step,
             "detection_failures": detection_failure_stats,
             "frame_states": frame_states,  # 每帧的状态信息
+            "thresholds": thresholds_info,  # 阈值配置
         }
         return TemporalCoherenceResult(
             coherence_score=coherence_score,
