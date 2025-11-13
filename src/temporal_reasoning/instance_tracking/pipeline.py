@@ -9,6 +9,7 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple
 import cv2
 import numpy as np
 import torch
+from PIL import Image
 from tqdm import tqdm
 
 _ROOT = Path(__file__).resolve().parents[3]
@@ -934,6 +935,18 @@ class TemporalCoherencePipeline:
                 frames_subset = frames[:min_len]
                 masks_subset = object_masks[:min_len]
                 
+                # 将PIL Image对象转换为numpy数组（RegionTemporalChangeDetector需要numpy数组）
+                frames_np = []
+                for frame in frames_subset:
+                    if isinstance(frame, Image.Image):
+                        # PIL Image转换为numpy数组
+                        frames_np.append(np.array(frame.convert("RGB")))
+                    elif isinstance(frame, np.ndarray):
+                        frames_np.append(frame)
+                    else:
+                        # 尝试转换为numpy数组
+                        frames_np.append(np.array(frame))
+                
                 # 获取对象类别名称
                 class_name = ""
                 for frame_data in video_object_data:
@@ -948,7 +961,7 @@ class TemporalCoherencePipeline:
                 try:
                     # 使用区域时序变化检测器分析
                     region_result = detector.analyze(
-                        frames_subset,
+                        frames_np,
                         masks_subset,
                         fps=fps,
                         label=label,
