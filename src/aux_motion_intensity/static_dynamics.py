@@ -171,6 +171,8 @@ class StaticObjectDynamicsCalculator:
         dynamics_scores = [r['static_dynamics']['dynamics_score'] for r in frame_results]
         static_ratios = [r['global_dynamics']['static_ratio'] for r in frame_results]
         consistency_scores = [r['global_dynamics']['consistency_score'] for r in frame_results]
+        # 提取每帧的动态区域平均光流幅值
+        mean_dynamic_magnitudes = [r['global_dynamics']['mean_dynamic_magnitude'] for r in frame_results]
         return {
             'mean_dynamics_score': float(np.mean(dynamics_scores)),
             'std_dynamics_score': float(np.std(dynamics_scores)),
@@ -180,6 +182,11 @@ class StaticObjectDynamicsCalculator:
             'std_static_ratio': float(np.std(static_ratios)),
             'mean_consistency_score': float(np.mean(consistency_scores)),
             'temporal_stability': float(1.0 / (1.0 + np.std(dynamics_scores))),
+            # 动态区域平均光流幅值统计
+            'mean_dynamic_magnitude': float(np.mean(mean_dynamic_magnitudes)),
+            'std_dynamic_magnitude': float(np.std(mean_dynamic_magnitudes)),
+            'max_dynamic_magnitude': float(np.max(mean_dynamic_magnitudes)),
+            'min_dynamic_magnitude': float(np.min(mean_dynamic_magnitudes)),
         }
 
     def visualize_results(self, image: np.ndarray, flow: np.ndarray, result: Dict, save_path: Optional[str] = None):
