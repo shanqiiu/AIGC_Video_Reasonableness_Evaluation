@@ -4,7 +4,7 @@ import json
 import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Sequence
+from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 import cv2
 import numpy as np
@@ -37,6 +37,7 @@ class TemporalCoherenceConfig:
     sam2_config_path: str = "configs/sam2.1/sam2.1_hiera_l.yaml"
     sam2_checkpoint_path: str = ".cache/sam2.1_hiera_large.pt"
     cotracker_checkpoint_path: str = ".cache/scaled_offline.pth"
+    enable_cotracker: bool = False  # 是否启用CoTracker验证（默认不启用，仅使用SAM2评估）
     device: str = "cuda"
     box_threshold: float = 0.35
     text_threshold: float = 0.35
@@ -102,17 +103,24 @@ class TemporalCoherencePipeline:
 
     def initialize(self) -> None:
         self.detection_engine.initialize()
-        device = self.config.device if torch.cuda.is_available() else "cpu"
-        self.cotracker_model = CoTrackerPredictor(
-            checkpoint=self.config.cotracker_checkpoint_path,
-            v2=False,
-            offline=True,
-            window_len=60,
-        ).to(device)
-        self.event_evaluator = TemporalEventEvaluator(
-            self.cotracker_model,
-            grid_size=self.config.grid_size,
-        )
+        # CoTracker是可选的，默认不启用
+        if self.config.enable_cotracker:
+            device = self.config.device if torch.cuda.is_available() else "cpu"
+            self.cotracker_model = CoTrackerPredictor(
+                checkpoint=self.config.cotracker_checkpoint_path,
+                v2=False,
+                offline=True,
+                window_len=60,
+            ).to(device)
+            self.event_evaluator = TemporalEventEvaluator(
+                self.cotracker_model,
+                grid_size=self.config.grid_size,
+            )
+            print("[配置] 已启用 CoTracker 验证（将验证消失/出现的合理性）")
+        else:
+            self.cotracker_model = None
+            self.event_evaluator = None
+            print("[配置] CoTracker 已禁用（仅使用 SAM2 进行评估）")
 
     def _compose_text_prompt(
         self,
@@ -137,13 +145,87 @@ class TemporalCoherencePipeline:
         obj.update_box()
         return obj
 
+    def _compute_sam2_only_scores(
+        self,
+        disappear_objects: List[Dict],
+        appear_objects: List[Dict],
+        tracking_result: List[Dict],
+        objects_count: int,
+        fps: int,
+    ) -> Tuple[float, float]:
+        """
+        仅使用SAM2评估时计算消失/出现分数
+        
+        逻辑：
+        1. 如果没有消失/出现对象，分数为1.0
+        2. 如果有消失/出现对象，根据对象数量和持续时间计算分数
+        3. 考虑对象的持续时间：持续时间越长，突然消失/出现越不合理
+        
+        Args:
+            disappear_objects: 消失对象列表
+            appear_objects: 出现对象列表
+            tracking_result: 追踪结果
+            objects_count: 对象总数
+            fps: 帧率
+        
+        Returns:
+            (vanish_score, emerge_score): 消失分数和出现分数
+        """
+        # 计算消失分数
+        if not disappear_objects:
+            vanish_score = 1.0
+        else:
+            if objects_count == 0:
+                vanish_score = 1.0
+            else:
+                # 计算消失对象的平均持续时间
+                total_duration = 0.0
+                for obj in disappear_objects:
+                    first_appearance = obj.get("first_appearance", 0)
+                    last_frame = obj.get("last_frame", first_appearance)
+                    duration = (last_frame - first_appearance + 1) / fps  # 转换为秒
+                    total_duration += duration
+                
+                avg_duration = total_duration / len(disappear_objects) if disappear_objects else 0.0
+                
+                # 计算消失比例
+                disappear_ratio = len(disappear_objects) / objects_count if objects_count > 0 else 0.0
+                
+                # 分数计算：
+                # - 消失比例越高，分数越低
+                # - 持续时间越长，突然消失越不合理，分数越低
+                # - 最小分数为0.0
+                vanish_score = max(0.0, 1.0 - disappear_ratio * (1.0 + min(avg_duration / 2.0, 1.0)))
+        
+        # 计算出现分数
+        if not appear_objects:
+            emerge_score = 1.0
+        else:
+            if objects_count == 0:
+                # 如果之前没有对象，新出现对象是合理的
+                emerge_score = 0.8
+            else:
+                # 计算出现对象的数量比例
+                appear_ratio = len(appear_objects) / objects_count if objects_count > 0 else 0.0
+                
+                # 分数计算：
+                # - 出现比例越高，分数越低
+                # - 最小分数为0.0
+                emerge_score = max(0.0, 1.0 - appear_ratio * 0.8)
+        
+        return vanish_score, emerge_score
+
     def evaluate_video(
         self,
         video_path: str,
         text_prompts: Optional[Sequence[str]] = None,
     ) -> TemporalCoherenceResult:
-        if self.event_evaluator is None:
-            raise RuntimeError("TemporalEventEvaluator is not initialized.")
+        # CoTracker是可选的，如果没有启用则跳过验证
+        if self.config.enable_cotracker and self.event_evaluator is None:
+            raise RuntimeError("CoTracker已启用但TemporalEventEvaluator未初始化。")
+        
+        # 初始化检测失败列表（用于记录采样帧未检测到但之前有传播对象的情况）
+        detection_failures: List[Dict] = []
 
         vis_dir: Optional[Path] = None
         vis_counter = 0
@@ -165,18 +247,72 @@ class TemporalCoherencePipeline:
         sam2_masks = MaskDictionary()
         objects_count = 0
         video_object_data: List[Dict] = []
-
+        
         for start_frame_idx in range(0, len(frames), step):
             image = frames[start_frame_idx]
             mask_dict = self.detection_engine.detect(image, text_prompt)
             detected = bool(mask_dict.labels)
+            has_propagated_objects = bool(sam2_masks.labels) if sam2_masks else False
+            
             print(
                 f"[Structure] 帧 {start_frame_idx:04d} {'检测到' if detected else '未检测到'} "
-                f"(目标数: {len(mask_dict.labels)})"
+                f"(目标数: {len(mask_dict.labels)}, 传播对象: {len(sam2_masks.labels) if sam2_masks else 0})"
             )
 
             if not mask_dict.labels:
-                video_object_data.extend([{} for _ in range(step + 1)])
+                # 如果之前有传播的对象，继续传播它们，但记录检测失败异常
+                if has_propagated_objects:
+                    # 记录检测失败异常：采样帧应该检测到对象，但没有检测到
+                    detection_failures.append({
+                        'frame': start_frame_idx,
+                        'propagated_objects': list(sam2_masks.labels.keys()) if sam2_masks else [],
+                        'description': f'采样帧{start_frame_idx}未检测到对象，但之前有{len(sam2_masks.labels)}个传播对象，说明对象突然消失或畸变'
+                    })
+                    print(f"[警告] 帧 {start_frame_idx:04d} 未检测到对象，但之前有传播对象，继续传播并记录异常")
+                    
+                    # 继续传播之前的对象
+                    # 需要将sam2_masks中的对象添加到inference_state以便继续传播
+                    if hasattr(self.detection_engine.video_predictor, "reset_state"):
+                        self.detection_engine.video_predictor.reset_state(inference_state)
+                    
+                    # 将之前传播的对象添加到inference_state
+                    for obj_id, obj in sam2_masks.labels.items():
+                        # 创建一个临时的mask_dict用于添加到状态
+                        temp_mask_dict = MaskDictionary()
+                        temp_mask_dict.labels[obj_id] = obj
+                        self.detection_engine.add_masks_to_video_state(inference_state, start_frame_idx, temp_mask_dict)
+                    
+                    # 传播之前的对象
+                    for out_frame_idx, out_obj_ids, out_mask_logits in self.detection_engine.propagate(
+                        inference_state,
+                        step,
+                        start_frame_idx,
+                    ):
+                        frame_masks = MaskDictionary()
+                        frame_data: Dict[int, Dict] = {}
+                        for i, out_obj_id in enumerate(out_obj_ids):
+                            out_mask = out_mask_logits[i] > 0.0
+                            # 从sam2_masks获取class_name
+                            class_name = sam2_masks.get_class_name(out_obj_id) if sam2_masks and out_obj_id in sam2_masks.labels else ""
+                            mask_2d = out_mask[0] if out_mask.ndim == 3 else out_mask
+                            obj = self._object_info_from_mask(mask_2d, class_name, out_obj_id)
+                            frame_masks.labels[out_obj_id] = obj
+                            frame_data[out_obj_id] = obj.to_serializable()
+                        sam2_masks = frame_masks.clone()
+                        video_object_data.append(frame_data)
+
+                        if vis_dir is not None and vis_counter < max_visualizations:
+                            if 0 <= out_frame_idx < len(frames):
+                                self._save_structure_visualization(
+                                    frames[out_frame_idx],
+                                    frame_masks,
+                                    vis_dir,
+                                    out_frame_idx,
+                                )
+                                vis_counter += 1
+                else:
+                    # 既没有检测到，也没有传播对象，填充空数据
+                    video_object_data.extend([{} for _ in range(step + 1)])
                 continue
 
             objects_count, updated_dict = mask_dict.update_with_tracker(
@@ -235,11 +371,33 @@ class TemporalCoherencePipeline:
         tracking_result = self._prepare_tracking_result(video_object_data, step)
         disappear_objects = get_disappear_objects(tracking_result)
         appear_objects = get_appear_objects(tracking_result)
-        vanish_score, emerge_score = self.event_evaluator.score(
-            video_tensor,
-            tracking_result,
-            objects_count,
-        )
+        
+        # CoTracker验证（可选）
+        if self.config.enable_cotracker and self.event_evaluator is not None:
+            vanish_score, emerge_score = self.event_evaluator.score(
+                video_tensor,
+                tracking_result,
+                objects_count,
+            )
+            print(f"[评估] CoTracker验证结果: vanish_score={vanish_score:.3f}, emerge_score={emerge_score:.3f}")
+        else:
+            # 仅使用SAM2评估，基于消失/出现对象的数量和持续时间计算分数
+            vanish_score, emerge_score = self._compute_sam2_only_scores(
+                disappear_objects,
+                appear_objects,
+                tracking_result,
+                objects_count,
+                fps,
+            )
+            # 检测失败会严重影响一致性分数
+            if detection_failures:
+                # 每个检测失败都会降低分数
+                failure_penalty = len(detection_failures) * 0.1
+                vanish_score = max(0.0, vanish_score - failure_penalty)
+                emerge_score = max(0.0, emerge_score - failure_penalty)
+                print(f"[评估] 检测到{len(detection_failures)}个检测失败异常，已降低一致性分数")
+            print(f"[评估] 仅使用SAM2评估（CoTracker已禁用）: vanish_score={vanish_score:.3f}, emerge_score={emerge_score:.3f}")
+        
         coherence_score = (vanish_score + emerge_score) / 2
 
         anomalies = self._build_structure_anomalies(
@@ -252,6 +410,13 @@ class TemporalCoherencePipeline:
         anomalies.extend(
             self._detect_shape_anomalies(
                 tracking_result,
+                fps=fps,
+            )
+        )
+        # 添加检测失败异常（采样帧未检测到但之前有传播对象）
+        anomalies.extend(
+            self._build_detection_failure_anomalies(
+                detection_failures,
                 fps=fps,
             )
         )
@@ -307,6 +472,9 @@ class TemporalCoherencePipeline:
         fps: int,
     ) -> None:
         if not self.config.cotracker_visualization_enable:
+            return
+        if not self.config.enable_cotracker:
+            print("警告：CoTracker 验证未启用，无法生成 CoTracker 可视化结果。请使用 --enable_cotracker 启用。")
             return
         if self.cotracker_model is None:
             print("警告：CoTracker 模型未初始化，无法生成可视化结果。")
@@ -580,6 +748,53 @@ class TemporalCoherencePipeline:
 
                 prev_stats[obj_id] = {"area": area, "height": bbox_height}
 
+        return anomalies
+
+    def _build_detection_failure_anomalies(
+        self,
+        detection_failures: List[Dict],
+        fps: int,
+    ) -> List[Dict[str, Any]]:
+        """
+        构建检测失败异常（采样帧未检测到但之前有传播对象）
+        
+        这种情况说明：
+        1. 对象突然消失（检测不到）
+        2. 对象突然畸变（形状变化太大，检测不到）
+        3. 时序一致性很差
+        
+        Args:
+            detection_failures: 检测失败列表
+            fps: 帧率
+        
+        Returns:
+            异常列表
+        """
+        anomalies: List[Dict[str, Any]] = []
+        fps_safe = max(fps, 1)
+        
+        for failure in detection_failures:
+            frame_id = failure.get('frame', 0)
+            propagated_objects = failure.get('propagated_objects', [])
+            description = failure.get('description', '')
+            
+            # 为每个传播对象创建异常
+            for obj_id in propagated_objects:
+                anomalies.append({
+                    "type": "structural_detection_failure",
+                    "modality": "structure",
+                    "frame_id": frame_id,
+                    "timestamp": frame_id / fps_safe,
+                    "confidence": 0.9,  # 高置信度：采样帧应该检测到但没检测到
+                    "description": f"采样帧{frame_id}未检测到对象{obj_id}，但之前有传播对象，说明对象突然消失或畸变",
+                    "metadata": {
+                        "object_id": obj_id,
+                        "failure_frame": frame_id,
+                        "propagated_objects_count": len(propagated_objects),
+                        "reason": "采样帧检测失败但之前有传播对象，可能是对象突然消失或形状畸变",
+                    },
+                })
+        
         return anomalies
 
 

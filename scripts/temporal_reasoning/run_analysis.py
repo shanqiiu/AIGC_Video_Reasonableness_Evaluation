@@ -259,6 +259,12 @@ def parse_args():
     )
 
     parser.add_argument(
+        '--enable_cotracker',
+        action='store_true',
+        help='启用 CoTracker 验证（验证消失/出现的合理性，默认不启用，仅使用 SAM2 评估）'
+    )
+
+    parser.add_argument(
         '--cotracker_visualization_full_video',
         action='store_true',
         default=None,
@@ -362,6 +368,14 @@ def main():
         config.cotracker_visualization_fps = max(1, args.cotracker_visualization_fps)
     if args.cotracker_visualization_mode:
         config.cotracker_visualization_mode = args.cotracker_visualization_mode
+    
+    # CoTracker 验证配置（默认不启用，仅使用SAM2评估）
+    if args.enable_cotracker:
+        config.enable_cotracker = True
+        print("[配置] 已启用 CoTracker 验证")
+    else:
+        config.enable_cotracker = False
+        print("[配置] CoTracker 验证已禁用（仅使用 SAM2 进行评估）")
     
     # CoTracker 整体可视化配置
     if args.disable_cotracker_visualization_full_video:

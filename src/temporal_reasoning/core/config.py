@@ -105,6 +105,7 @@ class TemporalReasoningConfig:
     structure_visualization_enable: bool = False
     structure_visualization_output_dir: Optional[str] = None
     structure_visualization_max_frames: int = 50
+    enable_cotracker: bool = False  # 是否启用CoTracker验证（默认不启用，仅使用SAM2评估）
     cotracker_visualization_enable: bool = False
     cotracker_visualization_output_dir: Optional[str] = None
     cotracker_visualization_fps: int = 12

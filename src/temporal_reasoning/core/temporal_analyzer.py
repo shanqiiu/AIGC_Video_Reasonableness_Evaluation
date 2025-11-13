@@ -128,6 +128,7 @@ class TemporalReasoningAnalyzer:
             enable_visualization=self.config.structure_visualization_enable,
             visualization_output_dir=self.config.structure_visualization_output_dir,
             visualization_max_frames=self.config.structure_visualization_max_frames,
+            enable_cotracker=getattr(self.config, 'enable_cotracker', False),
             cotracker_visualization_enable=self.config.cotracker_visualization_enable,
             cotracker_visualization_output_dir=self.config.cotracker_visualization_output_dir,
             cotracker_visualization_fps=self.config.cotracker_visualization_fps,
