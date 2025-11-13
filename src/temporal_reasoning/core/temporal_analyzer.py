@@ -69,10 +69,14 @@ class TemporalReasoningAnalyzer:
             self.structure_pipeline = TemporalCoherencePipeline(coherence_config)
             self.structure_pipeline.initialize()
 
-            # 3. 关键点分析器
-            print("\n[3/4] 初始化关键点分析器...")
-            self.keypoint_analyzer = KeypointAnalyzer(self.config.keypoint)
-            self.keypoint_analyzer.initialize()
+            # 3. 关键点分析器（可选，如果配置中禁用了则跳过）
+            if self.config.keypoint is not None:
+                print("\n[3/4] 初始化关键点分析器...")
+                self.keypoint_analyzer = KeypointAnalyzer(self.config.keypoint)
+                self.keypoint_analyzer.initialize()
+            else:
+                print("\n[3/4] 跳过关键点分析器（已禁用，通用物体检测模式）...")
+                self.keypoint_analyzer = None
 
             # 4. 融合决策引擎
             print("\n[4/4] 初始化融合决策引擎...")
@@ -177,11 +181,16 @@ class TemporalReasoningAnalyzer:
         print("\n>>> 步骤2: 实例追踪 / 结构分析")
         structure_output = self._analyze_structure(video_path, text_prompts)
 
-        # 3. 关键点分析
-        print("\n>>> 步骤3: 关键点分析")
-        physiological_score, physiological_anomalies = self.keypoint_analyzer.analyze(
-            video_frames, fps=fps, video_path=video_path
-        )
+        # 3. 关键点分析（可选）
+        if self.keypoint_analyzer is not None:
+            print("\n>>> 步骤3: 关键点分析")
+            physiological_score, physiological_anomalies = self.keypoint_analyzer.analyze(
+                video_frames, fps=fps, video_path=video_path
+            )
+        else:
+            print("\n>>> 步骤3: 关键点分析（已跳过）")
+            physiological_score = 1.0
+            physiological_anomalies = []
 
         # 4. 多模态融合
         print("\n>>> 步骤4: 多模态融合")

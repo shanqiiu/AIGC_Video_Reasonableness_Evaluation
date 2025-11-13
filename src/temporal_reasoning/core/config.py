@@ -98,7 +98,7 @@ class TemporalReasoningConfig:
     grounding_dino: GroundingDINOConfig = field(default_factory=GroundingDINOConfig)
     sam: SAMConfig = field(default_factory=SAMConfig)
     tracker: TrackerConfig = field(default_factory=TrackerConfig)
-    keypoint: KeypointConfig = field(default_factory=KeypointConfig)
+    keypoint: Optional[KeypointConfig] = field(default_factory=KeypointConfig)
     fusion: FusionConfig = field(default_factory=FusionConfig)
     thresholds: ThresholdsConfig = field(default_factory=ThresholdsConfig)
     structure_prompts: Optional[List[str]] = None

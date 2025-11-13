@@ -185,9 +185,14 @@ def build_pipeline_config(
     visualization_max_frames: int,
     per_region_visualization: bool,
 ) -> RegionAnalysisPipelineConfig:
+    # RegionAnalysisPipeline 需要 keypoint 配置（用于人体区域分析）
+    # 如果 temporal_config.keypoint 为 None，则使用默认配置
+    from src.temporal_reasoning.core.config import KeypointConfig
+    keypoint_config = temporal_config.keypoint if temporal_config.keypoint is not None else KeypointConfig()
+    
     pipeline_config = RegionAnalysisPipelineConfig(
         raft=temporal_config.raft,
-        keypoint=temporal_config.keypoint,
+        keypoint=keypoint_config,
         enable_visualization=enable_visualization,
         visualization_output_dir=visualization_output_dir,
         visualization_max_frames=visualization_max_frames,

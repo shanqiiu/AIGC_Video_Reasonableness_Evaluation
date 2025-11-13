@@ -137,8 +137,8 @@ def parse_args():
   # 指定输出路径
   python run_analysis.py --video path/to/video.mp4 --output results.json
   
-  # 启用关键点可视化
-  python run_analysis.py --video path/to/video.mp4 --enable-keypoint-visualization
+  # 禁用关键点分析（通用物体检测模式）
+  python run_analysis.py --video path/to/video.mp4 --disable-keypoint
   
   # 指定设备
   python run_analysis.py --video path/to/video.mp4 --device cuda:0
@@ -276,30 +276,11 @@ def parse_args():
         help='光流可视化最多保存的帧数'
     )
     
-    # 关键点可视化参数
+    # 关键点分析参数（已禁用，用于通用物体检测）
     parser.add_argument(
-        '--enable_keypoint_visualization',
+        '--disable_keypoint',
         action='store_true',
-        help='启用关键点可视化'
-    )
-    
-    parser.add_argument(
-        '--keypoint_visualization_dir',
-        type=str,
-        default=None,
-        help='关键点可视化输出目录'
-    )
-    
-    parser.add_argument(
-        '--show_face_keypoints',
-        action='store_true',
-        help='显示面部关键点（468个点）'
-    )
-    
-    parser.add_argument(
-        '--show_keypoint_visualization',
-        action='store_true',
-        help='显示关键点可视化GUI窗口（第一帧）'
+        help='禁用关键点分析（用于通用物体检测，无需MediaPipe）'
     )
     
     return parser.parse_args()
@@ -374,18 +355,10 @@ def main():
     if args.motion_visualization_max_frames is not None:
         config.raft.visualization_max_frames = max(0, args.motion_visualization_max_frames)
     
-    # 更新关键点可视化配置
-    if args.enable_keypoint_visualization:
-        config.keypoint.enable_visualization = True
-    
-    if args.keypoint_visualization_dir:
-        config.keypoint.visualization_output_dir = args.keypoint_visualization_dir
-    
-    if args.show_face_keypoints:
-        config.keypoint.show_face = True
-    
-    if args.show_keypoint_visualization:
-        config.keypoint.show_visualization = True
+    # 禁用关键点分析（用于通用物体检测）
+    if args.disable_keypoint:
+        print("[配置] 已禁用关键点分析（通用物体检测模式）")
+        config.keypoint = None  # 设置为None以禁用关键点分析
     
     # 设置输出路径
     if args.output:
