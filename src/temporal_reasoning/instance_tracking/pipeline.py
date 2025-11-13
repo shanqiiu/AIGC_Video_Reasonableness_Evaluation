@@ -49,6 +49,7 @@ class TemporalCoherenceConfig:
     cotracker_visualization_output_dir: Optional[str] = None
     cotracker_visualization_fps: int = 12
     cotracker_visualization_mode: str = "grayscale"
+    cotracker_visualization_full_video: bool = False  # 是否生成整体视频的追踪可视化（默认不生成）
     size_change_area_ratio_threshold: float = 3.0
     size_change_height_ratio_threshold: float = 2.5
     size_change_min_area: int = 200
@@ -322,35 +323,40 @@ class TemporalCoherencePipeline:
             device = torch.device("cpu")
 
         video_on_device = video_tensor.to(device)
-        try:
-            tracks, visibility = self.cotracker_model(
-                video_on_device,
-                grid_size=self.config.grid_size,
-                grid_query_frame=0,
-                backward_tracking=True,
-            )
-        except Exception as exc:
-            print(f"警告：生成 CoTracker 可视化失败：{exc}")
-            return
-
         fps_value = self.config.cotracker_visualization_fps or fps
         fps_value = max(1, int(fps_value))
-        visualizer = Visualizer(
-            save_dir=str(output_dir),
-            fps=fps_value,
-            mode=self.config.cotracker_visualization_mode,
-        )
+        
+        # 根据配置决定是否生成整体视频的追踪可视化
+        if self.config.cotracker_visualization_full_video:
+            try:
+                tracks, visibility = self.cotracker_model(
+                    video_on_device,
+                    grid_size=self.config.grid_size,
+                    grid_query_frame=0,
+                    backward_tracking=True,
+                )
+            except Exception as exc:
+                print(f"警告：生成 CoTracker 整体可视化失败：{exc}")
+            else:
+                visualizer = Visualizer(
+                    save_dir=str(output_dir),
+                    fps=fps_value,
+                    mode=self.config.cotracker_visualization_mode,
+                )
 
-        try:
-            visualizer.visualize(
-                video=video_tensor.cpu(),
-                tracks=tracks.cpu(),
-                visibility=visibility.cpu(),
-                filename="cotracker_tracks",
-                save_video=True,
-            )
-        except Exception as exc:
-            print(f"警告：导出 CoTracker 可视化视频失败：{exc}")
+                try:
+                    visualizer.visualize(
+                        video=video_tensor.cpu(),
+                        tracks=tracks.cpu(),
+                        visibility=visibility.cpu(),
+                        filename="cotracker_tracks_full",
+                        save_video=True,
+                    )
+                    print("[CoTracker可视化] 已保存整体视频的追踪可视化")
+                except Exception as exc:
+                    print(f"警告：导出 CoTracker 整体可视化视频失败：{exc}")
+        else:
+            print("[CoTracker可视化] 已禁用整体视频的追踪可视化（仅生成聚焦于目标mask的可视化）")
 
     def _save_structure_visualization(
         self,

@@ -109,6 +109,7 @@ class TemporalReasoningConfig:
     cotracker_visualization_output_dir: Optional[str] = None
     cotracker_visualization_fps: int = 12
     cotracker_visualization_mode: str = "rainbow"
+    cotracker_visualization_full_video: bool = False  # 是否生成整体视频的追踪可视化（默认不生成）
     
     # 输出配置
     output_dir: str = ""

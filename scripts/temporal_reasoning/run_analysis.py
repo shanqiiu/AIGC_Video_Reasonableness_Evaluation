@@ -258,6 +258,19 @@ def parse_args():
         help='CoTracker 可视化颜色模式'
     )
 
+    parser.add_argument(
+        '--cotracker_visualization_full_video',
+        action='store_true',
+        default=None,
+        help='生成整体视频的追踪可视化（默认不生成）'
+    )
+
+    parser.add_argument(
+        '--disable_cotracker_visualization_full_video',
+        action='store_true',
+        help='禁用整体视频的追踪可视化（仅生成聚焦于目标mask的可视化）'
+    )
+
     # 光流可视化参数
     parser.add_argument(
         '--enable_motion_visualization',
@@ -349,6 +362,14 @@ def main():
         config.cotracker_visualization_fps = max(1, args.cotracker_visualization_fps)
     if args.cotracker_visualization_mode:
         config.cotracker_visualization_mode = args.cotracker_visualization_mode
+    
+    # CoTracker 整体可视化配置
+    if args.disable_cotracker_visualization_full_video:
+        config.cotracker_visualization_full_video = False
+        print("[配置] 已禁用 CoTracker 整体视频的追踪可视化")
+    elif args.cotracker_visualization_full_video is not None:
+        config.cotracker_visualization_full_video = True
+        print("[配置] 已启用 CoTracker 整体视频的追踪可视化")
 
     # 光流可视化配置
     if args.enable_motion_visualization:
