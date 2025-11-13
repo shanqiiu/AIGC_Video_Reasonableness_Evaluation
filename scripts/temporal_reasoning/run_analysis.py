@@ -305,6 +305,13 @@ def parse_args():
         help='启用关键点分析（需要MediaPipe，用于人体分析）'
     )
     
+    # 区域时序变化检测参数（默认开启）
+    parser.add_argument(
+        '--disable_region_temporal_analysis',
+        action='store_true',
+        help='禁用区域时序变化检测（默认开启，使用SAM2的mask进行光流和颜色相似度检测）'
+    )
+    
     return parser.parse_args()
 
 
@@ -403,6 +410,14 @@ def main():
     else:
         print("[配置] 关键点分析已禁用（通用物体检测模式）")
         config.keypoint = None  # 设置为None以禁用关键点分析
+    
+    # 区域时序变化检测配置（默认开启）
+    if args.disable_region_temporal_analysis:
+        config.enable_region_temporal_analysis = False
+        print("[配置] 已禁用区域时序变化检测")
+    else:
+        config.enable_region_temporal_analysis = True
+        print("[配置] 区域时序变化检测已启用（使用SAM2的mask进行光流和颜色相似度检测）")
     
     # 设置输出路径
     if args.output:

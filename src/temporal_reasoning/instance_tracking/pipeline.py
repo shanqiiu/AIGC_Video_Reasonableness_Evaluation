@@ -381,7 +381,9 @@ class TemporalCoherencePipeline:
 
         video_array = read_video_from_path(video_path)
         video_tensor = torch.from_numpy(video_array).permute(0, 3, 1, 2)[None].float()
-        tracking_result = self._prepare_tracking_result(video_object_data, step)
+        # 使用所有帧进行评估（包含采样帧和传播帧）
+        # 这样可以更准确地检测消失/出现事件
+        tracking_result = video_object_data  # 使用完整的video_object_data，包含所有帧
         disappear_objects = get_disappear_objects(tracking_result)
         appear_objects = get_appear_objects(tracking_result)
         
@@ -466,7 +468,8 @@ class TemporalCoherencePipeline:
         
         metadata = {
             "objects_count": objects_count,
-            "tracking_result_length": len(tracking_result),
+            "tracking_result_length": len(tracking_result),  # 所有帧的数量（采样帧 + 传播帧）
+            "total_frames": len(frames),  # 视频总帧数
             "step": step,
             "detection_failures": detection_failure_stats,
         }

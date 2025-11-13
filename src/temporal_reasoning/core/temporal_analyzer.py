@@ -134,6 +134,8 @@ class TemporalReasoningAnalyzer:
             cotracker_visualization_fps=self.config.cotracker_visualization_fps,
             cotracker_visualization_mode=self.config.cotracker_visualization_mode,
             cotracker_visualization_full_video=getattr(self.config, 'cotracker_visualization_full_video', False),
+            enable_region_temporal_analysis=getattr(self.config, 'enable_region_temporal_analysis', True),  # 默认开启
+            region_temporal_config=getattr(self.config, 'region_temporal_config', None),
         )
 
     def analyze(

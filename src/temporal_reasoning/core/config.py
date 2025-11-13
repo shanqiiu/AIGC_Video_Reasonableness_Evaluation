@@ -111,6 +111,8 @@ class TemporalReasoningConfig:
     cotracker_visualization_fps: int = 12
     cotracker_visualization_mode: str = "rainbow"
     cotracker_visualization_full_video: bool = False  # 是否生成整体视频的追踪可视化（默认不生成）
+    enable_region_temporal_analysis: bool = True  # 是否启用区域时序变化检测（默认开启，使用SAM2的mask进行光流和颜色相似度检测）
+    region_temporal_config: Optional[Any] = None  # 区域时序变化检测配置（RegionTemporalChangeConfig）
     
     # 输出配置
     output_dir: str = ""
