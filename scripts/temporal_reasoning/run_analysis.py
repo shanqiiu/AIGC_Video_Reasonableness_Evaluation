@@ -137,8 +137,11 @@ def parse_args():
   # 指定输出路径
   python run_analysis.py --video path/to/video.mp4 --output results.json
   
-  # 禁用关键点分析（通用物体检测模式）
-  python run_analysis.py --video path/to/video.mp4 --disable-keypoint
+  # 默认禁用关键点分析（通用物体检测模式）
+  python run_analysis.py --video path/to/video.mp4
+  
+  # 启用关键点分析（人体分析模式，需要MediaPipe）
+  python run_analysis.py --video path/to/video.mp4 --enable-keypoint
   
   # 指定设备
   python run_analysis.py --video path/to/video.mp4 --device cuda:0
@@ -276,11 +279,11 @@ def parse_args():
         help='光流可视化最多保存的帧数'
     )
     
-    # 关键点分析参数（已禁用，用于通用物体检测）
+    # 关键点分析参数（默认禁用，用于通用物体检测）
     parser.add_argument(
-        '--disable_keypoint',
+        '--enable_keypoint',
         action='store_true',
-        help='禁用关键点分析（用于通用物体检测，无需MediaPipe）'
+        help='启用关键点分析（需要MediaPipe，用于人体分析）'
     )
     
     return parser.parse_args()
@@ -355,9 +358,15 @@ def main():
     if args.motion_visualization_max_frames is not None:
         config.raft.visualization_max_frames = max(0, args.motion_visualization_max_frames)
     
-    # 禁用关键点分析（用于通用物体检测）
-    if args.disable_keypoint:
-        print("[配置] 已禁用关键点分析（通用物体检测模式）")
+    # 关键点分析配置（默认禁用，用于通用物体检测）
+    if args.enable_keypoint:
+        print("[配置] 已启用关键点分析（人体分析模式，需要MediaPipe）")
+        # 如果keypoint为None，则使用默认配置
+        if config.keypoint is None:
+            from src.temporal_reasoning.core.config import KeypointConfig
+            config.keypoint = KeypointConfig()
+    else:
+        print("[配置] 关键点分析已禁用（通用物体检测模式）")
         config.keypoint = None  # 设置为None以禁用关键点分析
     
     # 设置输出路径
