@@ -252,7 +252,6 @@ class TemporalReasoningAnalyzer:
                 "emerge_score": float(structure_output.emerge_score),
                 **structure_output.metadata,
             },
-            "detection_failure_info": structure_output.metadata.get("detection_failures", {}),
         }
 
         print("\n" + "=" * 50)

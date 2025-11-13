@@ -261,6 +261,7 @@ class TemporalCoherencePipeline:
         sam2_masks = MaskDictionary()
         objects_count = 0
         video_object_data: List[Dict] = []
+        frame_states: List[Dict[str, Any]] = []  # 记录每帧的状态信息
         
         for start_frame_idx in range(0, len(frames), step):
             image = frames[start_frame_idx]
@@ -314,6 +315,17 @@ class TemporalCoherencePipeline:
                             frame_data[out_obj_id] = obj.to_serializable()
                         sam2_masks = frame_masks.clone()
                         video_object_data.append(frame_data)
+                        
+                        # 记录传播帧的状态
+                        frame_states.append({
+                            "frame_index": out_frame_idx,
+                            "frame_type": "propagated",  # 传播帧
+                            "detected": False,  # 传播帧不是检测得到的
+                            "object_count": len(frame_data),
+                            "object_ids": list(frame_data.keys()),
+                            "source_frame": start_frame_idx,  # 来源采样帧
+                            "timestamp": out_frame_idx / max(fps, 1),
+                        })
 
                         if vis_dir is not None and vis_counter < max_visualizations:
                             if 0 <= out_frame_idx < len(frames):
@@ -326,7 +338,17 @@ class TemporalCoherencePipeline:
                                 vis_counter += 1
                 else:
                     # 既没有检测到，也没有传播对象，填充空数据
-                    video_object_data.extend([{} for _ in range(step + 1)])
+                    for empty_idx in range(step + 1):
+                        video_object_data.append({})
+                        # 记录空帧的状态
+                        frame_states.append({
+                            "frame_index": start_frame_idx + empty_idx,
+                            "frame_type": "empty",  # 空帧
+                            "detected": False,
+                            "object_count": 0,
+                            "object_ids": [],
+                            "timestamp": (start_frame_idx + empty_idx) / max(fps, 1),
+                        })
                 continue
 
             objects_count, updated_dict = mask_dict.update_with_tracker(
@@ -339,6 +361,22 @@ class TemporalCoherencePipeline:
             if hasattr(self.detection_engine.video_predictor, "reset_state"):
                 self.detection_engine.video_predictor.reset_state(inference_state)
             self.detection_engine.add_masks_to_video_state(inference_state, start_frame_idx, mask_dict)
+
+            # 将采样帧的数据添加到video_object_data中，确保采样帧也被包含在异常检测中
+            sampling_frame_data: Dict[int, Dict] = {}
+            for obj_id, obj in mask_dict.labels.items():
+                sampling_frame_data[obj_id] = obj.to_serializable()
+            video_object_data.append(sampling_frame_data)
+            
+            # 记录采样帧的状态
+            frame_states.append({
+                "frame_index": start_frame_idx,
+                "frame_type": "sampling",  # 采样帧
+                "detected": True,
+                "object_count": len(mask_dict.labels),
+                "object_ids": list(mask_dict.labels.keys()),
+                "timestamp": start_frame_idx / max(fps, 1),
+            })
 
             if (
                 vis_dir is not None
@@ -369,6 +407,17 @@ class TemporalCoherencePipeline:
                     frame_data[out_obj_id] = obj.to_serializable()
                 sam2_masks = frame_masks.clone()
                 video_object_data.append(frame_data)
+                
+                # 记录传播帧的状态
+                frame_states.append({
+                    "frame_index": out_frame_idx,
+                    "frame_type": "propagated",  # 传播帧
+                    "detected": False,  # 传播帧不是检测得到的
+                    "object_count": len(frame_data),
+                    "object_ids": list(frame_data.keys()),
+                    "source_frame": start_frame_idx,  # 来源采样帧
+                    "timestamp": out_frame_idx / max(fps, 1),
+                })
 
                 if vis_dir is not None and vis_counter < max_visualizations:
                     if 0 <= out_frame_idx < len(frames):
@@ -473,6 +522,7 @@ class TemporalCoherencePipeline:
             "total_frames": len(frames),  # 视频总帧数
             "step": step,
             "detection_failures": detection_failure_stats,
+            "frame_states": frame_states,  # 每帧的状态信息
         }
         return TemporalCoherenceResult(
             coherence_score=coherence_score,
