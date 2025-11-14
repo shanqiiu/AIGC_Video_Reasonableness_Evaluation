@@ -57,7 +57,8 @@ class MotionFlowAnalyzer:
         self,
         video_frames: List[np.ndarray],
         fps: float = 30.0,
-        masks: Optional[List[Optional[np.ndarray]]] = None
+        masks: Optional[List[Optional[np.ndarray]]] = None,
+        optical_flows: Optional[List[Tuple[np.ndarray, np.ndarray]]] = None,
     ) -> Tuple[float, List[Dict], Optional[Dict]]:
         """
         分析视频运动平滑度
@@ -65,35 +66,43 @@ class MotionFlowAnalyzer:
         Args:
             video_frames: 视频帧序列，每帧为RGB图像 (H, W, 3)
             fps: 视频帧率，用于计算时间戳
-            masks: 可选的mask序列，每帧一个mask（bool或0/1数组），用于只计算mask区域内的光流变化率
+            masks: 已废弃，不再使用（步骤2仅计算全局平滑度）
+            optical_flows: 可选的光流序列，如果提供则直接使用，避免重复计算
         
         Returns:
             (motion_score, anomalies, motion_metadata): 
             - motion_score: 运动合理性得分 (0-1)
-            - anomalies: 运动异常列表
-            - motion_metadata: 运动分析的元数据（包含frame_stats等，用于可视化），如果没有mask则为None
+            - anomalies: 运动异常列表（始终为空，因为不再进行区域检测）
+            - motion_metadata: 运动分析的元数据（包含平滑度分数等）
         """
         if len(video_frames) < 2:
             return 1.0, [], None
         
-        if self.raft_model is None:
-            raise RuntimeError(
-                "RAFT 模型未初始化。\n"
-                "请先调用 initialize() 方法完成加载。"
-            )
-        
-        # 1. 计算光流序列
-        print("正在计算光流...")
-        optical_flows = []
-        for i in tqdm(range(len(video_frames) - 1), desc="计算光流"):
-            try:
-                u, v = self.raft_model.compute_flow(video_frames[i], video_frames[i+1])
-                optical_flows.append((u, v))
-            except Exception as e:
+        # 1. 计算或使用已提供的光流序列
+        if optical_flows is not None:
+            # 复用步骤1已计算的光流
+            print("正在使用步骤1已计算的光流（跳过重复计算）...")
+            # 过滤掉None值
+            optical_flows = [flow for flow in optical_flows if flow is not None]
+        else:
+            # 如果没有提供光流，则计算（这种情况应该很少，因为步骤1已经计算了）
+            if self.raft_model is None:
                 raise RuntimeError(
-                    f"第 {i} 帧光流计算失败：{e}\n"
-                    "请检查 RAFT 模型是否已正确初始化。"
+                    "RAFT 模型未初始化。\n"
+                    "请先调用 initialize() 方法完成加载。"
                 )
+            
+            print("正在计算光流...")
+            optical_flows = []
+            for i in tqdm(range(len(video_frames) - 1), desc="计算光流"):
+                try:
+                    u, v = self.raft_model.compute_flow(video_frames[i], video_frames[i+1])
+                    optical_flows.append((u, v))
+                except Exception as e:
+                    raise RuntimeError(
+                        f"第 {i} 帧光流计算失败：{e}\n"
+                        "请检查 RAFT 模型是否已正确初始化。"
+                    )
         
         if not optical_flows:
             return 1.0, [], None
@@ -114,44 +123,10 @@ class MotionFlowAnalyzer:
         motion_metadata["smoothness_scores"] = motion_smoothness
         motion_metadata["smoothness_timestamps"] = timestamps
         
-        # 3. 检测运动突变（直接复用RegionTemporalChangeDetector，避免代码重复）
-        print("正在检测运动突变...")
-        if masks is not None:
-            # 延迟导入，避免循环导入
-            from ..region_analysis.region_temporal_change_detector import (
-                RegionTemporalChangeDetector,
-                RegionTemporalChangeConfig
-            )
-            
-            # 构建RegionTemporalChangeConfig（从RAFTConfig映射参数）
-            region_config = RegionTemporalChangeConfig(
-                motion_threshold=getattr(self.config, 'motion_discontinuity_threshold', 6.0),
-                similarity_threshold=getattr(self.config, 'motion_similarity_threshold', 0.25),
-                hist_diff_threshold=getattr(self.config, 'motion_hist_diff_threshold', 0.012),
-                consecutive_frames=getattr(self.config, 'motion_consecutive_frames', 1),
-                baseline_window=getattr(self.config, 'motion_baseline_window', 5),
-                use_color_similarity=getattr(self.config, 'motion_use_color_similarity', True),
-                use_flow_change=getattr(self.config, 'motion_use_flow_change', True),
-                min_roi_size=getattr(self.config, 'motion_min_roi_size', 12),
-            )
-            
-            # 直接复用RegionTemporalChangeDetector（它会使用已有的raft_model，避免重复初始化）
-            detector = RegionTemporalChangeDetector(self, region_config)
-            result = detector.analyze(
-                video_frames=video_frames,
-                mouth_masks=masks,  # 参数名是mouth_masks，但实际可以是任意mask
-                fps=fps,
-                label="motion_region"
-            )
-            motion_anomalies = result["anomalies"]
-            # 保存metadata（包含frame_stats，用于可视化）
-            # 注意：保留之前保存的smoothness_scores
-            region_metadata = result.get("metadata", {})
-            motion_metadata.update(region_metadata)
-        else:
-            # 如果没有mask，返回空列表（需要mask才能进行检测）
-            # 注意：保留之前保存的smoothness_scores
-            motion_anomalies = []
+        # 3. 步骤2仅计算全局平滑度，不再进行区域运动突变检测
+        # （区域检测已在步骤1完成，步骤2专注于全局运动质量评估）
+        print("步骤2仅计算全局平滑度，不进行区域检测（区域检测已在步骤1完成）")
+        motion_anomalies = []
         
         # 4. 计算得分
         base_score = float(np.mean(motion_smoothness))

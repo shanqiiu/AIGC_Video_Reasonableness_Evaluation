@@ -177,18 +177,25 @@ class TemporalReasoningAnalyzer:
         print("\n>>> 步骤1: 实例追踪 / 结构分析")
         structure_output = self._analyze_structure(video_path, text_prompts)
         
-        # 从结构分析中提取masks（合并所有检测到的对象）
-        masks = None
-        if video_path and structure_output.metadata:
-            masks = self._extract_combined_masks_from_structure(structure_output.metadata, len(video_frames))
+        # 从结构分析中提取已计算的光流（供步骤2复用，避免重复计算）
+        optical_flows = None
+        if video_path and hasattr(self.structure_pipeline, '_cached_optical_flows'):
+            optical_flows = self.structure_pipeline._cached_optical_flows
+            if optical_flows:
+                print(f"[步骤2] 已从步骤1获取 {len(optical_flows)} 个光流场，将复用以避免重复计算")
 
-        # 2. 光流分析（使用从结构分析获取的masks）
-        print("\n>>> 步骤2: 光流分析")
+        # 2. 光流分析（复用步骤1已计算的光流，仅计算全局平滑度）
+        print("\n>>> 步骤2: 光流分析（全局平滑度）")
         if hasattr(self.config, "thresholds"):
             self.motion_analyzer.config.motion_discontinuity_threshold = (
                 self.config.thresholds.motion_discontinuity_threshold
             )
-        motion_score, motion_anomalies, motion_metadata = self.motion_analyzer.analyze(video_frames, fps=fps, masks=masks)
+        motion_score, motion_anomalies, motion_metadata = self.motion_analyzer.analyze(
+            video_frames, 
+            fps=fps, 
+            masks=None,  # 不再使用mask，步骤2仅计算全局平滑度
+            optical_flows=optical_flows  # 传入步骤1已计算的光流
+        )
 
         # 3. 关键点分析（可选）
         if self.keypoint_analyzer is not None:

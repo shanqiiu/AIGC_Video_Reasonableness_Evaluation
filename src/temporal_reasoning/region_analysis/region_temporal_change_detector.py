@@ -44,6 +44,7 @@ class RegionTemporalChangeDetector:
         mouth_masks: Sequence[Optional[np.ndarray]],
         fps: float = 30.0,
         label: str = "region",
+        cached_flows: Optional[List[Optional[Tuple[np.ndarray, np.ndarray]]]] = None,
     ) -> Dict[str, object]:
         if not video_frames:
             raise ValueError("video_frames 为空")
@@ -51,7 +52,7 @@ class RegionTemporalChangeDetector:
             raise ValueError("mouth_masks 与 video_frames 长度不匹配")
 
         roi_stats = self._extract_roi_stats(video_frames, mouth_masks)
-        flow_diffs = self._compute_flow_change(video_frames, mouth_masks)
+        flow_diffs = self._compute_flow_change(video_frames, mouth_masks, cached_flows=cached_flows)
         anomalies, frame_stats, baseline_motion, max_hist_diff = self._detect_anomalies(
             roi_stats, flow_diffs, fps, label
         )
@@ -108,11 +109,16 @@ class RegionTemporalChangeDetector:
         self,
         video_frames: Sequence[np.ndarray],
         mouth_masks: Sequence[Optional[np.ndarray]],
+        cached_flows: Optional[List[Optional[Tuple[np.ndarray, np.ndarray]]]] = None,
     ) -> List[float]:
         if not self.config.use_flow_change or len(video_frames) < 2:
             return [0.0 for _ in video_frames]
 
-        flows = self._compute_raft_flows(video_frames)
+        # 如果提供了缓存的光流，直接使用，否则重新计算
+        if cached_flows is not None:
+            flows = cached_flows
+        else:
+            flows = self._compute_raft_flows(video_frames)
         flow_diffs: List[float] = [0.0]
 
         for idx in range(1, len(video_frames)):
