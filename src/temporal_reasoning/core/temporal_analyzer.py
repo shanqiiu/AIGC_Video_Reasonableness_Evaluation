@@ -270,7 +270,7 @@ class TemporalReasoningAnalyzer:
         # 移除 None 值
         filtered_structure_metadata = {k: v for k, v in filtered_structure_metadata.items() if v is not None}
         
-        # 保存运动分析的metadata（包含frame_stats，用于可视化）
+        # 保存运动分析的metadata（包含frame_stats和平滑度数据，用于可视化）
         motion_metrics = {}
         if motion_metadata:
             motion_metrics = {
@@ -278,7 +278,9 @@ class TemporalReasoningAnalyzer:
                 "similarity_threshold": motion_metadata.get("similarity_threshold"),
                 "hist_diff_threshold": motion_metadata.get("hist_diff_threshold"),
                 "baseline_motion": motion_metadata.get("baseline_motion"),
-                "frame_stats": motion_metadata.get("frame_stats"),  # 用于可视化
+                "frame_stats": motion_metadata.get("frame_stats"),  # 用于可视化（mask区域）
+                "smoothness_scores": motion_metadata.get("smoothness_scores"),  # 全局平滑度分数
+                "smoothness_timestamps": motion_metadata.get("smoothness_timestamps"),  # 平滑度时间戳
             }
             # 移除 None 值
             motion_metrics = {k: v for k, v in motion_metrics.items() if v is not None}
