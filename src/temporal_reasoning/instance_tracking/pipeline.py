@@ -953,6 +953,10 @@ class TemporalCoherencePipeline:
         # 需要转换为每帧的mask列表，对每个对象分别分析
         
         all_anomalies: List[Dict[str, Any]] = []
+        # 收集所有对象的frame_stats（用于可视化）
+        all_frame_stats: List[Dict[str, Any]] = []
+        # 保存第一个对象的baseline_motion和阈值（用于可视化）
+        first_baseline_motion: Optional[float] = None
         
         # 收集所有对象的ID
         all_object_ids = set()
@@ -1041,12 +1045,31 @@ class TemporalCoherencePipeline:
                         anomaly['type'] = 'structural_region_temporal_change'
                         anomaly['modality'] = 'structure'
                         all_anomalies.append(anomaly)
+                    
+                    # 收集frame_stats（用于可视化）
+                    region_metadata = region_result.get('metadata', {})
+                    region_frame_stats = region_metadata.get('frame_stats', [])
+                    if region_frame_stats:
+                        # 为每个frame_stat添加object_id信息
+                        for stat in region_frame_stats:
+                            stat_with_obj = stat.copy()
+                            stat_with_obj['object_id'] = obj_id
+                            stat_with_obj['class_name'] = class_name
+                            all_frame_stats.append(stat_with_obj)
+                    
+                    # 保存第一个对象的baseline_motion（用于可视化）
+                    if first_baseline_motion is None:
+                        first_baseline_motion = region_metadata.get('baseline_motion')
                 except Exception as e:
                     print(f"[警告] 对象 {obj_id} 的区域时序变化检测失败: {e}")
                     continue
         
         if all_anomalies:
             print(f"[区域时序分析] 检测到 {len(all_anomalies)} 个区域时序变化异常")
+        
+        # 将收集的frame_stats保存到实例变量，供后续使用
+        self._region_temporal_frame_stats = all_frame_stats
+        self._region_temporal_baseline_motion = first_baseline_motion
         
         return all_anomalies
 

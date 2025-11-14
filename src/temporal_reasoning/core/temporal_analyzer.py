@@ -293,6 +293,55 @@ class TemporalReasoningAnalyzer:
             # 移除 None 值
             motion_metrics = {k: v for k, v in motion_metrics.items() if v is not None}
         
+        # 如果步骤2没有frame_stats，尝试从步骤1的区域时序分析中获取（合并所有对象）
+        if not motion_metrics.get("frame_stats") and video_path and self.structure_pipeline:
+            if hasattr(self.structure_pipeline, '_region_temporal_frame_stats'):
+                region_frame_stats = self.structure_pipeline._region_temporal_frame_stats
+                if region_frame_stats:
+                    # 合并所有对象的frame_stats（按timestamp分组，取平均值或第一个）
+                    import pandas as pd
+                    try:
+                        df = pd.DataFrame(region_frame_stats)
+                        if 'timestamp' in df.columns:
+                            # 按timestamp分组，取平均值（如果有多个对象在同一时间戳）
+                            df_grouped = df.groupby('timestamp').agg({
+                                'motion_value': 'mean',
+                                'motion_change': 'mean',
+                                'hist_similarity': 'mean',
+                                'hist_diff': 'mean' if 'hist_diff' in df.columns else 'first',
+                            }).reset_index()
+                            # 转换为列表格式
+                            merged_frame_stats = df_grouped.to_dict('records')
+                            motion_metrics["frame_stats"] = merged_frame_stats
+                        else:
+                            # 如果没有timestamp，直接使用所有frame_stats
+                            motion_metrics["frame_stats"] = region_frame_stats
+                        
+                        # 从第一个对象的结果中获取阈值和baseline信息（如果还没有）
+                        # baseline_motion 在 metadata 中，不在 frame_stats 中，需要从 RegionTemporalChangeDetector 的结果中获取
+                        # 但我们已经收集了 frame_stats，所以需要从其他地方获取 baseline_motion
+                        # 实际上，我们需要在收集 frame_stats 时也保存 metadata
+                        
+                        # 从配置中获取阈值（如果还没有）
+                        if self.structure_pipeline.config.region_temporal_config:
+                            region_config = self.structure_pipeline.config.region_temporal_config
+                            if not motion_metrics.get("motion_threshold"):
+                                motion_metrics["motion_threshold"] = region_config.motion_threshold
+                            if not motion_metrics.get("similarity_threshold"):
+                                motion_metrics["similarity_threshold"] = region_config.similarity_threshold
+                            if not motion_metrics.get("hist_diff_threshold"):
+                                motion_metrics["hist_diff_threshold"] = region_config.hist_diff_threshold
+                        
+                        # baseline_motion 从步骤1保存的值中获取
+                        if not motion_metrics.get("baseline_motion"):
+                            if hasattr(self.structure_pipeline, '_region_temporal_baseline_motion'):
+                                baseline = self.structure_pipeline._region_temporal_baseline_motion
+                                if baseline is not None:
+                                    motion_metrics["baseline_motion"] = baseline
+                    except Exception as e:
+                        print(f"[警告] 合并frame_stats失败: {e}，使用原始数据")
+                        motion_metrics["frame_stats"] = region_frame_stats
+        
         result = {
             "motion_reasonableness_score": float(final_motion_score),
             "structure_stability_score": float(final_structure_score),
