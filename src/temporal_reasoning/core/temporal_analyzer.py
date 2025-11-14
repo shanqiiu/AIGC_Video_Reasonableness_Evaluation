@@ -257,6 +257,19 @@ class TemporalReasoningAnalyzer:
         # 收集所有阈值配置
         thresholds_info = self._collect_thresholds_info()
         
+        # 只保留必要的metadata字段，避免包含大量数据（如video_object_data、frame_states等）
+        structure_metadata = structure_output.metadata or {}
+        filtered_structure_metadata = {
+            "objects_count": structure_metadata.get("objects_count"),
+            "tracking_result_length": structure_metadata.get("tracking_result_length"),
+            "total_frames": structure_metadata.get("total_frames"),
+            "step": structure_metadata.get("step"),
+            "detection_failures": structure_metadata.get("detection_failures"),
+            # 注意：不包含 video_object_data、frame_states 等大型数据，这些数据会导致JSON文件过大
+        }
+        # 移除 None 值
+        filtered_structure_metadata = {k: v for k, v in filtered_structure_metadata.items() if v is not None}
+        
         result = {
             "motion_reasonableness_score": float(final_motion_score),
             "structure_stability_score": float(final_structure_score),
@@ -267,7 +280,7 @@ class TemporalReasoningAnalyzer:
                 "coherence_score": float(structure_output.score),
                 "vanish_score": float(structure_output.vanish_score),
                 "emerge_score": float(structure_output.emerge_score),
-                **structure_output.metadata,
+                **filtered_structure_metadata,
             },
             "per_frame_anomaly_detection": per_frame_anomaly_detection,
             "thresholds": thresholds_info,
@@ -322,11 +335,11 @@ class TemporalReasoningAnalyzer:
                 physiological_by_frame[frame_id] = []
             physiological_by_frame[frame_id].append(anomaly)
         
-        # 获取结构分析的每帧信息
+        # 获取结构分析的每帧信息（只保留必要的统计信息，避免包含大量数据）
         structure_frame_states = structure_output.metadata.get('frame_states', [])
         structure_frame_dict = {state.get('frame_index', -1): state for state in structure_frame_states}
         
-        # 为每一帧创建信息
+        # 为每一帧创建信息（只包含异常和基本统计，不包含详细状态数据）
         for frame_idx in range(total_frames):
             frame_info = {
                 "frame_index": frame_idx,
@@ -338,7 +351,6 @@ class TemporalReasoningAnalyzer:
                 "structure": {
                     "anomalies": structure_by_frame.get(frame_idx, []),
                     "anomaly_count": len(structure_by_frame.get(frame_idx, [])),
-                    "frame_state": structure_frame_dict.get(frame_idx, {}),
                 },
                 "physiological": {
                     "anomalies": physiological_by_frame.get(frame_idx, []),
@@ -346,7 +358,7 @@ class TemporalReasoningAnalyzer:
                 },
             }
             
-            # 添加结构分析的详细值（如果可用）
+            # 只添加结构分析的基本统计值（不包含完整的frame_state，避免数据过大）
             if frame_idx in structure_frame_dict:
                 frame_state = structure_frame_dict[frame_idx]
                 frame_info["structure"].update({
