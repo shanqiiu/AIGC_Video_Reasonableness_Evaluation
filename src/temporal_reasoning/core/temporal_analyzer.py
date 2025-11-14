@@ -188,7 +188,7 @@ class TemporalReasoningAnalyzer:
             self.motion_analyzer.config.motion_discontinuity_threshold = (
                 self.config.thresholds.motion_discontinuity_threshold
             )
-        motion_score, motion_anomalies = self.motion_analyzer.analyze(video_frames, fps=fps, masks=masks)
+        motion_score, motion_anomalies, motion_metadata = self.motion_analyzer.analyze(video_frames, fps=fps, masks=masks)
 
         # 3. 关键点分析（可选）
         if self.keypoint_analyzer is not None:
@@ -270,6 +270,19 @@ class TemporalReasoningAnalyzer:
         # 移除 None 值
         filtered_structure_metadata = {k: v for k, v in filtered_structure_metadata.items() if v is not None}
         
+        # 保存运动分析的metadata（包含frame_stats，用于可视化）
+        motion_metrics = {}
+        if motion_metadata:
+            motion_metrics = {
+                "motion_threshold": motion_metadata.get("motion_threshold"),
+                "similarity_threshold": motion_metadata.get("similarity_threshold"),
+                "hist_diff_threshold": motion_metadata.get("hist_diff_threshold"),
+                "baseline_motion": motion_metadata.get("baseline_motion"),
+                "frame_stats": motion_metadata.get("frame_stats"),  # 用于可视化
+            }
+            # 移除 None 值
+            motion_metrics = {k: v for k, v in motion_metrics.items() if v is not None}
+        
         result = {
             "motion_reasonableness_score": float(final_motion_score),
             "structure_stability_score": float(final_structure_score),
@@ -282,6 +295,7 @@ class TemporalReasoningAnalyzer:
                 "emerge_score": float(structure_output.emerge_score),
                 **filtered_structure_metadata,
             },
+            "motion_metrics": motion_metrics,  # 添加运动分析的metadata
             "per_frame_anomaly_detection": per_frame_anomaly_detection,
             "thresholds": thresholds_info,
         }

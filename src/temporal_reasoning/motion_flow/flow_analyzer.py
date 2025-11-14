@@ -58,7 +58,7 @@ class MotionFlowAnalyzer:
         video_frames: List[np.ndarray],
         fps: float = 30.0,
         masks: Optional[List[Optional[np.ndarray]]] = None
-    ) -> Tuple[float, List[Dict]]:
+    ) -> Tuple[float, List[Dict], Optional[Dict]]:
         """
         分析视频运动平滑度
         
@@ -68,12 +68,13 @@ class MotionFlowAnalyzer:
             masks: 可选的mask序列，每帧一个mask（bool或0/1数组），用于只计算mask区域内的光流变化率
         
         Returns:
-            (motion_score, anomalies): 
+            (motion_score, anomalies, motion_metadata): 
             - motion_score: 运动合理性得分 (0-1)
             - anomalies: 运动异常列表
+            - motion_metadata: 运动分析的元数据（包含frame_stats等，用于可视化），如果没有mask则为None
         """
         if len(video_frames) < 2:
-            return 1.0, []
+            return 1.0, [], None
         
         if self.raft_model is None:
             raise RuntimeError(
@@ -95,14 +96,14 @@ class MotionFlowAnalyzer:
                 )
         
         if not optical_flows:
-            return 1.0, []
+            return 1.0, [], None
         
         # 2. 计算运动平滑度
         print("正在分析运动平滑度...")
         motion_smoothness = compute_motion_smoothness(optical_flows)
         
         if not motion_smoothness:
-            return 1.0, []
+            return 1.0, [], None
         
         # 3. 检测运动突变（直接复用RegionTemporalChangeDetector，避免代码重复）
         print("正在检测运动突变...")
@@ -134,9 +135,12 @@ class MotionFlowAnalyzer:
                 label="motion_region"
             )
             motion_anomalies = result["anomalies"]
+            # 保存metadata（包含frame_stats，用于可视化）
+            motion_metadata = result.get("metadata", {})
         else:
             # 如果没有mask，返回空列表（需要mask才能进行检测）
             motion_anomalies = []
+            motion_metadata = None
         
         # 4. 计算得分
         base_score = float(np.mean(motion_smoothness))
@@ -154,7 +158,7 @@ class MotionFlowAnalyzer:
         if getattr(self.config, "enable_visualization", False):
             self._save_visualizations(video_frames, optical_flows, motion_anomalies)
         
-        return final_score, motion_anomalies
+        return final_score, motion_anomalies, motion_metadata
 
     @staticmethod
     def _flow_to_color(u: np.ndarray, v: np.ndarray) -> np.ndarray:

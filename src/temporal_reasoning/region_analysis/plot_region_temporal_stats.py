@@ -14,12 +14,19 @@ import numpy as np
 import pandas as pd
 
 
-def load_report(report_path: Path, region: str) -> dict:
-    """读取 JSON 报告并返回指定区域的数据"""
+def load_report(report_path: Path, region: str = "motion_region") -> dict:
+    """
+    读取 JSON 报告并返回指定区域的数据
+    
+    支持两种报告格式：
+    1. run_region_temporal_analysis.py 的输出：analysis.regions[region].metadata.frame_stats
+    2. run_analysis.py 的输出：motion_metrics.frame_stats
+    """
     data = json.loads(report_path.read_text(encoding="utf-8"))
     analysis = data.get("analysis", {})
     regions = analysis.get("regions", {})
 
+    # 格式1: run_region_temporal_analysis.py 的输出格式
     if regions:
         if region not in regions:
             raise ValueError(
@@ -27,6 +34,16 @@ def load_report(report_path: Path, region: str) -> dict:
             )
         metadata = regions[region].get("metadata", {})
         frame_stats = metadata.get("frame_stats", [])
+    # 格式2: run_analysis.py 的输出格式（motion_metrics）
+    elif "motion_metrics" in data:
+        metadata = data.get("motion_metrics", {})
+        frame_stats = metadata.get("frame_stats", [])
+        if not frame_stats:
+            raise ValueError(
+                f"{report_path} 中没有 frame_stats 数据。"
+                "请确认分析时使用了mask（结构分析）才能生成运动检测的frame_stats。"
+            )
+    # 格式3: 旧格式（兼容性）
     else:
         metadata = analysis.get("metadata", {})
         frame_stats = metadata.get("frame_stats", [])
@@ -37,14 +54,18 @@ def load_report(report_path: Path, region: str) -> dict:
         raise ValueError(
             f"{report_path} 中区域 '{region}' 没有 frame_stats 数据，请确认分析时是否开启 --debug_stats。"
         )
+    
+    # 从 video_info 或顶层获取 fps
+    fps = data.get("fps") or data.get("video_info", {}).get("fps", 0.0)
+    
     return {
         "frame_stats": frame_stats,
         "motion_threshold": metadata.get("motion_threshold", 0.0),
         "similarity_threshold": metadata.get("similarity_threshold", 0.0),
         "hist_diff_threshold": metadata.get("hist_diff_threshold"),
         "baseline_motion": metadata.get("baseline_motion", 0.0),
-        "fps": data.get("fps", 0.0),
-        "video_path": data.get("video_path", ""),
+        "fps": fps,
+        "video_path": data.get("video_path") or data.get("video_info", {}).get("path", ""),
         "region": region,
     }
 
@@ -134,8 +155,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--title", help="图像标题，例如视频名")
     parser.add_argument(
         "--region",
-        default="mouth",
-        help="要可视化的区域名称（默认: mouth，旧报告仅支持 mouth）。",
+        default="motion_region",
+        help="要可视化的区域名称（默认: motion_region，用于run_analysis.py的输出；"
+             "对于run_region_temporal_analysis.py的输出，使用mouth、left_eye等）。",
     )
     return parser.parse_args()
 
