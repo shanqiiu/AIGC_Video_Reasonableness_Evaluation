@@ -42,6 +42,20 @@ def load_anomaly_data(result_path: Path) -> Dict:
                 if "structural_region_temporal_change" in anomaly_type or "region_temporal" in anomaly_type:
                     temporal_change_anomalies.append(anomaly)
     
+    # 按对象分组时序变化异常（用于详细可视化）
+    temporal_anomalies_by_object = {}
+    for anomaly in temporal_change_anomalies:
+        if isinstance(anomaly, dict):
+            metadata = anomaly.get("metadata", {})
+            object_id = metadata.get("object_id")
+            if object_id is not None:
+                if object_id not in temporal_anomalies_by_object:
+                    temporal_anomalies_by_object[object_id] = {
+                        "anomalies": [],
+                        "class_name": metadata.get("class_name", ""),
+                    }
+                temporal_anomalies_by_object[object_id]["anomalies"].append(anomaly)
+    
     # 提取运动异常（步骤2的光流分析中的异常）
     motion_anomalies = []
     if "anomalies" in data:
@@ -91,6 +105,7 @@ def load_anomaly_data(result_path: Path) -> Dict:
         "temporal_frame_stats": temporal_frame_stats,
         "temporal_baseline": temporal_baseline,
         "temporal_threshold": temporal_threshold,
+        "temporal_anomalies_by_object": temporal_anomalies_by_object,
     }
 
 
