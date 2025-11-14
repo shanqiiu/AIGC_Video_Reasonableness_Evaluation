@@ -13,10 +13,13 @@ import cv2
 from .raft_wrapper import RAFTWrapper
 from .motion_smoothness import (
     compute_motion_smoothness,
-    detect_motion_discontinuities,
     compute_flow_statistics
 )
 from ..core.config import RAFTConfig
+from ..region_analysis.region_temporal_change_detector import (
+    RegionTemporalChangeDetector,
+    RegionTemporalChangeConfig
+)
 
 
 class MotionFlowAnalyzer:
@@ -104,18 +107,33 @@ class MotionFlowAnalyzer:
         if not motion_smoothness:
             return 1.0, []
         
-        # 3. 检测运动突变
+        # 3. 检测运动突变（直接复用RegionTemporalChangeDetector，避免代码重复）
         print("正在检测运动突变...")
-        # 从配置中获取阈值，如果使用mask则使用更高的阈值（0.5-1.0）
-        base_threshold = getattr(self.config, 'motion_discontinuity_threshold', 0.3)
-        # 如果提供了mask，使用更高的阈值（因为mask区域的变化率更稳定）
-        threshold = 0.5 if masks is not None else base_threshold
-        motion_anomalies = detect_motion_discontinuities(
-            optical_flows,
-            threshold=threshold,
-            fps=fps,
-            masks=masks
-        )
+        if masks is not None:
+            # 构建RegionTemporalChangeConfig（从RAFTConfig映射参数）
+            region_config = RegionTemporalChangeConfig(
+                motion_threshold=getattr(self.config, 'motion_discontinuity_threshold', 6.0),
+                similarity_threshold=getattr(self.config, 'motion_similarity_threshold', 0.25),
+                hist_diff_threshold=getattr(self.config, 'motion_hist_diff_threshold', 0.012),
+                consecutive_frames=getattr(self.config, 'motion_consecutive_frames', 1),
+                baseline_window=getattr(self.config, 'motion_baseline_window', 5),
+                use_color_similarity=getattr(self.config, 'motion_use_color_similarity', True),
+                use_flow_change=getattr(self.config, 'motion_use_flow_change', True),
+                min_roi_size=getattr(self.config, 'motion_min_roi_size', 12),
+            )
+            
+            # 直接复用RegionTemporalChangeDetector（它会使用已有的raft_model，避免重复初始化）
+            detector = RegionTemporalChangeDetector(self, region_config)
+            result = detector.analyze(
+                video_frames=video_frames,
+                mouth_masks=masks,  # 参数名是mouth_masks，但实际可以是任意mask
+                fps=fps,
+                label="motion_region"
+            )
+            motion_anomalies = result["anomalies"]
+        else:
+            # 如果没有mask，返回空列表（需要mask才能进行检测）
+            motion_anomalies = []
         
         # 4. 计算得分
         base_score = float(np.mean(motion_smoothness))
