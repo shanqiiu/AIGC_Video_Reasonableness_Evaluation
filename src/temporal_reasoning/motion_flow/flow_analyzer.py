@@ -5,7 +5,7 @@
 
 import numpy as np
 from pathlib import Path
-from typing import List, Tuple, Dict
+from typing import List, Tuple, Dict, Optional
 from tqdm import tqdm
 import torch
 import cv2
@@ -56,7 +56,8 @@ class MotionFlowAnalyzer:
     def analyze(
         self,
         video_frames: List[np.ndarray],
-        fps: float = 30.0
+        fps: float = 30.0,
+        masks: Optional[List[Optional[np.ndarray]]] = None
     ) -> Tuple[float, List[Dict]]:
         """
         分析视频运动平滑度
@@ -64,6 +65,7 @@ class MotionFlowAnalyzer:
         Args:
             video_frames: 视频帧序列，每帧为RGB图像 (H, W, 3)
             fps: 视频帧率，用于计算时间戳
+            masks: 可选的mask序列，每帧一个mask（bool或0/1数组），用于只计算mask区域内的光流变化率
         
         Returns:
             (motion_score, anomalies): 
@@ -104,12 +106,15 @@ class MotionFlowAnalyzer:
         
         # 3. 检测运动突变
         print("正在检测运动突变...")
-        # 从配置中获取阈值
-        threshold = getattr(self.config, 'motion_discontinuity_threshold', 0.3)
+        # 从配置中获取阈值，如果使用mask则使用更高的阈值（0.5-1.0）
+        base_threshold = getattr(self.config, 'motion_discontinuity_threshold', 0.3)
+        # 如果提供了mask，使用更高的阈值（因为mask区域的变化率更稳定）
+        threshold = 0.5 if masks is not None else base_threshold
         motion_anomalies = detect_motion_discontinuities(
             optical_flows,
             threshold=threshold,
-            fps=fps
+            fps=fps,
+            masks=masks
         )
         
         # 4. 计算得分

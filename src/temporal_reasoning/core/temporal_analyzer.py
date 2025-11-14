@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List, Optional, Sequence
+from typing import Any, Dict, List, Optional, Sequence
 
 import numpy as np
 import torch
@@ -173,17 +173,22 @@ class TemporalReasoningAnalyzer:
             print(f"文本提示：{', '.join(text_prompts)}")
         print("=" * 50)
 
-        # 1. 光流分析
-        print("\n>>> 步骤1: 光流分析")
+        # 1. 结构分析（如果提供了video_path，先进行结构分析以获取masks）
+        print("\n>>> 步骤1: 实例追踪 / 结构分析")
+        structure_output = self._analyze_structure(video_path, text_prompts)
+        
+        # 从结构分析中提取masks（合并所有检测到的对象）
+        masks = None
+        if video_path and structure_output.metadata:
+            masks = self._extract_combined_masks_from_structure(structure_output.metadata, len(video_frames))
+
+        # 2. 光流分析（使用从结构分析获取的masks）
+        print("\n>>> 步骤2: 光流分析")
         if hasattr(self.config, "thresholds"):
             self.motion_analyzer.config.motion_discontinuity_threshold = (
                 self.config.thresholds.motion_discontinuity_threshold
             )
-        motion_score, motion_anomalies = self.motion_analyzer.analyze(video_frames, fps=fps)
-
-        # 2. 结构分析
-        print("\n>>> 步骤2: 实例追踪 / 结构分析")
-        structure_output = self._analyze_structure(video_path, text_prompts)
+        motion_score, motion_anomalies = self.motion_analyzer.analyze(video_frames, fps=fps, masks=masks)
 
         # 3. 关键点分析（可选）
         if self.keypoint_analyzer is not None:
@@ -449,4 +454,74 @@ class TemporalReasoningAnalyzer:
                 anomalies=[],
                 metadata={"error": str(exc)},
             )
+    
+    def _extract_combined_masks_from_structure(
+        self,
+        structure_metadata: Dict[str, object],
+        num_frames: int
+    ) -> Optional[List[Optional[np.ndarray]]]:
+        """
+        从结构分析的metadata中提取合并后的masks
+        
+        Args:
+            structure_metadata: 结构分析的metadata字典
+            num_frames: 视频帧数
+        
+        Returns:
+            masks列表，每帧一个mask（合并所有对象的mask），如果无法提取则返回None
+        """
+        # 尝试从metadata中获取video_object_data
+        video_object_data = structure_metadata.get('video_object_data')
+        if not video_object_data or not isinstance(video_object_data, list):
+            return None
+        
+        # 确保长度匹配
+        min_len = min(len(video_object_data), num_frames)
+        combined_masks = []
+        
+        for frame_idx in range(min_len):
+            frame_data = video_object_data[frame_idx]
+            if not isinstance(frame_data, dict) or not frame_data:
+                combined_masks.append(None)
+                continue
+            
+            # 合并该帧所有对象的mask
+            frame_mask = None
+            for obj_id, obj_info in frame_data.items():
+                if not isinstance(obj_info, dict):
+                    continue
+                
+                mask_data = obj_info.get('mask')
+                if mask_data is None:
+                    continue
+                
+                # 转换mask为numpy数组
+                if isinstance(mask_data, list):
+                    mask_np = np.array(mask_data, dtype=bool)
+                elif isinstance(mask_data, torch.Tensor):
+                    mask_np = mask_data.cpu().numpy().astype(bool)
+                else:
+                    mask_np = np.array(mask_data, dtype=bool)
+                
+                # 确保mask是2D
+                if mask_np.ndim == 3 and mask_np.shape[0] == 1:
+                    mask_np = mask_np[0]
+                elif mask_np.ndim == 3:
+                    mask_np = mask_np[:, :, 0] if mask_np.shape[2] == 1 else mask_np
+                
+                # 合并到frame_mask
+                if frame_mask is None:
+                    frame_mask = mask_np.astype(bool)
+                else:
+                    # 确保形状一致
+                    if frame_mask.shape == mask_np.shape:
+                        frame_mask = frame_mask | mask_np.astype(bool)
+            
+            combined_masks.append(frame_mask)
+        
+        # 如果所有帧都没有mask，返回None
+        if all(m is None for m in combined_masks):
+            return None
+        
+        return combined_masks
 

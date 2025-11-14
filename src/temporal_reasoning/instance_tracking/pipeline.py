@@ -532,6 +532,7 @@ class TemporalCoherencePipeline:
             "detection_failures": detection_failure_stats,
             "frame_states": frame_states,  # 每帧的状态信息
             "thresholds": thresholds_info,  # 阈值配置
+            "video_object_data": video_object_data,  # 完整的视频对象数据（包含每帧的mask信息），用于光流分析
         }
         return TemporalCoherenceResult(
             coherence_score=coherence_score,
