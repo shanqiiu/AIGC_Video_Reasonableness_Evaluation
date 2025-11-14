@@ -105,9 +105,10 @@ class MotionFlowAnalyzer:
         if not motion_smoothness:
             return 1.0, [], None
         
+        # 初始化motion_metadata（用于保存平滑度数据和后续的检测结果）
+        motion_metadata = {}
+        
         # 保存平滑度数据到metadata（用于可视化）
-        if motion_metadata is None:
-            motion_metadata = {}
         # 计算时间戳（用于可视化）
         timestamps = [i / fps for i in range(len(motion_smoothness))]
         motion_metadata["smoothness_scores"] = motion_smoothness
@@ -146,15 +147,11 @@ class MotionFlowAnalyzer:
             # 保存metadata（包含frame_stats，用于可视化）
             # 注意：保留之前保存的smoothness_scores
             region_metadata = result.get("metadata", {})
-            if motion_metadata is None:
-                motion_metadata = {}
             motion_metadata.update(region_metadata)
         else:
             # 如果没有mask，返回空列表（需要mask才能进行检测）
             # 注意：保留之前保存的smoothness_scores
             motion_anomalies = []
-            if motion_metadata is None:
-                motion_metadata = {}
         
         # 4. 计算得分
         base_score = float(np.mean(motion_smoothness))
