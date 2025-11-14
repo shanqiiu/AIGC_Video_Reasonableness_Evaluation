@@ -66,7 +66,8 @@ class TemporalReasoningAnalyzer:
             # 2. 结构一致性分析管线
             print("\n[2/4] 初始化实例追踪 / 结构分析管线...")
             coherence_config = self._build_temporal_coherence_config()
-            self.structure_pipeline = TemporalCoherencePipeline(coherence_config)
+            # 将已初始化的motion_analyzer传递给structure_pipeline，避免重复初始化
+            self.structure_pipeline = TemporalCoherencePipeline(coherence_config, flow_analyzer=self.motion_analyzer)
             self.structure_pipeline.initialize()
 
             # 3. 关键点分析器（可选，如果配置中禁用了则跳过）

@@ -98,7 +98,7 @@ class TemporalCoherencePipeline:
         [100, 60, 0],
     ], dtype=np.uint8)
 
-    def __init__(self, config: TemporalCoherenceConfig):
+    def __init__(self, config: TemporalCoherenceConfig, flow_analyzer: Optional[Any] = None):
         self.config = config
         self.detection_engine = Sam2DetectionEngine(
             DetectionConfig(
@@ -114,6 +114,8 @@ class TemporalCoherencePipeline:
         )
         self.cotracker_model: Optional[CoTrackerPredictor] = None
         self.event_evaluator: Optional[TemporalEventEvaluator] = None
+        # 复用外部传入的光流分析器，避免重复初始化
+        self._flow_analyzer = flow_analyzer
 
     def initialize(self) -> None:
         self.detection_engine.initialize()
@@ -925,15 +927,19 @@ class TemporalCoherencePipeline:
         if not video_object_data or len(video_object_data) == 0:
             return []
         
-        # 初始化光流分析器（如果还没有）
-        from src.temporal_reasoning.motion_flow.flow_analyzer import MotionFlowAnalyzer
-        from src.temporal_reasoning.core.config import RAFTConfig
-        
-        if not hasattr(self, '_flow_analyzer') or self._flow_analyzer is None:
-            # 使用默认RAFT配置
+        # 使用传入的光流分析器（如果已提供），避免重复初始化
+        # 如果没有提供，则创建一个新的（这种情况应该很少，因为temporal_analyzer已经初始化了）
+        if self._flow_analyzer is None:
+            from src.temporal_reasoning.motion_flow.flow_analyzer import MotionFlowAnalyzer
+            from src.temporal_reasoning.core.config import RAFTConfig
+            print("[警告] 未提供光流分析器，将创建新实例（这会导致重复初始化）")
             raft_config = RAFTConfig()
             self._flow_analyzer = MotionFlowAnalyzer(raft_config)
             self._flow_analyzer.initialize()
+        else:
+            # 确保已初始化
+            if self._flow_analyzer.raft_model is None:
+                self._flow_analyzer.initialize()
         
         # 使用配置的区域时序变化检测配置，或使用默认配置
         region_config = self.config.region_temporal_config
