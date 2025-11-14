@@ -16,10 +16,7 @@ from .motion_smoothness import (
     compute_flow_statistics
 )
 from ..core.config import RAFTConfig
-from ..region_analysis.region_temporal_change_detector import (
-    RegionTemporalChangeDetector,
-    RegionTemporalChangeConfig
-)
+# 注意：RegionTemporalChangeDetector 在函数内部导入，避免循环导入
 
 
 class MotionFlowAnalyzer:
@@ -110,6 +107,12 @@ class MotionFlowAnalyzer:
         # 3. 检测运动突变（直接复用RegionTemporalChangeDetector，避免代码重复）
         print("正在检测运动突变...")
         if masks is not None:
+            # 延迟导入，避免循环导入
+            from ..region_analysis.region_temporal_change_detector import (
+                RegionTemporalChangeDetector,
+                RegionTemporalChangeConfig
+            )
+            
             # 构建RegionTemporalChangeConfig（从RAFTConfig映射参数）
             region_config = RegionTemporalChangeConfig(
                 motion_threshold=getattr(self.config, 'motion_discontinuity_threshold', 6.0),
